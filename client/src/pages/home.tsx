@@ -4,7 +4,7 @@ import GiftNotification from "@/components/gift-notification";
 import ChildCard from "@/components/child-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Link2, History } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,23 +19,6 @@ export default function Home() {
 
   const handleAddChild = () => {
     setLocation("/add-child");
-  };
-
-  const handleCreateGiftLink = () => {
-    if (children.length === 0) {
-      setLocation("/add-child");
-      return;
-    }
-    // Navigate to the first child's details to generate a gift link
-    setLocation(`/portfolio/${children[0].id}`);
-  };
-
-  const handleViewTimeline = () => {
-    if (children.length === 0) {
-      setLocation("/add-child");
-      return;
-    }
-    setLocation(`/timeline/${children[0].id}`);
   };
 
   if (isLoading) {
@@ -92,28 +75,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div>
-          <h2 className="text-lg sm:text-xl font-bold text-foreground mb-3 sm:mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <Button 
-              onClick={handleCreateGiftLink}
-              className="bg-primary text-primary-foreground p-3 sm:p-4 h-auto flex-col"
-              data-testid="button-create-gift-link"
-            >
-              <Link2 className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-              <span className="font-semibold text-xs sm:text-sm">Create Gift Link</span>
-            </Button>
-            <Button 
-              onClick={handleViewTimeline}
-              className="bg-accent text-accent-foreground p-3 sm:p-4 h-auto flex-col"
-              data-testid="button-view-timeline"
-            >
-              <History className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-              <span className="font-semibold text-xs sm:text-sm">View Timeline</span>
-            </Button>
-          </div>
-        </div>
 
         {/* Portfolio Summary */}
         {children.length > 0 && (

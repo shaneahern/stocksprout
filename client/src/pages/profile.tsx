@@ -5,9 +5,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera } from "lucide-react";
+import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera, Upload, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Profile() {
   const { user, logout, updateProfile } = useAuth();
@@ -18,18 +19,53 @@ export default function Profile() {
     profileImageUrl: user?.profileImageUrl || '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Camera functionality state
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [cameraMode, setCameraMode] = useState<'url' | 'camera'>('url');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Fetch real data for account overview
+  const { data: children = [] } = useQuery<any[]>({
+    queryKey: ["/api/children", user?.id],
+    enabled: !!user?.id,
+  });
+
+  // Calculate total portfolio value across all children
+  const totalPortfolioValue = children.reduce((sum: number, child: any) => {
+    return sum + (child.totalValue || 0);
+  }, 0);
 
   const handleLogout = () => {
     logout();
   };
 
   const handleEditSubmit = async () => {
+    // Validate that we have image data if we're in camera mode
+    if (capturedImage && !editData.profileImageUrl) {
+      alert('Image data is missing. Please try capturing again.');
+      return;
+    }
+    
     setIsLoading(true);
     try {
+      console.log('Updating profile with data:', {
+        ...editData,
+        profileImageUrl: editData.profileImageUrl ? `[Base64 data, length: ${editData.profileImageUrl.length}]` : 'null'
+      });
+      
       await updateProfile(editData);
       setIsEditing(false);
+      setIsCameraOpen(false); // Close camera dialog on success
+      setCapturedImage(null); // Clear captured image
+      setCameraMode('url'); // Reset to URL mode
+      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Failed to update profile:', error);
+      alert(`Failed to update profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -41,6 +77,75 @@ export default function Profile() {
       [field]: value
     }));
   };
+
+  // Camera functionality handlers
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } 
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraMode('camera');
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      alert('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (context) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        console.log('Photo captured, data URL length:', imageDataUrl.length);
+        setCapturedImage(imageDataUrl);
+        setEditData(prev => ({ ...prev, profileImageUrl: imageDataUrl }));
+        stopCamera();
+        // Don't close dialog immediately - let user see preview and decide
+      }
+    } else {
+      console.error('Video or canvas ref not available');
+    }
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    setEditData(prev => ({ ...prev, profileImageUrl: '' }));
+    startCamera();
+  };
+
+  const switchToUrlMode = () => {
+    stopCamera();
+    setCameraMode('url');
+  };
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   const handleSettings = () => {
     alert("Settings functionality would be implemented here");
@@ -70,33 +175,119 @@ export default function Profile() {
                   </AvatarFallback>
                 )}
               </Avatar>
-              <Dialog>
+              <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
                 <DialogTrigger asChild>
                   <Button
                     size="sm"
                     className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0"
                     variant="secondary"
+                    onClick={() => setIsCameraOpen(true)}
                   >
                     <Camera className="w-4 h-4" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Update Profile Picture</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="profileImageUrl">Image URL</Label>
-                      <Input
-                        id="profileImageUrl"
-                        value={editData.profileImageUrl}
-                        onChange={(e) => handleEditChange('profileImageUrl', e.target.value)}
-                        placeholder="Enter image URL"
-                      />
-                    </div>
-                    <Button onClick={handleEditSubmit} disabled={isLoading}>
-                      {isLoading ? 'Updating...' : 'Update Picture'}
-                    </Button>
+                    {/* Mode Selection */}
+                    {!capturedImage && cameraMode === 'url' && (
+                      <div className="flex space-x-2 mb-4">
+                        <Button
+                          variant={cameraMode === 'url' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setCameraMode('url')}
+                          className="flex-1"
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          URL
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={startCamera}
+                          className="flex-1"
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          Camera
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* URL Input Mode */}
+                    {cameraMode === 'url' && !capturedImage && (
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="profileImageUrl">Image URL</Label>
+                          <Input
+                            id="profileImageUrl"
+                            value={editData.profileImageUrl}
+                            onChange={(e) => handleEditChange('profileImageUrl', e.target.value)}
+                            placeholder="Enter image URL"
+                          />
+                        </div>
+                        <Button onClick={handleEditSubmit} disabled={isLoading} className="w-full">
+                          {isLoading ? 'Updating...' : 'Update Picture'}
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Camera Mode */}
+                    {cameraMode === 'camera' && !capturedImage && (
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-64 object-cover rounded-lg bg-gray-100"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={switchToUrlMode}
+                            className="absolute top-2 right-2"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button onClick={capturePhoto} className="flex-1">
+                            <Camera className="w-4 h-4 mr-2" />
+                            Take Photo
+                          </Button>
+                          <Button variant="outline" onClick={switchToUrlMode} className="flex-1">
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Captured Image Preview */}
+                    {capturedImage && (
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <img
+                            src={capturedImage}
+                            alt="Captured"
+                            className="w-full h-64 object-cover rounded-lg"
+                          />
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button onClick={handleEditSubmit} disabled={isLoading} className="flex-1">
+                            {isLoading ? 'Updating...' : 'Use This Photo'}
+                          </Button>
+                          <Button variant="outline" onClick={retakePhoto} className="flex-1">
+                            Retake
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Hidden canvas for image capture */}
+                    <canvas ref={canvasRef} className="hidden" />
                   </div>
                 </DialogContent>
               </Dialog>
@@ -120,11 +311,11 @@ export default function Profile() {
           <CardContent>
             <div className="grid grid-cols-2 gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold text-primary">2</p>
+                <p className="text-2xl font-bold text-primary">{children.length}</p>
                 <p className="text-sm text-muted-foreground">Children</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-success">$7,759</p>
+                <p className="text-2xl font-bold text-success">${totalPortfolioValue.toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground">Total Portfolio</p>
               </div>
             </div>

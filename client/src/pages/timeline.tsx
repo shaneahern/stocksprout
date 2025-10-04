@@ -7,13 +7,18 @@ import { ChildSelector } from "@/components/child-selector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Gift as GiftType, Investment } from "@shared/schema";
+import type { Gift as GiftType, Investment, Contributor } from "@shared/schema";
 
-type EnrichedGift = GiftType & { investment: Investment };
+type EnrichedGift = GiftType & { 
+  investment: Investment;
+  contributor?: Contributor | null;
+  giftGiverProfileImageUrl?: string | null;
+};
 
 export default function Timeline() {
   const [, params] = useRoute("/timeline/:childId");
@@ -223,14 +228,41 @@ export default function Timeline() {
                 <Card key={gift.id} className="relative" data-testid={`card-gift-${gift.id}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Gift className="w-5 h-5 text-white" />
-                      </div>
+                      {(gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl) ? (
+                        <Avatar className="w-10 h-10 flex-shrink-0">
+                          <AvatarImage 
+                            src={gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl || undefined} 
+                            alt={gift.contributor?.name || gift.giftGiverName}
+                          />
+                          <AvatarFallback className={`text-white text-sm font-semibold ${
+                            gift.contributor?.phone === null ? 
+                              'bg-gradient-to-br from-blue-500 to-blue-600' : // Parent purchase
+                              'bg-gradient-to-br from-green-500 to-green-600' // External gift
+                          }`}>
+                            {(gift.contributor?.name || gift.giftGiverName).split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          gift.contributor?.phone === null ? 
+                            'bg-gradient-to-br from-blue-500 to-blue-600' : // Parent purchase (no phone = user)
+                            'bg-gradient-to-br from-green-500 to-green-600' // External gift
+                        }`}>
+                          {gift.contributor?.phone === null ? (
+                            <User className="w-5 h-5 text-white" />
+                          ) : (
+                            <Gift className="w-5 h-5 text-white" />
+                          )}
+                        </div>
+                      )}
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
                           <h3 className="font-bold text-base">
-                            From {gift.giftGiverName}
+                            {gift.contributor?.phone === null ? 
+                              `Investment by ${gift.giftGiverName}` : // Parent purchase
+                              `From ${gift.giftGiverName}` // External gift
+                            }
                           </h3>
                           <Badge variant="outline" className="text-xs w-fit">
                             {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}

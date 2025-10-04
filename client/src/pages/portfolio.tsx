@@ -17,7 +17,8 @@ export default function Portfolio() {
   const childId = params?.childId;
 
   const { data: child } = useQuery<Child>({
-    queryKey: ["/api/children", childId],
+    queryKey: ["/api/children/by-id", childId],
+    enabled: !!childId,
   });
 
   const { data: holdings = [], isLoading } = useQuery<EnrichedHolding[]>({
@@ -83,10 +84,10 @@ export default function Portfolio() {
         <PortfolioChart holdings={holdings} />
 
         {/* Action Buttons */}
-        {child && (
+        {childId && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <PurchaseForChild childId={child.id} childName={child.name} />
-            <SproutRequestForm childId={child.id} childName={child.name} />
+            <PurchaseForChild childId={childId} childName={child?.name || "Child"} />
+            <SproutRequestForm childId={childId} childName={child?.name || "Child"} />
           </div>
         )}
 

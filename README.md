@@ -130,7 +130,6 @@ See **[REPLIT_DEPLOYMENT_GUIDE.md](./REPLIT_DEPLOYMENT_GUIDE.md)** for detailed 
 - **[SPROUT_REQUESTS.md](./SPROUT_REQUESTS.md)** - Contribution invitation system
 - **[REQUIREMENTS_VERIFICATION.md](./REQUIREMENTS_VERIFICATION.md)** - All requirements status
 - **[FEATURES_COMPLETE.md](./FEATURES_COMPLETE.md)** - Complete feature list
-- **[QUICK_START.md](./QUICK_START.md)** - Getting started guide
 - **[REPLIT_DEPLOYMENT_GUIDE.md](./REPLIT_DEPLOYMENT_GUIDE.md)** - Replit deployment
 
 ## 🎯 Key User Flows

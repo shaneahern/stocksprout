@@ -44,8 +44,10 @@ export const portfolioHoldings = pgTable("portfolio_holdings", {
 export const gifts = pgTable("gifts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   childId: varchar("child_id").notNull(),
+  contributorId: varchar("contributor_id"), // Optional - for authenticated contributors
   giftGiverName: text("gift_giver_name").notNull(),
   giftGiverEmail: text("gift_giver_email"),
+  giftGiverProfileImageUrl: text("gift_giver_profile_image_url"), // For guest contributors with profile photos
   investmentId: varchar("investment_id").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   shares: decimal("shares", { precision: 10, scale: 6 }).notNull(),
@@ -71,6 +73,7 @@ export const contributors = pgTable("contributors", {
   phone: text("phone"),
   name: text("name").notNull(),
   password: text("password"), // Optional - they can sign up later
+  profileImageUrl: text("profile_image_url"), // Optional - profile photo for contributors
   isRegistered: boolean("is_registered").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -178,6 +181,7 @@ export const insertContributorSchema = createInsertSchema(contributors).pick({
   phone: true,
   name: true,
   password: true,
+  profileImageUrl: true,
   isRegistered: true,
 });
 

@@ -13,6 +13,7 @@ import GiftGiver from "@/pages/gift-giver";
 import AddChild from "@/pages/add-child";
 import AuthPage from "@/pages/auth";
 import SproutRequestPage from "@/pages/sprout-request";
+import ContributorDashboard from "@/pages/contributor-dashboard";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/gift/:giftCode" component={GiftGiver} />
       <Route path="/sprout/:requestCode" component={SproutRequestPage} />
+      <Route path="/contributor-dashboard" component={ContributorDashboard} />
       <Route path="/">
         <ProtectedRoute>
           <Home />

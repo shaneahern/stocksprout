@@ -1,6 +1,6 @@
 # FutureVest - Replit Deployment Guide
 
-## 🚀 Quick Start on Replit
+## 🚀 Deploy to Replit
 
 ### Step 1: Upload to Replit
 1. Go to https://replit.com

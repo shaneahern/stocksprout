@@ -90,10 +90,13 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
       childId,
       giftGiverName: user?.name || 'Parent',
       giftGiverEmail: user?.email || undefined,
+      contributorId: user?.id || null, // Link to parent as contributor
+      giftGiverProfileImageUrl: user?.profileImageUrl || null, // Include parent's profile photo
       investmentId: selectedInvestment.id,
       amount: amountNum.toString(),
       message: `Investment purchase by ${user?.name}`,
       videoMessageUrl: undefined,
+      paymentId: newPaymentId,
     };
 
     purchaseMutation.mutate(purchaseData);
