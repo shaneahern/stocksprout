@@ -1,8 +1,16 @@
-# StockSprout Investment Platform
+# FutureVest Investment Platform
 
 ## Overview
 
-StockSprout is a modern investment platform that enables parents to set up investment portfolios for their children and allows family and friends to contribute gifts through investment purchases. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, and interactive timeline functionality.
+FutureVest (formerly StockSprout) is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, educational activities, and interactive timeline functionality.
+
+## Recent Changes (October 4, 2025)
+
+- **GitHub Import Setup**: Successfully imported and configured for Replit environment
+- **Database**: PostgreSQL database provisioned and schema migrated
+- **Deployment**: Configured for autoscale deployment with production build
+- **Environment**: Development server running on port 5000 with Vite HMR
+- **Dependencies**: All npm packages installed and working correctly
 
 ## User Preferences
 
