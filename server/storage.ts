@@ -30,7 +30,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, ilike, desc, and } from "drizzle-orm";
+import { eq, ilike, desc, and, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -79,6 +79,8 @@ export interface IStorage {
   getContributorByPhone(phone: string): Promise<Contributor | undefined>;
   createContributor(contributor: InsertContributor): Promise<Contributor>;
   updateContributor(id: string, updates: Partial<Contributor>): Promise<Contributor | undefined>;
+  linkGiftsToContributor(email: string, contributorId: string): Promise<void>;
+  getGiftsByContributor(contributorId: string): Promise<any[]>;
 
   // Sprout Requests
   getSproutRequest(id: string): Promise<SproutRequest | undefined>;
@@ -412,6 +414,18 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async linkGiftsToContributor(email: string, contributorId: string): Promise<void> {
+    // Find all gifts with this email that don't have a contributorId set
+    await db.update(gifts)
+      .set({ contributorId })
+      .where(
+        and(
+          eq(gifts.giftGiverEmail, email),
+          isNull(gifts.contributorId)
+        )
+      );
+  }
+
   async getSproutRequest(id: string): Promise<SproutRequest | undefined> {
     const [request] = await db.select().from(sproutRequests).where(eq(sproutRequests.id, id));
     return request;
@@ -504,6 +518,66 @@ export class DatabaseStorage implements IStorage {
     await db.update(recurringContributions)
       .set({ isActive: false })
       .where(eq(recurringContributions.id, id));
+  }
+
+  async getGiftsByContributor(contributorId: string): Promise<any[]> {
+    const results = await db
+      .select({
+        // Gift fields
+        id: gifts.id,
+        childId: gifts.childId,
+        contributorId: gifts.contributorId,
+        giftGiverName: gifts.giftGiverName,
+        giftGiverEmail: gifts.giftGiverEmail,
+        giftGiverProfileImageUrl: gifts.giftGiverProfileImageUrl,
+        investmentId: gifts.investmentId,
+        amount: gifts.amount,
+        shares: gifts.shares,
+        message: gifts.message,
+        videoMessageUrl: gifts.videoMessageUrl,
+        createdAt: gifts.createdAt,
+        status: gifts.status,
+        // Investment fields
+        investmentSymbol: investments.symbol,
+        investmentName: investments.name,
+        investmentCurrentPrice: investments.currentPrice,
+        // Child fields
+        childName: children.name,
+        childGiftCode: children.giftLinkCode,
+      })
+      .from(gifts)
+      .leftJoin(investments, eq(gifts.investmentId, investments.id))
+      .leftJoin(children, eq(gifts.childId, children.id))
+      .where(eq(gifts.contributorId, contributorId))
+      .orderBy(desc(gifts.createdAt));
+
+    // Transform the results to match the expected format
+    return results.map(row => ({
+      id: row.id,
+      childId: row.childId,
+      contributorId: row.contributorId,
+      giftGiverName: row.giftGiverName,
+      giftGiverEmail: row.giftGiverEmail,
+      giftGiverProfileImageUrl: row.giftGiverProfileImageUrl,
+      investmentId: row.investmentId,
+      amount: row.amount,
+      shares: row.shares,
+      message: row.message,
+      videoMessageUrl: row.videoMessageUrl,
+      createdAt: row.createdAt,
+      status: row.status,
+      investment: {
+        id: row.investmentId,
+        symbol: row.investmentSymbol,
+        name: row.investmentName,
+        currentPrice: row.investmentCurrentPrice,
+      },
+      child: {
+        id: row.childId,
+        name: row.childName,
+        giftCode: row.childGiftCode,
+      }
+    }));
   }
 }
 

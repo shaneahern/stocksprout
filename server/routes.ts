@@ -177,9 +177,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/children/:parentId", async (req, res) => {
     try {
       const children = await storage.getChildrenByParent(req.params.parentId);
-      res.json(children);
+      
+      // Enrich each child with portfolio value
+      const enrichedChildren = await Promise.all(
+        children.map(async (child) => {
+          const holdings = await storage.getPortfolioHoldingsByChild(child.id);
+          const totalValue = holdings.reduce((sum, holding) => {
+            return sum + parseFloat(holding.currentValue || "0");
+          }, 0);
+          
+          const totalCost = holdings.reduce((sum, holding) => {
+            return sum + (parseFloat(holding.shares || "0") * parseFloat(holding.averageCost || "0"));
+          }, 0);
+          
+          const totalGain = totalValue - totalCost;
+          
+          return {
+            ...child,
+            totalValue,
+            totalCost,
+            totalGain,
+          };
+        })
+      );
+      
+      res.json(enrichedChildren);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch children" });
+    }
+  });
+
+  app.get("/api/children/by-id/:childId", async (req, res) => {
+    try {
+      const child = await storage.getChild(req.params.childId);
+      if (!child) {
+        return res.status(404).json({ error: "Child not found" });
+      }
+      res.json(child);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch child" });
     }
   });
 
@@ -251,7 +287,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedGifts = await Promise.all(
         gifts.map(async (gift) => {
           const investment = await storage.getInvestment(gift.investmentId);
-          return { ...gift, investment };
+          let contributor = null;
+          
+          if (gift.contributorId) {
+            // Try to get contributor first
+            contributor = await storage.getContributor(gift.contributorId);
+            
+            // If not found in contributors table, try users table (for parent purchases)
+            if (!contributor) {
+              const user = await storage.getUser(gift.contributorId);
+              if (user) {
+                // Convert user to contributor format for consistency
+                contributor = {
+                  id: user.id,
+                  name: user.name,
+                  email: user.email,
+                  profileImageUrl: user.profileImageUrl,
+                  phone: null,
+                  password: null,
+                  isRegistered: true,
+                  createdAt: new Date() // Users don't have createdAt, use current date
+                };
+              }
+            }
+          }
+          
+          return { ...gift, investment, contributor };
         })
       );
       res.json(enrichedGifts);
@@ -267,7 +328,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedGifts = await Promise.all(
         gifts.map(async (gift) => {
           const investment = await storage.getInvestment(gift.investmentId);
-          return { ...gift, investment };
+          let contributor = null;
+          
+          if (gift.contributorId) {
+            // Try to get contributor first
+            contributor = await storage.getContributor(gift.contributorId);
+            
+            // If not found in contributors table, try users table (for parent purchases)
+            if (!contributor) {
+              const user = await storage.getUser(gift.contributorId);
+              if (user) {
+                // Convert user to contributor format for consistency
+                contributor = {
+                  id: user.id,
+                  name: user.name,
+                  email: user.email,
+                  profileImageUrl: user.profileImageUrl,
+                  phone: null,
+                  password: null,
+                  isRegistered: true,
+                  createdAt: new Date() // Users don't have createdAt, use current date
+                };
+              }
+            }
+          }
+          
+          return { ...gift, investment, contributor };
         })
       );
       res.json(enrichedGifts);
@@ -615,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contributor routes
   app.post("/api/contributors/signup", async (req, res) => {
     try {
-      const { email, name, password, phone, sproutRequestCode } = req.body;
+      const { email, name, password, phone, profileImageUrl, sproutRequestCode } = req.body;
       
       // Check if contributor already exists
       const existingContributor = await storage.getContributorByEmail(email);
@@ -633,6 +719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           password: hashedPassword,
           isRegistered: true,
           name: name || existingContributor.name,
+          profileImageUrl: profileImageUrl || existingContributor.profileImageUrl,
         });
       } else {
         // Create new contributor
@@ -641,8 +728,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name,
           password: hashedPassword,
           phone: phone || null,
+          profileImageUrl: profileImageUrl || null,
           isRegistered: true,
         });
+      }
+      
+      // Link any previous guest gifts to this contributor
+      if (contributor) {
+        await storage.linkGiftsToContributor(email, contributor.id);
       }
       
       // If signing up through sprout request, update the request status
@@ -668,6 +761,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Contributor signup error:", error);
       res.status(400).json({ error: "Failed to sign up contributor" });
+    }
+  });
+
+  app.post("/api/contributors/signin", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+      
+      // Find contributor by email
+      const contributor = await storage.getContributorByEmail(email);
+      if (!contributor || !contributor.isRegistered || !contributor.password) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, contributor.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      // Link any previous guest gifts to this contributor
+      await storage.linkGiftsToContributor(email, contributor.id);
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { contributorId: contributor.id, email: contributor.email, type: 'contributor' },
+        process.env.JWT_SECRET || "fallback-secret",
+        { expiresIn: "7d" }
+      );
+      
+      const { password: _, ...contributorWithoutPassword } = contributor;
+      res.json({
+        contributor: contributorWithoutPassword,
+        token
+      });
+    } catch (error) {
+      console.error("Contributor signin error:", error);
+      res.status(500).json({ error: "Failed to sign in" });
+    }
+  });
+
+  // Get all gifts made by a contributor
+  app.get("/api/contributors/:id/gifts", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify JWT token
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Authorization token required" });
+      }
+      
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
+        
+        // Verify the contributor ID matches the token
+        if (decoded.contributorId !== id) {
+          return res.status(403).json({ error: "Not authorized to view this contributor's gifts" });
+        }
+      } catch (jwtError) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+      
+      // Get all gifts made by this contributor
+      const gifts = await storage.getGiftsByContributor(id);
+      res.json(gifts);
+    } catch (error) {
+      console.error("Error fetching contributor gifts:", error);
+      res.status(500).json({ error: "Failed to fetch contributor gifts" });
+    }
+  });
+
+  // Update contributor profile photo
+  app.patch("/api/contributors/:id/profile-photo", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { profileImageUrl } = req.body;
+      
+      if (!profileImageUrl) {
+        return res.status(400).json({ error: "Profile image URL is required" });
+      }
+      
+      // Verify JWT token
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Authorization token required" });
+      }
+      
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
+        
+        // Verify the contributor ID matches the token
+        if (decoded.contributorId !== id) {
+          return res.status(403).json({ error: "Not authorized to update this contributor" });
+        }
+      } catch (jwtError) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+      
+      const updatedContributor = await storage.updateContributor(id, {
+        profileImageUrl
+      });
+      
+      if (!updatedContributor) {
+        return res.status(404).json({ error: "Contributor not found" });
+      }
+      
+      res.json(updatedContributor);
+    } catch (error) {
+      console.error("Error updating contributor profile photo:", error);
+      res.status(500).json({ error: "Failed to update profile photo" });
     }
   });
 

@@ -28,6 +28,7 @@ export function VideoPlayerModal({ isOpen, onClose, videoUrl, giftGiverName }: V
             <video
               controls
               autoPlay
+              playsInline
               className="w-full h-full"
               src={videoUrl}
             >

@@ -20,11 +20,27 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
+        video: { 
+          facingMode: 'user', // Use front camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }, 
         audio: true 
       });
       
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      // Detect supported MIME type for mobile compatibility
+      let mimeType = 'video/webm;codecs=vp8,opus';
+      if (MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+        mimeType = 'video/webm;codecs=h264';
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        mimeType = 'video/webm;codecs=vp9';
+      } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        mimeType = 'video/webm';
+      }
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -34,7 +50,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
         setRecordedVideoUrl(url);
         
@@ -50,6 +66,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         description: "Recording your video message...",
       });
     } catch (error) {
+      console.error('Video recording error:', error);
       toast({
         title: "Camera Access Denied",
         description: "Please allow camera access to record a video message.",
@@ -79,9 +96,18 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
       const response = await fetch(recordedVideoUrl);
       const blob = await response.blob();
       
+      // Determine file extension based on MIME type
+      const mimeType = blob.type;
+      let extension = 'webm';
+      if (mimeType.includes('mp4')) {
+        extension = 'mp4';
+      } else if (mimeType.includes('webm')) {
+        extension = 'webm';
+      }
+      
       // Create form data with the video file
       const formData = new FormData();
-      formData.append('video', blob, `video-${Date.now()}.webm`);
+      formData.append('video', blob, `video-${Date.now()}.${extension}`);
       
       // Upload to server
       const uploadResponse = await fetch('/api/upload-video', {
@@ -128,6 +154,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               ref={videoRef}
               className="w-full h-32 bg-black rounded-lg"
               controls
+              playsInline
               data-testid="video-preview"
             />
             <div className="flex space-x-2">
