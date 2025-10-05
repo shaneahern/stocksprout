@@ -57,6 +57,7 @@ export interface IStorage {
   // Portfolio Holdings
   getPortfolioHolding(id: string): Promise<PortfolioHolding | undefined>;
   getPortfolioHoldingsByChild(childId: string): Promise<PortfolioHolding[]>;
+  getPortfolioHoldingByInvestment(childId: string, investmentId: string): Promise<PortfolioHolding | undefined>;
   createPortfolioHolding(holding: InsertPortfolioHolding): Promise<PortfolioHolding>;
   updatePortfolioHolding(id: string, updates: Partial<PortfolioHolding>): Promise<PortfolioHolding | undefined>;
 
@@ -307,6 +308,15 @@ export class DatabaseStorage implements IStorage {
 
   async getPortfolioHoldingsByChild(childId: string): Promise<PortfolioHolding[]> {
     return await db.select().from(portfolioHoldings).where(eq(portfolioHoldings.childId, childId));
+  }
+
+  async getPortfolioHoldingByInvestment(childId: string, investmentId: string): Promise<PortfolioHolding | undefined> {
+    const [holding] = await db.select().from(portfolioHoldings)
+      .where(and(
+        eq(portfolioHoldings.childId, childId),
+        eq(portfolioHoldings.investmentId, investmentId)
+      ));
+    return holding;
   }
 
   async createPortfolioHolding(insertHolding: InsertPortfolioHolding): Promise<PortfolioHolding> {

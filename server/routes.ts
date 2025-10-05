@@ -375,11 +375,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const shares = parseFloat(validatedData.amount) / parseFloat(investment.currentPrice);
       const giftData = { ...validatedData, shares: shares.toFixed(6) };
       
+      // Check if this is a parent purchasing for their own child
+      const child = await storage.getChild(validatedData.childId);
+      const isParentPurchase = child && validatedData.contributorId && child.parentId === validatedData.contributorId;
+      
       const gift = await storage.createGift(giftData);
       
-      // NOTE: Portfolio holdings are NOT updated here
-      // Gifts remain in "pending" status until custodian approves them
-      // Portfolio is updated only when custodian approves via /api/gifts/:id/approve
+      // Auto-approve parent purchases (skip custodian review)
+      if (isParentPurchase) {
+        await storage.approveGift(gift.id);
+        
+        // Update portfolio holdings for auto-approved gifts
+        const existingHolding = await storage.getPortfolioHoldingByInvestment(
+          validatedData.childId,
+          validatedData.investmentId
+        );
+        
+        if (existingHolding) {
+          const newShares = parseFloat(existingHolding.shares) + shares;
+          const newValue = newShares * parseFloat(investment.currentPrice);
+          const totalCost = (parseFloat(existingHolding.shares) * parseFloat(existingHolding.averageCost)) + 
+                           parseFloat(validatedData.amount);
+          const newAverageCost = totalCost / newShares;
+          
+          await storage.updatePortfolioHolding(existingHolding.id, {
+            shares: newShares.toFixed(6),
+            averageCost: newAverageCost.toFixed(2),
+            currentValue: newValue.toFixed(2),
+          });
+        } else {
+          await storage.createPortfolioHolding({
+            childId: validatedData.childId,
+            investmentId: validatedData.investmentId,
+            shares: shares.toFixed(6),
+            averageCost: investment.currentPrice,
+            currentValue: validatedData.amount,
+          });
+        }
+      }
+      // External gifts remain in "pending" status until custodian approves them
       
       res.json(gift);
     } catch (error) {
