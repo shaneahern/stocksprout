@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User } from "lucide-react";
+import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User, Video } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -47,7 +47,7 @@ export default function Timeline() {
   }
 
   const handlePlayVideo = (videoUrl: string, giverName: string) => {
-    setCurrentVideo({ url: videoUrl, giverName });
+    setCurrentVideo({ url: videoUrl, giverName }); 
     setVideoModalOpen(true);
   };
 
@@ -226,6 +226,15 @@ export default function Timeline() {
             <div className="flex-1 space-y-8">
               {giftsWithCumulative.map((gift: EnrichedGift, index: number) => (
                 <Card key={gift.id} className="relative" data-testid={`card-gift-${gift.id}`}>
+                  {/* Video Indicator Badge */}
+                  {gift.videoMessageUrl && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <Badge className="bg-purple-500 hover:bg-purple-600 text-white flex items-center gap-1 px-2 py-1">
+                        <Video className="w-3 h-3" />
+                        <span className="text-xs">Video</span>
+                      </Badge>
+                    </div>
+                  )}
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
                       {(gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl) ? (

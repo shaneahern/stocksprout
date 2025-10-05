@@ -12,14 +12,16 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user', // Use front camera on mobile
           width: { ideal: 1280 },
@@ -27,6 +29,13 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         }, 
         audio: true 
       });
+      
+      setStream(mediaStream);
+      
+      // Display live video feed
+      if (liveVideoRef.current) {
+        liveVideoRef.current.srcObject = mediaStream;
+      }
       
       // Detect supported MIME type for mobile compatibility
       let mimeType = 'video/webm;codecs=vp8,opus';
@@ -40,7 +49,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         mimeType = 'video/webm';
       }
       
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = new MediaRecorder(mediaStream, { mimeType });
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -55,7 +64,8 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         setRecordedVideoUrl(url);
         
         // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
+        mediaStream.getTracks().forEach(track => track.stop());
+        setStream(null);
       };
 
       mediaRecorderRef.current.start();
@@ -152,16 +162,17 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
           <div className="space-y-4">
             <video
               ref={videoRef}
-              className="w-full h-32 bg-black rounded-lg"
+              className="w-full h-48 sm:h-64 bg-black rounded-lg"
               controls
               playsInline
               data-testid="video-preview"
             />
-            <div className="flex space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={playRecording}
+                className="flex-1"
                 data-testid="button-play-recording"
               >
                 <Play className="w-4 h-4 mr-2" />
@@ -171,6 +182,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                 size="sm"
                 onClick={uploadVideo}
                 disabled={isUploading}
+                className="flex-1"
                 data-testid="button-upload-video"
               >
                 <Upload className="w-4 h-4 mr-2" />
@@ -183,32 +195,44 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                   setRecordedVideoUrl(null);
                   if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
                 }}
+                className="flex-1"
                 data-testid="button-record-again"
               >
                 Record Again
               </Button>
             </div>
           </div>
+        ) : isRecording ? (
+          <div className="space-y-4">
+            <video
+              ref={liveVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-48 sm:h-64 bg-black rounded-lg"
+              data-testid="video-live-feed"
+            />
+            <Button
+              onClick={stopRecording}
+              variant="destructive"
+              className="w-full"
+              data-testid="button-stop-recording"
+            >
+              <Square className="w-4 h-4 mr-2" />
+              Stop Recording
+            </Button>
+          </div>
         ) : (
           <div className="space-y-4">
             <Video className="w-12 h-12 text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">Record a personal video message</p>
             <Button
-              onClick={isRecording ? stopRecording : startRecording}
-              variant={isRecording ? "destructive" : "default"}
-              data-testid="button-record-video"
+              onClick={startRecording}
+              className="w-full"
+              data-testid="button-start-recording"
             >
-              {isRecording ? (
-                <>
-                  <Square className="w-4 h-4 mr-2" />
-                  Stop Recording
-                </>
-              ) : (
-                <>
-                  <Video className="w-4 h-4 mr-2" />
-                  Start Recording
-                </>
-              )}
+              <Video className="w-4 h-4 mr-2" />
+              Start Recording
             </Button>
           </div>
         )}

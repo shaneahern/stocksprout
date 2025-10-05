@@ -3,11 +3,13 @@ import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import InvestmentSelector from '@/components/investment-selector';
 import MockPaymentForm from '@/components/mock-payment-form';
-import { DollarSign, ShoppingCart } from 'lucide-react';
+import VideoRecorder from '@/components/video-recorder';
+import { DollarSign, ShoppingCart, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 
@@ -22,6 +24,8 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
   const [isOpen, setIsOpen] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const [amount, setAmount] = useState('100');
+  const [message, setMessage] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
 
@@ -55,6 +59,8 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
       // Reset form
       setSelectedInvestment(null);
       setAmount('100');
+      setMessage('');
+      setVideoUrl('');
       setPaymentId(null);
       setShowPayment(false);
       setIsOpen(false);
@@ -94,8 +100,8 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
       giftGiverProfileImageUrl: user?.profileImageUrl || null, // Include parent's profile photo
       investmentId: selectedInvestment.id,
       amount: amountNum.toString(),
-      message: `Investment purchase by ${user?.name}`,
-      videoMessageUrl: undefined,
+      message: message || `Investment purchase by ${user?.name}`,
+      videoMessageUrl: videoUrl || undefined,
       paymentId: newPaymentId,
     };
 
@@ -204,6 +210,55 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
             </CardContent>
           </Card>
 
+          {/* Message */}
+          <Card>
+            <CardContent className="pt-6">
+              <label className="block text-sm font-semibold mb-2">
+                Personal Message (Optional)
+              </label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={`Add a personal message for ${childName}...`}
+                className="min-h-[80px]"
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {message.length}/500 characters
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Video Message */}
+          <Card>
+            <CardContent className="pt-6">
+              <label className="block text-sm font-semibold mb-3">
+                Video Message (Optional)
+              </label>
+              {videoUrl ? (
+                <div className="space-y-3">
+                  <video
+                    src={videoUrl}
+                    controls
+                    playsInline
+                    className="w-full h-48 bg-black rounded-lg"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setVideoUrl('')}
+                    className="w-full"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Remove Video
+                  </Button>
+                </div>
+              ) : (
+                <VideoRecorder onVideoRecorded={setVideoUrl} />
+              )}
+            </CardContent>
+          </Card>
+
           {/* Payment */}
           {showPayment && (
             <Card>
@@ -219,38 +274,54 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
             </Card>
           )}
 
-          {/* Summary and Action */}
-          <Card className="bg-muted">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold">Purchase Summary</h3>
-                  <p className="text-muted-foreground">
-                    ${amount} → {estimatedShares} shares of{' '}
-                    {selectedInvestment?.name || 'Select an investment'}
-                  </p>
-                  <p className="text-muted-foreground">For: {childName}</p>
-                  {paymentId && (
-                    <p className="text-success text-sm mt-2">
-                      ✓ Payment confirmed: {paymentId}
-                    </p>
-                  )}
+          {/* Summary and Action - Consolidated */}
+          {!showPayment && (
+            <Card className="bg-muted">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold mb-2">Purchase Summary</h3>
+                    <div className="space-y-1 text-sm">
+                      <p>
+                        <span className="font-semibold">Amount:</span> ${amount} → {estimatedShares} shares
+                      </p>
+                      <p>
+                        <span className="font-semibold">Investment:</span> {selectedInvestment?.name || 'Select an investment'}
+                      </p>
+                      <p>
+                        <span className="font-semibold">For:</span> {childName}
+                      </p>
+                      {message && (
+                        <p>
+                          <span className="font-semibold">Message:</span> {message.substring(0, 50)}{message.length > 50 ? '...' : ''}
+                        </p>
+                      )}
+                      {videoUrl && (
+                        <p className="text-success">✓ Video message attached</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsOpen(false)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handlePurchase}
+                      disabled={!selectedInvestment || purchaseMutation.isPending}
+                      className="flex-1"
+                    >
+                      <DollarSign className="w-5 h-5 mr-2" />
+                      Continue to Payment
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  onClick={handlePurchase}
-                  disabled={!selectedInvestment || purchaseMutation.isPending}
-                  size="lg"
-                >
-                  <DollarSign className="w-5 h-5 mr-2" />
-                  {purchaseMutation.isPending
-                    ? 'Processing...'
-                    : paymentId
-                    ? 'Complete Purchase'
-                    : 'Review & Pay'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DialogContent>
     </Dialog>
