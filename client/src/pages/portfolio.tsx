@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import MobileLayout from "@/components/mobile-layout";
 import PortfolioChart from "@/components/portfolio-chart";
 import { SproutRequestForm } from "@/components/sprout-request-form";
@@ -7,24 +7,64 @@ import { PurchaseForChild } from "@/components/purchase-for-child";
 import { ChildSelector } from "@/components/child-selector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowUpIcon, ArrowDownIcon, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import type { PortfolioHolding, Investment, Child } from "@shared/schema";
+import { useEffect } from "react";
 
 type EnrichedHolding = PortfolioHolding & { investment: Investment };
 
 export default function Portfolio() {
   const [, params] = useRoute("/portfolio/:childId");
+  const [, setLocation] = useLocation();
+  const { user, contributor, contributorToken } = useAuth();
   const childId = params?.childId;
+
+  // Fetch children that contributor has contributed to
+  const { data: contributorGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryFn: async () => {
+      if (!contributor?.id || !contributorToken) return [];
+      
+      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${contributorToken}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!contributor?.id && !!contributorToken && !user,
+  });
+
+  // Extract unique children from contributor gifts
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      acc.push(gift.child);
+    }
+    return acc;
+  }, []);
+
+  // Auto-redirect contributor to first child's portfolio if no childId
+  useEffect(() => {
+    if (contributor && !user && !childId && contributedChildren.length > 0) {
+      setLocation(`/portfolio/${contributedChildren[0].id}`);
+    }
+  }, [contributor, user, childId, contributedChildren, setLocation]);
 
   const { data: child } = useQuery<Child>({
     queryKey: ["/api/children/by-id", childId],
     enabled: !!childId,
   });
 
-  const { data: holdings = [], isLoading } = useQuery<EnrichedHolding[]>({
+  const { data: holdings = [], isLoading: loadingHoldings } = useQuery<EnrichedHolding[]>({
     queryKey: ["/api/portfolio", childId],
     enabled: !!childId,
   });
+
+  const isLoading = loadingHoldings || (contributor && !user && contributorGifts === undefined);
 
   if (isLoading) {
     return (
@@ -32,6 +72,26 @@ export default function Portfolio() {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
         </div>
+      </MobileLayout>
+    );
+  }
+
+  // Show message for contributors with no contributions yet
+  if (contributor && !user && !childId && contributedChildren.length === 0) {
+    return (
+      <MobileLayout currentTab="portfolio">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Portfolio to Display</h3>
+            <p className="text-muted-foreground mb-4">
+              You haven't contributed to any children yet. Send your first investment gift to see portfolio information here.
+            </p>
+            <Button onClick={() => setLocation("/")}>
+              Go to Home
+            </Button>
+          </CardContent>
+        </Card>
       </MobileLayout>
     );
   }
@@ -83,12 +143,23 @@ export default function Portfolio() {
         {/* Portfolio Chart */}
         <PortfolioChart holdings={holdings} />
 
-        {/* Action Buttons */}
-        {childId && (
+        {/* Action Buttons - Only for parents/custodians */}
+        {user && childId && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <PurchaseForChild childId={childId} childName={child?.name || "Child"} />
             <SproutRequestForm childId={childId} childName={child?.name || "Child"} />
           </div>
+        )}
+        
+        {/* Info for contributors */}
+        {contributor && !user && childId && (
+          <Card className="bg-muted">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground text-center">
+                📊 Viewing portfolio as a contributor. Contact the parent to send additional gifts.
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Holdings List */}

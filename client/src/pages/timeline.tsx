@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import MobileLayout from "@/components/mobile-layout";
 import { VideoPlayerModal } from "@/components/video-player-modal";
 import { ChildSelector } from "@/components/child-selector";
@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User, Video } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Gift as GiftType, Investment, Contributor } from "@shared/schema";
 
@@ -22,10 +23,45 @@ type EnrichedGift = GiftType & {
 
 export default function Timeline() {
   const [, params] = useRoute("/timeline/:childId");
+  const [, setLocation] = useLocation();
   const childId = params?.childId;
   const { toast } = useToast();
+  const { user, contributor, contributorToken } = useAuth();
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ url: string; giverName: string } | null>(null);
+
+  // Fetch children that contributor has contributed to
+  const { data: contributorGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryFn: async () => {
+      if (!contributor?.id || !contributorToken) return [];
+      
+      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${contributorToken}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!contributor?.id && !!contributorToken && !user,
+  });
+
+  // Extract unique children from contributor gifts
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      acc.push(gift.child);
+    }
+    return acc;
+  }, []);
+
+  // Auto-redirect contributor to first child's timeline if no childId
+  useEffect(() => {
+    if (contributor && !user && !childId && contributedChildren.length > 0) {
+      setLocation(`/timeline/${contributedChildren[0].id}`);
+    }
+  }, [contributor, user, childId, contributedChildren, setLocation]);
 
   const { data: allGifts = [], isLoading } = useQuery<EnrichedGift[]>({
     queryKey: ["/api/gifts", childId],
@@ -36,12 +72,34 @@ export default function Timeline() {
   const gifts = allGifts.filter((gift: any) => gift.status === 'approved');
   const pendingGifts = allGifts.filter((gift: any) => gift.status === 'pending');
 
-  if (isLoading) {
+  const isLoadingData = isLoading || (contributor && !user && contributorGifts === undefined);
+
+  if (isLoadingData) {
     return (
       <MobileLayout currentTab="timeline">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
         </div>
+      </MobileLayout>
+    );
+  }
+
+  // Show message for contributors with no contributions yet
+  if (contributor && !user && !childId && contributedChildren.length === 0) {
+    return (
+      <MobileLayout currentTab="timeline">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Timeline to Display</h3>
+            <p className="text-muted-foreground mb-4">
+              You haven't contributed to any children yet. Send your first investment gift to see timeline information here.
+            </p>
+            <Button onClick={() => setLocation("/")}>
+              Go to Home
+            </Button>
+          </CardContent>
+        </Card>
       </MobileLayout>
     );
   }
@@ -132,8 +190,8 @@ export default function Timeline() {
           </div>
         )}
 
-        {/* Pending Gifts Alert */}
-        {pendingGifts.length > 0 && (
+        {/* Pending Gifts Alert - Only for custodians */}
+        {user && pendingGifts.length > 0 && (
           <Card className="border-orange-500 bg-orange-50">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
@@ -310,7 +368,7 @@ export default function Timeline() {
                             </Button>
                           )}
                           
-                          {!gift.thankYouSent && (
+                          {user && !gift.thankYouSent && (
                             <Button
                               size="sm"
                               variant="outline"
