@@ -10,12 +10,47 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, contributor, contributorToken } = useAuth();
 
-  const { data: children = [], isLoading } = useQuery<any[]>({
+  //Fetch custodian's children
+  const { data: children = [], isLoading: loadingChildren } = useQuery<any[]>({
     queryKey: ["/api/children", user?.id],
     enabled: !!user?.id,
   });
+
+  // Fetch children that contributor has contributed to
+  const { data: contributorGifts = [], isLoading: loadingGifts } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryFn: async () => {
+      if (!contributor?.id || !contributorToken) return [];
+      
+      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${contributorToken}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!contributor?.id && !!contributorToken && !user?.id,
+  });
+
+  const isLoading = loadingChildren || loadingGifts;
+
+  // Extract unique children from contributor gifts
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      acc.push({
+        id: gift.child.id,
+        name: gift.child.name,
+        giftLinkCode: gift.child.giftCode,
+        totalValue: 0, // Contributors don't see portfolio values
+        totalGain: 0,
+      });
+    }
+    return acc;
+  }, []);
 
   const handleAddChild = () => {
     setLocation("/add-child");
@@ -38,22 +73,26 @@ export default function Home() {
   return (
     <MobileLayout currentTab="home">
       <div className="space-y-6">
-        {/* Recent Gift Notification */}
-        <GiftNotification />
+        {/* Recent Gift Notification - only for custodians */}
+        {user && <GiftNotification />}
 
-        {/* Children Section */}
+        {/* Your Children Section */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-foreground">Your Children</h2>
-            <Button 
-              onClick={handleAddChild}
-              variant="ghost" 
-              className="text-primary font-semibold"
-              data-testid="button-add-child"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Child
-            </Button>
+            <h2 className="text-xl font-bold text-foreground">
+              {user ? "Your Children" : "Your Children / Sprouts"}
+            </h2>
+            {user && (
+              <Button 
+                onClick={handleAddChild}
+                variant="ghost" 
+                className="text-primary font-semibold"
+                data-testid="button-add-child"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Child
+              </Button>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -64,20 +103,43 @@ export default function Home() {
             {children.length === 0 && (
               <Card>
                 <CardContent className="pt-6 text-center">
-                  <p className="text-muted-foreground mb-4">No children added yet</p>
-                  <Button onClick={handleAddChild} data-testid="button-add-first-child">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Child
-                  </Button>
+                  <p className="text-muted-foreground mb-4">
+                    {user ? "No children added yet" : "You haven't added any children yet"}
+                  </p>
+                  {user && (
+                    <Button onClick={handleAddChild} data-testid="button-add-first-child">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Your First Child
+                    </Button>
+                  )}
+                  {contributor && !user && (
+                    <p className="text-sm text-muted-foreground">
+                      Contributors can add children once they upgrade to a full account
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}
           </div>
         </div>
 
+        {/* Other Children Section - for contributors */}
+        {contributor && !user && contributedChildren.length > 0 && (
+          <div>
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-foreground">Children You've Helped</h2>
+              <p className="text-sm text-muted-foreground">View children you've sent investment gifts to</p>
+            </div>
+            <div className="space-y-4">
+              {contributedChildren.map((child: any) => (
+                <ChildCard key={child.id} child={child} />
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Portfolio Summary */}
-        {children.length > 0 && (
+        {/* Portfolio Summary - only for custodians with children */}
+        {user && children.length > 0 && (
           <Card className="portfolio-growth text-white">
             <CardContent className="p-6">
               <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Family Portfolio Summary</h2>

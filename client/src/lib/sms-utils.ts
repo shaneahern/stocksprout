@@ -4,7 +4,7 @@ export function generateGiftLink(childCode: string): string {
 }
 
 export function generateSMSMessage(childName: string, giftLink: string): string {
-  return `🎁 You've been invited to send an investment gift to ${childName}! Click here to choose and send your gift: ${giftLink}`;
+  return `🎁 You've been invited to send an investment gift to ${childName}! Click the link to choose and send your gift.`;
 }
 
 export function copyToClipboard(text: string): Promise<void> {

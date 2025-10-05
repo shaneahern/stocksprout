@@ -374,10 +374,10 @@ export default function GiftGiver() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setLocation(`/contributor-dashboard?returnTo=${encodeURIComponent(`/gift/${giftCode}`)}`)}
+                  onClick={() => setLocation("/")}
                   className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                 >
-                  View My Contributions
+                  Go to Dashboard
                 </Button>
               )}
               <div className="text-left sm:text-right">
