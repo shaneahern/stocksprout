@@ -8,7 +8,7 @@ import { ChildSelector } from "@/components/child-selector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpIcon, ArrowDownIcon, User } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, User, Gift } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PortfolioHolding, Investment, Child } from "@shared/schema";
 import { useEffect } from "react";
@@ -184,15 +184,17 @@ export default function Portfolio() {
           </div>
         )}
         
-        {/* Info for contributors */}
+        {/* Send Gift Button - for contributors viewing contributed children */}
         {contributor && !user && childId && (
-          <Card className="bg-muted">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground text-center">
-                📊 Viewing portfolio as a contributor. Contact the parent to send additional gifts.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 gap-4 pt-2">
+            <Button 
+              onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              Send Another Gift to {child?.name}
+            </Button>
+          </div>
         )}
 
         {/* Holdings List */}

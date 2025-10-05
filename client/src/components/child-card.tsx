@@ -10,9 +10,10 @@ import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
 
 interface ChildCardProps {
   child: any;
+  isContributedChild?: boolean; // True if this is a child the contributor has helped (not their own)
 }
 
-export default function ChildCard({ child }: ChildCardProps) {
+export default function ChildCard({ child, isContributedChild = false }: ChildCardProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -58,6 +59,10 @@ export default function ChildCard({ child }: ChildCardProps) {
 
   const handleShareGiftLink = () => {
     generateLinkMutation.mutate();
+  };
+
+  const handleSendGift = () => {
+    setLocation(`/gift/${child.giftLinkCode || child.giftCode}`);
   };
 
   // Fetch real portfolio data
@@ -138,16 +143,27 @@ export default function ChildCard({ child }: ChildCardProps) {
             <TrendingUp className="w-4 h-4 mr-2" />
             View Portfolio
           </Button>
-          <Button 
-            onClick={handleShareGiftLink}
-            disabled={generateLinkMutation.isPending}
-            className="flex-1 bg-secondary text-secondary-foreground font-semibold text-sm sm:text-base"
-            data-testid={`button-share-link-${child.id}`}
-          >
-            <Share2 className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">{generateLinkMutation.isPending ? "Generating..." : "Share Gift Link"}</span>
-            <span className="sm:hidden">{generateLinkMutation.isPending ? "..." : "Share Link"}</span>
-          </Button>
+          {isContributedChild ? (
+            <Button 
+              onClick={handleSendGift}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm sm:text-base"
+              data-testid={`button-send-gift-${child.id}`}
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              Send Gift
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleShareGiftLink}
+              disabled={generateLinkMutation.isPending}
+              className="flex-1 bg-secondary text-secondary-foreground font-semibold text-sm sm:text-base"
+              data-testid={`button-share-link-${child.id}`}
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">{generateLinkMutation.isPending ? "Generating..." : "Share Gift Link"}</span>
+              <span className="sm:hidden">{generateLinkMutation.isPending ? "..." : "Share Link"}</span>
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

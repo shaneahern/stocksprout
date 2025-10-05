@@ -128,11 +128,11 @@ export default function Home() {
           <div>
             <div className="mb-4">
               <h2 className="text-xl font-bold text-foreground">Children You've Helped</h2>
-              <p className="text-sm text-muted-foreground">View children you've sent investment gifts to</p>
+              <p className="text-sm text-muted-foreground">View and send more gifts to these children</p>
             </div>
             <div className="space-y-4">
               {contributedChildren.map((child: any) => (
-                <ChildCard key={child.id} child={child} />
+                <ChildCard key={child.id} child={child} isContributedChild={true} />
               ))}
             </div>
           </div>

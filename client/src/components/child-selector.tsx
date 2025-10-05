@@ -19,13 +19,49 @@ interface ChildSelectorProps {
 }
 
 export function ChildSelector({ currentChildId, onChildChange, redirectPath }: ChildSelectorProps) {
-  const { user } = useAuth();
+  const { user, contributor, contributorToken } = useAuth();
   const [, setLocation] = useLocation();
 
-  const { data: children = [] } = useQuery<any[]>({
+  // Fetch custodian's children
+  const { data: userChildren = [] } = useQuery<any[]>({
     queryKey: ['/api/children', user?.id],
     enabled: !!user?.id,
   });
+
+  // Fetch children that contributor has contributed to
+  const { data: contributorGifts = [] } = useQuery<any[]>({
+    queryKey: ['/api/contributors/gifts-for-selector', contributor?.id],
+    queryFn: async () => {
+      if (!contributor?.id || !contributorToken) return [];
+      
+      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${contributorToken}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!contributor?.id && !!contributorToken,
+  });
+
+  // Extract unique children from contributor gifts
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      acc.push({
+        id: gift.child.id,
+        name: gift.child.name,
+        giftLinkCode: gift.child.giftCode,
+        age: 0, // Don't have age for contributed children
+        isContributed: true
+      });
+    }
+    return acc;
+  }, []);
+
+  // Combine children lists
+  const allChildren = user ? userChildren : contributedChildren;
 
   const handleValueChange = (childId: string) => {
     if (onChildChange) {
@@ -37,13 +73,13 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
     }
   };
 
-  const currentChild = children.find((child: any) => child.id === currentChildId);
+  const currentChild = allChildren.find((child: any) => child.id === currentChildId);
 
-  if (children.length === 0) {
+  if (allChildren.length === 0) {
     return null;
   }
 
-  if (children.length === 1) {
+  if (allChildren.length === 1) {
     // If only one child, just show their name (no selector needed)
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
@@ -82,7 +118,7 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {children.map((child: any) => (
+        {allChildren.map((child: any) => (
           <SelectItem key={child.id} value={child.id}>
             <div className="flex items-center gap-2">
               <Avatar className="w-5 h-5">
@@ -95,9 +131,11 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
                 )}
               </Avatar>
               <span>{child.name}</span>
-              <span className="text-xs text-muted-foreground">
-                (Age {child.age})
-              </span>
+              {!child.isContributed && child.age !== undefined && (
+                <span className="text-xs text-muted-foreground">
+                  (Age {child.age})
+                </span>
+              )}
             </div>
           </SelectItem>
         ))}
