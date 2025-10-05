@@ -301,6 +301,36 @@ export default function GiftGiver() {
     });
   };
 
+  // Bidirectional amount/shares handlers - MUST BE BEFORE CONDITIONAL RETURNS
+  const handleAmountChange = (newAmount: string) => {
+    setAmount(newAmount);
+    if (selectedInvestment && newAmount) {
+      const calculatedShares = (parseFloat(newAmount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
+      setShares(calculatedShares);
+    } else {
+      setShares("");
+    }
+  };
+
+  const handleSharesChange = (newShares: string) => {
+    setShares(newShares);
+    if (selectedInvestment && newShares) {
+      const calculatedAmount = (parseFloat(newShares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2);
+      setAmount(calculatedAmount);
+    } else {
+      setAmount("");
+    }
+  };
+
+  // Initialize shares when investment is selected (only runs when investment changes)
+  useEffect(() => {
+    if (selectedInvestment && amount && !shares) {
+      const calculatedShares = (parseFloat(amount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
+      setShares(calculatedShares);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedInvestment]);
+
   const handleSendGift = () => {
     if (!typedChild || !selectedInvestment || !giftGiverName) {
       toast({
@@ -348,36 +378,6 @@ export default function GiftGiver() {
       </div>
     );
   }
-
-  // Bidirectional amount/shares handlers
-  const handleAmountChange = (newAmount: string) => {
-    setAmount(newAmount);
-    if (selectedInvestment && newAmount) {
-      const calculatedShares = (parseFloat(newAmount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
-      setShares(calculatedShares);
-    } else {
-      setShares("");
-    }
-  };
-
-  const handleSharesChange = (newShares: string) => {
-    setShares(newShares);
-    if (selectedInvestment && newShares) {
-      const calculatedAmount = (parseFloat(newShares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2);
-      setAmount(calculatedAmount);
-    } else {
-      setAmount("");
-    }
-  };
-
-  // Initialize shares when investment is selected (only runs when investment changes)
-  useEffect(() => {
-    if (selectedInvestment && amount && !shares) {
-      const calculatedShares = (parseFloat(amount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
-      setShares(calculatedShares);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedInvestment]);
 
   const estimatedShares = shares || "0";
 
