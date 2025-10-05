@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
   const [isOpen, setIsOpen] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const [amount, setAmount] = useState('100');
+  const [shares, setShares] = useState('');
   const [message, setMessage] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [showPayment, setShowPayment] = useState(false);
@@ -142,9 +143,36 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
     }
   };
 
-  const estimatedShares = selectedInvestment && amount
-    ? (parseFloat(amount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4)
-    : '0';
+  // Bidirectional amount/shares handlers
+  const handleAmountChange = (newAmount: string) => {
+    setAmount(newAmount);
+    if (selectedInvestment && newAmount) {
+      const calculatedShares = (parseFloat(newAmount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
+      setShares(calculatedShares);
+    } else {
+      setShares('');
+    }
+  };
+
+  const handleSharesChange = (newShares: string) => {
+    setShares(newShares);
+    if (selectedInvestment && newShares) {
+      const calculatedAmount = (parseFloat(newShares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2);
+      setAmount(calculatedAmount);
+    } else {
+      setAmount('');
+    }
+  };
+
+  // Initialize shares when investment is selected
+  useEffect(() => {
+    if (selectedInvestment && amount) {
+      const calculatedShares = (parseFloat(amount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
+      setShares(calculatedShares);
+    }
+  }, [selectedInvestment]);
+
+  const estimatedShares = shares || '0';
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -185,21 +213,26 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
                     <Input
                       type="number"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => handleAmountChange(e.target.value)}
                       className="pl-8 text-2xl font-bold h-12"
-                      min="1"
+                      min="0.01"
+                      step="0.01"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-2">
-                    Estimated Shares
+                    Number of Shares
                   </label>
-                  <div className="bg-muted rounded-lg p-4 h-12 flex items-center">
-                    <p className="text-2xl font-bold">
-                      {estimatedShares}
-                    </p>
-                  </div>
+                  <Input
+                    type="number"
+                    value={shares}
+                    onChange={(e) => handleSharesChange(e.target.value)}
+                    className="text-2xl font-bold h-12"
+                    min="0.0001"
+                    step="0.0001"
+                    placeholder="0.0000"
+                  />
                   {selectedInvestment && (
                     <p className="text-sm text-muted-foreground mt-1">
                       shares of {selectedInvestment.name}

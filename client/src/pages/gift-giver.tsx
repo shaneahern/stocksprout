@@ -28,6 +28,7 @@ export default function GiftGiver() {
   
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const [amount, setAmount] = useState("150");
+  const [shares, setShares] = useState("");
   const [message, setMessage] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [giftGiverName, setGiftGiverName] = useState("");
@@ -348,8 +349,36 @@ export default function GiftGiver() {
     );
   }
 
-  const estimatedShares = selectedInvestment && amount ? 
-    (parseFloat(amount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4) : "0";
+  // Bidirectional amount/shares handlers
+  const handleAmountChange = (newAmount: string) => {
+    setAmount(newAmount);
+    if (selectedInvestment && newAmount) {
+      const calculatedShares = (parseFloat(newAmount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
+      setShares(calculatedShares);
+    } else {
+      setShares("");
+    }
+  };
+
+  const handleSharesChange = (newShares: string) => {
+    setShares(newShares);
+    if (selectedInvestment && newShares) {
+      const calculatedAmount = (parseFloat(newShares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2);
+      setAmount(calculatedAmount);
+    } else {
+      setAmount("");
+    }
+  };
+
+  // Initialize shares when investment is selected
+  useEffect(() => {
+    if (selectedInvestment && amount) {
+      const calculatedShares = (parseFloat(amount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
+      setShares(calculatedShares);
+    }
+  }, [selectedInvestment]);
+
+  const estimatedShares = shares || "0";
 
   return (
     <div className="min-h-screen bg-background">
@@ -658,29 +687,35 @@ export default function GiftGiver() {
                   <Input
                     type="number"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => handleAmountChange(e.target.value)}
                     className="pl-8 text-2xl font-bold h-12"
-                    min="1"
+                    min="0.01"
+                    step="0.01"
                     data-testid="input-gift-amount"
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-2">
-                  Estimated Shares
+                  Number of Shares
                 </label>
-                <div className="bg-muted rounded-lg p-4 h-12 flex items-center">
-                  <div>
-                    <p className="text-2xl font-bold text-foreground" data-testid="text-estimated-shares">
-                      {estimatedShares}
-                    </p>
-                    {selectedInvestment && (
-                      <p className="text-sm text-muted-foreground">
-                        shares of {selectedInvestment.name}
-                      </p>
-                    )}
-                  </div>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={shares}
+                    onChange={(e) => handleSharesChange(e.target.value)}
+                    className="text-2xl font-bold h-12"
+                    min="0.0001"
+                    step="0.0001"
+                    placeholder="0.0000"
+                    data-testid="input-gift-shares"
+                  />
                 </div>
+                {selectedInvestment && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    shares of {selectedInvestment.name}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
