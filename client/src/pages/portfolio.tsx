@@ -54,6 +54,19 @@ export default function Portfolio() {
     }
   }, [contributor, user, childId, contributedChildren, setLocation]);
 
+  // Fetch custodian's children
+  const { data: userChildren = [] } = useQuery<any[]>({
+    queryKey: ["/api/children", user?.id],
+    enabled: !!user?.id,
+  });
+
+  // Auto-redirect custodian to first child's portfolio if no childId
+  useEffect(() => {
+    if (user && !childId && userChildren.length > 0) {
+      setLocation(`/portfolio/${userChildren[0].id}`);
+    }
+  }, [user, childId, userChildren, setLocation]);
+
   const { data: child } = useQuery<Child>({
     queryKey: ["/api/children/by-id", childId],
     enabled: !!childId,
@@ -72,6 +85,26 @@ export default function Portfolio() {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
         </div>
+      </MobileLayout>
+    );
+  }
+
+  // Show message for custodians with no children yet
+  if (user && !childId && userChildren.length === 0) {
+    return (
+      <MobileLayout currentTab="portfolio">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Children Added Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Add your first child to start building their investment portfolio.
+            </p>
+            <Button onClick={() => setLocation("/add-child")}>
+              Add Your First Child
+            </Button>
+          </CardContent>
+        </Card>
       </MobileLayout>
     );
   }
