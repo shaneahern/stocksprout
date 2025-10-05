@@ -16,27 +16,57 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
   const [location, setLocation] = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showPendingGifts, setShowPendingGifts] = useState(false);
-  const { user } = useAuth();
+  const { user, contributor, contributorToken } = useAuth();
 
-  // Fetch children to get first child ID for navigation
+  // Fetch custodian's children
   const { data: childrenData = [] } = useQuery<any[]>({
     queryKey: ["/api/children", user?.id],
     enabled: !!user?.id,
   });
 
+  // Fetch children that contributor has contributed to
+  const { data: contributorGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryFn: async () => {
+      if (!contributor?.id || !contributorToken) return [];
+      
+      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${contributorToken}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!contributor?.id && !!contributorToken && !user,
+  });
+
+  // Extract unique children from contributor gifts
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      acc.push(gift.child);
+    }
+    return acc;
+  }, []);
+
   const handlePortfolioClick = () => {
-    if (childrenData.length > 0) {
+    if (user && childrenData.length > 0) {
       setLocation(`/portfolio/${childrenData[0].id}`);
+    } else if (contributor && !user && contributedChildren.length > 0) {
+      setLocation(`/portfolio/${contributedChildren[0].id}`);
     } else {
-      setLocation("/add-child");
+      setLocation("/portfolio"); // Let the page handle empty state
     }
   };
 
   const handleTimelineClick = () => {
-    if (childrenData.length > 0) {
+    if (user && childrenData.length > 0) {
       setLocation(`/timeline/${childrenData[0].id}`);
+    } else if (contributor && !user && contributedChildren.length > 0) {
+      setLocation(`/timeline/${contributedChildren[0].id}`);
     } else {
-      setLocation("/add-child");
+      setLocation("/timeline"); // Let the page handle empty state
     }
   };
 
