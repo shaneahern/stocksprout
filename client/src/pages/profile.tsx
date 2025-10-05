@@ -11,13 +11,25 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export default function Profile() {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, contributor, logout, contributorLogout, updateProfile } = useAuth();
+  const currentUser = user || contributor;
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    name: user?.name || '',
-    bankAccountNumber: user?.bankAccountNumber || '',
-    profileImageUrl: user?.profileImageUrl || '',
+    name: '',
+    bankAccountNumber: '',
+    profileImageUrl: '',
   });
+
+  // Update editData when user/contributor changes
+  useEffect(() => {
+    if (currentUser) {
+      setEditData({
+        name: currentUser.name || '',
+        bankAccountNumber: (user as any)?.bankAccountNumber || '',
+        profileImageUrl: currentUser.profileImageUrl || '',
+      });
+    }
+  }, [currentUser, user]);
   const [isLoading, setIsLoading] = useState(false);
   
   // Camera functionality state
@@ -40,7 +52,11 @@ export default function Profile() {
   }, 0);
 
   const handleLogout = () => {
-    logout();
+    if (user) {
+      logout();
+    } else if (contributor) {
+      contributorLogout();
+    }
   };
 
   const handleEditSubmit = async () => {
@@ -296,9 +312,9 @@ export default function Profile() {
                 </DialogContent>
               </Dialog>
             </div>
-            <h2 className="text-2xl font-bold mb-2">{user?.name || 'User'}</h2>
-            <p className="text-muted-foreground">Parent Account</p>
-            <p className="text-sm text-muted-foreground">{user?.email || 'user@email.com'}</p>
+            <h2 className="text-2xl font-bold mb-2">{currentUser?.name || 'User'}</h2>
+            <p className="text-muted-foreground">{user ? 'Parent Account' : 'Contributor Account'}</p>
+            <p className="text-sm text-muted-foreground">{currentUser?.email || 'user@email.com'}</p>
             {user?.bankAccountNumber && (
               <p className="text-sm text-muted-foreground mt-1">
                 Bank Account: {user.bankAccountNumber}

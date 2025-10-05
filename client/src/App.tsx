@@ -17,7 +17,7 @@ import SproutRequestPage from "@/pages/sprout-request";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, contributor, isLoading } = useAuth();
   
   if (isLoading) {
     return (
@@ -30,7 +30,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   
-  if (!user) {
+  // Allow access if either user (parent/custodian) or contributor is logged in
+  if (!user && !contributor) {
     return <AuthPage />;
   }
   
