@@ -370,12 +370,13 @@ export default function GiftGiver() {
     }
   };
 
-  // Initialize shares when investment is selected
+  // Initialize shares when investment is selected (only runs when investment changes)
   useEffect(() => {
-    if (selectedInvestment && amount) {
+    if (selectedInvestment && amount && !shares) {
       const calculatedShares = (parseFloat(amount) / parseFloat(selectedInvestment.currentPrice)).toFixed(4);
       setShares(calculatedShares);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedInvestment]);
 
   const estimatedShares = shares || "0";
