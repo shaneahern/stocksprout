@@ -23,7 +23,7 @@ export default function Profile() {
   // Camera functionality state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [cameraMode, setCameraMode] = useState<'url' | 'camera'>('url');
+  const [cameraMode, setCameraMode] = useState<'url' | 'camera'>('camera'); // Default to camera
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -96,8 +96,16 @@ export default function Profile() {
     } catch (error) {
       console.error('Error accessing camera:', error);
       alert('Unable to access camera. Please check permissions.');
+      setCameraMode('url'); // Fallback to URL mode if camera fails
     }
   };
+
+  // Auto-start camera when dialog opens
+  useEffect(() => {
+    if (isCameraOpen && cameraMode === 'camera' && !capturedImage) {
+      startCamera();
+    }
+  }, [isCameraOpen]);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -175,7 +183,14 @@ export default function Profile() {
                   </AvatarFallback>
                 )}
               </Avatar>
-              <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+              <Dialog open={isCameraOpen} onOpenChange={(open) => {
+                setIsCameraOpen(open);
+                if (!open) {
+                  stopCamera();
+                  setCapturedImage(null);
+                  setCameraMode('camera'); // Reset to camera mode for next time
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button
                     size="sm"
@@ -191,32 +206,8 @@ export default function Profile() {
                     <DialogTitle>Update Profile Picture</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    {/* Mode Selection */}
+                    {/* Mode Selection - Only show if in URL mode */}
                     {!capturedImage && cameraMode === 'url' && (
-                      <div className="flex space-x-2 mb-4">
-                        <Button
-                          variant={cameraMode === 'url' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setCameraMode('url')}
-                          className="flex-1"
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          URL
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={startCamera}
-                          className="flex-1"
-                        >
-                          <Camera className="w-4 h-4 mr-2" />
-                          Camera
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* URL Input Mode */}
-                    {cameraMode === 'url' && !capturedImage && (
                       <div className="space-y-4">
                         <div>
                           <Label htmlFor="profileImageUrl">Image URL</Label>
@@ -227,9 +218,15 @@ export default function Profile() {
                             placeholder="Enter image URL"
                           />
                         </div>
-                        <Button onClick={handleEditSubmit} disabled={isLoading} className="w-full">
-                          {isLoading ? 'Updating...' : 'Update Picture'}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button onClick={handleEditSubmit} disabled={isLoading} className="flex-1">
+                            {isLoading ? 'Updating...' : 'Update Picture'}
+                          </Button>
+                          <Button variant="outline" onClick={startCamera} className="flex-1">
+                            <Camera className="w-4 h-4 mr-2" />
+                            Use Camera
+                          </Button>
+                        </div>
                       </div>
                     )}
 
@@ -245,21 +242,28 @@ export default function Profile() {
                             className="w-full h-64 object-cover rounded-lg bg-gray-100"
                           />
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={switchToUrlMode}
-                            className="absolute top-2 right-2"
+                            className="absolute top-2 right-2 text-white bg-black/50 hover:bg-black/70"
                           >
                             <X className="w-4 h-4" />
                           </Button>
                         </div>
-                        <div className="flex space-x-2">
-                          <Button onClick={capturePhoto} className="flex-1">
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="destructive" 
+                            onClick={switchToUrlMode} 
+                            className="flex-1"
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={capturePhoto} 
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                          >
                             <Camera className="w-4 h-4 mr-2" />
                             Take Photo
-                          </Button>
-                          <Button variant="outline" onClick={switchToUrlMode} className="flex-1">
-                            Cancel
                           </Button>
                         </div>
                       </div>
