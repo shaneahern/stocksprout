@@ -1,8 +1,8 @@
-# FutureVest 🌱
+# StockSprout 🌱
 
 **Growing their future, one gift at a time**
 
-FutureVest is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions.
+StockSprout is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions.
 
 ## ✨ Features
 
@@ -75,7 +75,7 @@ FutureVest is a custodial investment platform that allows parents to manage inve
 1. **Clone the repository**
 ```bash
 git clone <your-repo-url>
-cd FutureVest
+cd StockSprout
 ```
 
 2. **Install dependencies**
@@ -87,7 +87,7 @@ npm install
 
 Create a `.env` file in the root:
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/futurevest
+DATABASE_URL=postgresql://user:password@localhost:5432/stocksprout
 JWT_SECRET=your-super-secret-jwt-key-here
 PORT=3000
 NODE_ENV=development

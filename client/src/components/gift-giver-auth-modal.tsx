@@ -154,10 +154,7 @@ export function GiftGiverAuthModal({
     };
 
     onAuthenticated(guestContributor, false);
-    toast({
-      title: "Continuing as Guest",
-      description: `You can send a gift to ${childName} without creating an account.`,
-    });
+    onClose(); // Close the modal after guest continues
   };
 
   const resetForm = () => {

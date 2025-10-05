@@ -1,8 +1,8 @@
-# FutureVest Investment Platform
+# StockSprout Investment Platform
 
 ## Overview
 
-FutureVest (formerly StockSprout) is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, educational activities, and interactive timeline functionality.
+StockSprout is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, educational activities, and interactive timeline functionality.
 
 ## Recent Changes (October 4, 2025)
 

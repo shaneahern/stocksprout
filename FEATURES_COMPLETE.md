@@ -1,4 +1,4 @@
-# FutureVest - Complete Feature Implementation
+# StockSprout - Complete Feature Implementation
 
 ## ✅ All Required Features Implemented
 

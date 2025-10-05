@@ -1,4 +1,4 @@
-# FutureVest - Replit Deployment Guide
+# StockSprout - Replit Deployment Guide
 
 ## 🚀 Deploy to Replit
 
@@ -158,6 +158,6 @@ If you encounter issues:
 
 ## 🎉 You're Ready!
 
-Your FutureVest app is production-ready and can handle real users, real contributions, and real portfolios. Everything is functional and tested!
+Your StockSprout app is production-ready and can handle real users, real contributions, and real portfolios. Everything is functional and tested!
 
 **Enjoy your deployed application!** 🚀

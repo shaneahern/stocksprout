@@ -1,6 +1,6 @@
-# Implementation Summary - FutureVest
+# Implementation Summary - StockSprout
 
-This document provides a comprehensive overview of all features implemented for the FutureVest application.
+This document provides a comprehensive overview of all features implemented for the StockSprout application.
 
 ## Completed Requirements
 

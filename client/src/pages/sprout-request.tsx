@@ -140,7 +140,7 @@ export default function SproutRequestPage() {
       <div className="max-w-md mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">FutureVest</h1>
+          <h1 className="text-3xl font-bold text-gray-900">StockSprout</h1>
           <p className="mt-2 text-sm text-gray-600">Contribution Request</p>
         </div>
 

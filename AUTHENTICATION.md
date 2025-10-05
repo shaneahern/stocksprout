@@ -1,6 +1,6 @@
 # Authentication System
 
-This document describes the authentication system implemented for FutureVest.
+This document describes the authentication system implemented for StockSprout.
 
 ## Features Implemented
 

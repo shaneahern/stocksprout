@@ -1,8 +1,8 @@
-# 🚀 START HERE - FutureVest Deployment
+# 🚀 START HERE - StockSprout Deployment
 
 ## 📦 You Have Everything You Need!
 
-This package contains the complete FutureVest application, ready to deploy.
+This package contains the complete StockSprout application, ready to deploy.
 
 ## ⚡ Quick Deploy to Replit (5 Minutes)
 
@@ -10,7 +10,7 @@ This package contains the complete FutureVest application, ready to deploy.
 1. Go to **https://replit.com**
 2. Click **"Create Repl"**
 3. Choose **"Import from Upload"**
-4. Upload **FutureVest-Deploy.zip**
+4. Upload **StockSprout-Deploy.zip**
 5. Wait for extraction and setup
 
 ### Step 2️⃣: Get a Free Database
@@ -60,7 +60,7 @@ Your app will be live at: `https://[your-repl-name].[username].repl.co`
 Open the URL and:
 1. **Sign up** with your information
 2. **Add your first child**
-3. **Start using FutureVest!**
+3. **Start using StockSprout!**
 
 ## 📚 Documentation Included
 
