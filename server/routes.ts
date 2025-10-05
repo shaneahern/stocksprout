@@ -379,18 +379,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const child = await storage.getChild(validatedData.childId);
       const isParentPurchase = child && validatedData.contributorId && child.parentId === validatedData.contributorId;
       
-      console.log('Gift creation debug:', {
-        childId: validatedData.childId,
-        childParentId: child?.parentId,
-        contributorId: validatedData.contributorId,
-        isParentPurchase
-      });
-      
       const gift = await storage.createGift(giftData);
       
       // Auto-approve parent purchases (skip custodian review)
       if (isParentPurchase) {
-        console.log('Auto-approving parent purchase for gift:', gift.id);
         await storage.approveGift(gift.id);
         
         // Update portfolio holdings for auto-approved gifts
