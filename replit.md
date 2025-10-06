@@ -4,9 +4,21 @@
 
 StockSprout is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, educational activities, and interactive timeline functionality.
 
-## Recent Changes (October 4, 2025)
+## Recent Changes (October 6, 2025)
+
+- **Unified Authentication System**: All users now use a single unified authentication system with roles determined by relationships to children
+- **Database Schema Updated**: Successfully migrated to unified users table with optional username, phone field, and createdAt timestamp
+- **Login Flow Simplified**: Single login endpoint using email instead of username
+- **Profile Picture Support**: Base64 data URLs now supported for profile images
+- **Schema Migration**: Database schema successfully pushed and synchronized
+
+## Previous Changes (October 4-5, 2025)
 
 - **GitHub Import Setup**: Successfully imported and configured for Replit environment
+- **Mobile Navigation**: Added custodian and contributor routing with auto-redirect to first child
+- **Bidirectional Amount/Shares Editing**: Both fields editable with real-time calculation
+- **Camera UX Improvements**: Auto-start camera for profile pictures with better button placement
+- **Auto-Approve Parent Purchases**: Parent purchases automatically approved without custodian review
 - **Database**: PostgreSQL database provisioned and schema migrated
 - **Deployment**: Configured for autoscale deployment with production build
 - **Environment**: Development server running on port 5000 with Vite HMR
