@@ -45,6 +45,7 @@ export interface IStorage {
   getChildByGiftCode(giftCode: string): Promise<Child | undefined>;
   getChildrenByParent(parentId: string): Promise<Child[]>;
   createChild(child: InsertChild): Promise<Child>;
+  updateChild(id: string, updates: Partial<Child>): Promise<Child | undefined>;
   generateGiftLinkCode(): string;
 
   // Investments
@@ -260,6 +261,14 @@ export class DatabaseStorage implements IStorage {
       birthday: insertChild.birthday ?? null
     }).returning();
     return child;
+  }
+
+  async updateChild(id: string, updates: Partial<Child>): Promise<Child | undefined> {
+    const [updated] = await db.update(children)
+      .set(updates)
+      .where(eq(children.id, id))
+      .returning();
+    return updated;
   }
 
   generateGiftLinkCode(): string {

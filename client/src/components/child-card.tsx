@@ -1,12 +1,15 @@
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { TrendingUp, Share2, Gift } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { TrendingUp, Share2, Gift, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ChildCardProps {
   child: any;
@@ -16,6 +19,13 @@ interface ChildCardProps {
 export default function ChildCard({ child, isContributedChild = false }: ChildCardProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { token } = useAuth();
+
+  // Camera states
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const generateLinkMutation = useMutation({
     mutationFn: async () => {
@@ -52,6 +62,100 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
       });
     },
   });
+
+  // Update child profile photo mutation
+  const updatePhotoMutation = useMutation({
+    mutationFn: async (profileImageUrl: string) => {
+      const response = await fetch(`/api/children/${child.id}/profile-photo`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ profileImageUrl }),
+      });
+      if (!response.ok) throw new Error("Failed to update photo");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/children"] });
+      toast({
+        title: "Photo Updated!",
+        description: `Profile photo for ${child.name} has been updated.`,
+      });
+      setIsCameraOpen(false);
+      setCapturedImage(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update profile photo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Camera methods
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      toast({
+        title: "Camera Error",
+        description: "Could not access camera. Please check permissions.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0);
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        setCapturedImage(imageData);
+        stopCamera();
+      }
+    }
+  };
+
+  const savePhoto = () => {
+    if (capturedImage) {
+      updatePhotoMutation.mutate(capturedImage);
+    }
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+    startCamera();
+  };
+
+  // Start camera when dialog opens
+  useEffect(() => {
+    if (isCameraOpen && !capturedImage) {
+      startCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isCameraOpen]);
 
   const handleViewPortfolio = () => {
     setLocation(`/portfolio/${child.id}`);
@@ -93,14 +197,29 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   };
 
   return (
-    <Card className="border border-border shadow-sm" data-testid={`card-child-${child.id}`}>
-      <CardContent className="p-5">
-        <div className="flex items-center space-x-4 mb-4">
-          <Avatar className="w-16 h-16 border-2 border-primary/20">
-            <AvatarFallback className="text-lg font-bold">
-              {child.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
+    <>
+      <Card className="border border-border shadow-sm" data-testid={`card-child-${child.id}`}>
+        <CardContent className="p-5">
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="relative">
+              <Avatar className="w-16 h-16 border-2 border-primary/20">
+                {child.profileImageUrl && (
+                  <AvatarImage src={child.profileImageUrl} alt={child.name} />
+                )}
+                <AvatarFallback className="text-lg font-bold">
+                  {child.name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              {!isContributedChild && (
+                <button
+                  onClick={() => setIsCameraOpen(true)}
+                  className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
+                  aria-label="Add profile photo"
+                >
+                  <Camera className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           <div className="flex-1">
             <h3 className="font-bold text-lg text-foreground">{child.name}</h3>
             <p className="text-muted-foreground text-sm">Age {child.age}</p>
@@ -167,5 +286,78 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         </div>
       </CardContent>
     </Card>
+
+      {/* Camera Dialog */}
+      <Dialog open={isCameraOpen} onOpenChange={(open) => {
+        setIsCameraOpen(open);
+        if (!open) {
+          stopCamera();
+          setCapturedImage(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Profile Photo for {child.name}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {!capturedImage ? (
+              <>
+                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={capturePhoto}
+                    className="flex-1"
+                  >
+                    Capture Photo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCameraOpen(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+                  <img
+                    src={capturedImage}
+                    alt="Captured"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={savePhoto}
+                    disabled={updatePhotoMutation.isPending}
+                    className="flex-1"
+                  >
+                    {updatePhotoMutation.isPending ? "Saving..." : "Use This Photo"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={retakePhoto}
+                    className="flex-1"
+                  >
+                    Retake
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

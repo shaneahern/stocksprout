@@ -263,6 +263,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update child profile photo
+  app.patch("/api/children/:childId/profile-photo", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) {
+        return res.status(401).json({ error: "No token provided" });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
+      const userId = decoded.userId;
+
+      const { childId } = req.params;
+      const { profileImageUrl } = req.body;
+
+      // Verify the child belongs to the authenticated user
+      const child = await storage.getChild(childId);
+      if (!child) {
+        return res.status(404).json({ error: "Child not found" });
+      }
+
+      if (child.parentId !== userId) {
+        return res.status(403).json({ error: "You can only update profile photos for your own children" });
+      }
+
+      // Update the child's profile photo
+      const updatedChild = await storage.updateChild(childId, { profileImageUrl });
+      res.json(updatedChild);
+    } catch (error) {
+      console.error("Error updating child profile photo:", error);
+      res.status(500).json({ error: "Failed to update child profile photo" });
+    }
+  });
+
   app.get("/api/children/by-gift-code/:giftCode", async (req, res) => {
     try {
       const child = await storage.getChildByGiftCode(req.params.giftCode);
