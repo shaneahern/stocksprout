@@ -24,7 +24,7 @@ export default function GiftGiver() {
   const [, setLocation] = useLocation();
   const giftCode = params?.giftCode;
   const { toast } = useToast();
-  const { contributor: authContributor, contributorToken, isLoading: authLoading } = useAuth();
+  const { user: authContributor, token: contributorToken, isLoading: authLoading } = useAuth();
   
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const [amount, setAmount] = useState("150");
@@ -36,9 +36,10 @@ export default function GiftGiver() {
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [giftSent, setGiftSent] = useState(false);
+  const [guestCompleted, setGuestCompleted] = useState(false);
   
-  // Show auth modal only if not authenticated and not loading
-  const shouldShowAuthModal = !authContributor && !authLoading;
+  // Show auth modal only if not authenticated, not loading, and guest hasn't completed
+  const shouldShowAuthModal = !authContributor && !authLoading && !guestCompleted;
   
   
   // Profile photo state
@@ -63,12 +64,16 @@ export default function GiftGiver() {
   const handleAuthenticated = (contributorData: any, isNewUser: boolean) => {
       // The AuthContext already handles the authentication state
       // We just need to pre-fill the form
-      // The modal will automatically hide because shouldShowAuthModal will be false
       
       // Pre-fill form with contributor data
       setGiftGiverName(contributorData.name);
       setGiftGiverEmail(contributorData.email || '');
       setProfileImageUrl(contributorData.profileImageUrl || '');
+      
+      // If this is a guest (id starts with 'guest-'), mark guest as completed
+      if (contributorData.id && contributorData.id.startsWith('guest-')) {
+        setGuestCompleted(true);
+      }
     
     // If it's a new user, we might want to connect them to this child for future gifts
     if (isNewUser && contributorData.id && !contributorData.id.startsWith('guest-')) {

@@ -9,7 +9,8 @@ interface VideoRecorderProps {
 }
 
 export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
-  const [isRecording, setIsRecording] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false); // Camera preview active
+  const [isRecording, setIsRecording] = useState(false); // Actually recording
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -19,7 +20,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
   const chunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
 
-  const startRecording = async () => {
+  const startPreview = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -30,13 +31,48 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         audio: true 
       });
       
+      console.log('Camera stream obtained:', mediaStream.active);
       setStream(mediaStream);
+      setIsPreviewing(true);
       
-      // Display live video feed
-      if (liveVideoRef.current) {
-        liveVideoRef.current.srcObject = mediaStream;
-      }
-      
+      // Display live video feed - use a timeout to ensure DOM is ready
+      setTimeout(() => {
+        if (liveVideoRef.current) {
+          console.log('Setting stream on video element');
+          liveVideoRef.current.srcObject = mediaStream;
+          
+          // Wait for metadata to load, then play
+          liveVideoRef.current.onloadedmetadata = async () => {
+            try {
+              console.log('Video metadata loaded, starting playback');
+              await liveVideoRef.current?.play();
+              console.log('Live video preview started successfully');
+            } catch (err) {
+              console.error('Error playing video stream:', err);
+            }
+          };
+        } else {
+          console.error('liveVideoRef.current is null');
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Video preview error:', error);
+      toast({
+        title: "Camera Access Denied",
+        description: "Please allow camera access to record a video message.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startRecording = async () => {
+    if (!stream) {
+      console.error('No stream available');
+      return;
+    }
+    
+    try {
+
       // Detect supported MIME type for mobile compatibility
       let mimeType = 'video/webm;codecs=vp8,opus';
       if (MediaRecorder.isTypeSupported('video/mp4')) {
@@ -49,7 +85,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         mimeType = 'video/webm';
       }
       
-      mediaRecorderRef.current = new MediaRecorder(mediaStream, { mimeType });
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -59,13 +95,25 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
       };
 
       mediaRecorderRef.current.onstop = () => {
+        console.log('Recording stopped, chunks count:', chunksRef.current.length);
         const blob = new Blob(chunksRef.current, { type: mimeType });
+        console.log('Blob created, size:', blob.size, 'type:', blob.type);
         const url = URL.createObjectURL(blob);
+        console.log('Video URL created:', url);
         setRecordedVideoUrl(url);
         
-        // Stop all tracks
-        mediaStream.getTracks().forEach(track => track.stop());
+        // Stop all tracks and clean up
+        stream.getTracks().forEach(track => track.stop());
         setStream(null);
+        setIsPreviewing(false);
+        
+        // Auto-load the video
+        setTimeout(() => {
+          if (videoRef.current) {
+            console.log('Loading recorded video');
+            videoRef.current.load();
+          }
+        }, 100);
       };
 
       mediaRecorderRef.current.start();
@@ -78,8 +126,8 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
     } catch (error) {
       console.error('Video recording error:', error);
       toast({
-        title: "Camera Access Denied",
-        description: "Please allow camera access to record a video message.",
+        title: "Recording Failed",
+        description: "Failed to start recording. Please try again.",
         variant: "destructive",
       });
     }
@@ -150,8 +198,11 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
 
   const playRecording = () => {
     if (videoRef.current && recordedVideoUrl) {
-      videoRef.current.src = recordedVideoUrl;
-      videoRef.current.play();
+      console.log('Playing video:', recordedVideoUrl);
+      videoRef.current.load();
+      videoRef.current.play().catch(err => {
+        console.error('Error playing video:', err);
+      });
     }
   };
 
@@ -159,9 +210,11 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
     <Card className="border-2 border-dashed border-border">
       <CardContent className="p-6 text-center">
         {recordedVideoUrl ? (
+          // Playback state: Show recorded video
           <div className="space-y-4">
             <video
               ref={videoRef}
+              src={recordedVideoUrl}
               className="w-full h-48 sm:h-64 bg-black rounded-lg"
               controls
               playsInline
@@ -194,6 +247,8 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                 onClick={() => {
                   setRecordedVideoUrl(null);
                   if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+                  setIsPreviewing(false);
+                  setIsRecording(false);
                 }}
                 className="flex-1"
                 data-testid="button-record-again"
@@ -202,7 +257,8 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               </Button>
             </div>
           </div>
-        ) : isRecording ? (
+        ) : isPreviewing ? (
+          // Preview/Recording state: Show live camera feed
           <div className="space-y-4">
             <video
               ref={liveVideoRef}
@@ -212,27 +268,55 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               className="w-full h-48 sm:h-64 bg-black rounded-lg"
               data-testid="video-live-feed"
             />
-            <Button
-              onClick={stopRecording}
-              variant="destructive"
-              className="w-full"
-              data-testid="button-stop-recording"
-            >
-              <Square className="w-4 h-4 mr-2" />
-              Stop Recording
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    setStream(null);
+                  }
+                  setIsPreviewing(false);
+                  setIsRecording(false);
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              {isRecording ? (
+                <Button
+                  onClick={stopRecording}
+                  variant="destructive"
+                  className="flex-1"
+                  data-testid="button-stop-recording"
+                >
+                  <Square className="w-4 h-4 mr-2" />
+                  Stop Recording
+                </Button>
+              ) : (
+                <Button
+                  onClick={startRecording}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  data-testid="button-start-recording"
+                >
+                  <Video className="w-4 h-4 mr-2" />
+                  Start Recording
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
+          // Initial state: Show button to start preview
           <div className="space-y-4">
             <Video className="w-12 h-12 text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">Record a personal video message</p>
             <Button
-              onClick={startRecording}
+              onClick={startPreview}
               className="w-full"
-              data-testid="button-start-recording"
+              data-testid="button-record-video-message"
             >
               <Video className="w-4 h-4 mr-2" />
-              Start Recording
+              Record Video Message
             </Button>
           </div>
         )}

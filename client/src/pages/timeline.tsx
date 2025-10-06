@@ -26,42 +26,35 @@ export default function Timeline() {
   const [, setLocation] = useLocation();
   const childId = params?.childId;
   const { toast } = useToast();
-  const { user, contributor, contributorToken } = useAuth();
+  const { user, token } = useAuth();
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ url: string; giverName: string } | null>(null);
 
-  // Fetch children that contributor has contributed to
-  const { data: contributorGifts = [] } = useQuery<any[]>({
-    queryKey: ["/api/contributors/gifts", contributor?.id],
+  // Fetch children that user has contributed to (gifts they've given)
+  const { data: userGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", user?.id],
     queryFn: async () => {
-      if (!contributor?.id || !contributorToken) return [];
+      if (!user?.id || !token) return [];
       
-      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
         headers: {
-          'Authorization': `Bearer ${contributorToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: !!contributor?.id && !!contributorToken && !user,
+    enabled: !!user?.id && !!token,
   });
 
-  // Extract unique children from contributor gifts
-  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+  // Extract unique children from user's gifts
+  const contributedChildren = userGifts.reduce((acc: any[], gift: any) => {
     if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
       acc.push(gift.child);
     }
     return acc;
   }, []);
-
-  // Auto-redirect contributor to first child's timeline if no childId
-  useEffect(() => {
-    if (contributor && !user && !childId && contributedChildren.length > 0) {
-      setLocation(`/timeline/${contributedChildren[0].id}`);
-    }
-  }, [contributor, user, childId, contributedChildren, setLocation]);
 
   // Fetch custodian's children
   const { data: userChildren = [] } = useQuery<any[]>({
@@ -85,7 +78,7 @@ export default function Timeline() {
   const gifts = allGifts.filter((gift: any) => gift.status === 'approved');
   const pendingGifts = allGifts.filter((gift: any) => gift.status === 'pending');
 
-  const isLoadingData = isLoading || (contributor && !user && contributorGifts === undefined);
+  const isLoadingData = isLoading;
 
   if (isLoadingData) {
     return (
@@ -117,8 +110,8 @@ export default function Timeline() {
     );
   }
 
-  // Show message for contributors with no contributions yet
-  if (contributor && !user && !childId && contributedChildren.length === 0) {
+  // Show message if user has no timeline to display
+  if (user && !childId && userChildren.length === 0 && contributedChildren.length === 0) {
     return (
       <MobileLayout currentTab="timeline">
         <Card>
@@ -126,7 +119,7 @@ export default function Timeline() {
             <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No Timeline to Display</h3>
             <p className="text-muted-foreground mb-4">
-              You haven't contributed to any children yet. Send your first investment gift to see timeline information here.
+              Add your own children or contribute to someone's investment account to see timelines here.
             </p>
             <Button onClick={() => setLocation("/")}>
               Go to Home
@@ -316,15 +309,19 @@ export default function Timeline() {
             {/* Right: Gift Details */}
             <div className="flex-1 space-y-8">
               {giftsWithCumulative.map((gift: EnrichedGift, index: number) => (
-                <Card key={gift.id} className="relative" data-testid={`card-gift-${gift.id}`}>
-                  {/* Video Indicator Badge */}
+                <Card key={gift.id} className="relative overflow-hidden" data-testid={`card-gift-${gift.id}`}>
+                  {/* Video Indicator Badge - Clickable */}
                   {gift.videoMessageUrl && (
-                    <div className="absolute top-3 right-3 z-10">
-                      <Badge className="bg-purple-500 hover:bg-purple-600 text-white flex items-center gap-1 px-2 py-1">
-                        <Video className="w-3 h-3" />
+                    <button
+                      onClick={() => handlePlayVideo(gift.videoMessageUrl!, gift.giftGiverName)}
+                      className="absolute top-2 right-2 z-10 transition-transform hover:scale-105"
+                      title="Click to play video message"
+                    >
+                      <Badge className="bg-purple-500 hover:bg-purple-600 text-white flex items-center gap-1 px-2 py-1 cursor-pointer shadow-md">
+                        <PlayCircle className="w-3 h-3" />
                         <span className="text-xs">Video</span>
                       </Badge>
-                    </div>
+                    </button>
                   )}
                   <CardContent className="p-4">
                     <div className="flex items-start space-x-3">
@@ -333,6 +330,7 @@ export default function Timeline() {
                           <AvatarImage 
                             src={gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl || undefined} 
                             alt={gift.contributor?.name || gift.giftGiverName}
+                            className="object-cover"
                           />
                           <AvatarFallback className={`text-white text-sm font-semibold ${
                             gift.contributor?.phone === null ? 
@@ -358,7 +356,7 @@ export default function Timeline() {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
-                          <h3 className="font-bold text-base">
+                          <h3 className={`font-bold text-base ${gift.videoMessageUrl ? 'pr-16 sm:pr-0' : ''}`}>
                             {gift.contributor?.phone === null ? 
                               `Investment by ${gift.giftGiverName}` : // Parent purchase
                               `From ${gift.giftGiverName}` // External gift
@@ -388,19 +386,6 @@ export default function Timeline() {
                         )}
                         
                         <div className="flex flex-col sm:flex-row gap-2">
-                          {gift.videoMessageUrl && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => gift.videoMessageUrl && handlePlayVideo(gift.videoMessageUrl, gift.giftGiverName)}
-                              data-testid={`button-play-video-${gift.id}`}
-                              className="text-xs"
-                            >
-                              <PlayCircle className="w-4 h-4 mr-2" />
-                              Play Video
-                            </Button>
-                          )}
-                          
                           {user && !gift.thankYouSent && (
                             <Button
                               size="sm"

@@ -5,12 +5,14 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
+  username: text("username").unique(), // Optional
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
+  phone: text("phone"),
   profileImageUrl: text("profile_image_url"),
   bankAccountNumber: text("bank_account_number"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const children = pgTable("children", {
@@ -113,27 +115,30 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
   name: true,
+  phone: true,
   profileImageUrl: true,
   bankAccountNumber: true,
 });
 
 // Authentication schemas
 export const signupSchema = z.object({
-  username: z.string().min(3).max(50),
+  username: z.string().min(3).max(50).optional(),
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(1).max(100),
+  phone: z.string().optional(),
   bankAccountNumber: z.string().optional(),
+  profileImageUrl: z.string().optional(),
 });
 
 export const loginSchema = z.object({
-  username: z.string().min(1),
+  email: z.string().min(1), // Can be email or username
   password: z.string().min(1),
 });
 
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  profileImageUrl: z.string().url().optional().or(z.literal("")),
+  profileImageUrl: z.string().optional().or(z.literal("")), // Allow base64 data URLs
   bankAccountNumber: z.string().optional(),
 });
 

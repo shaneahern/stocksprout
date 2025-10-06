@@ -2,6 +2,8 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { contributors } from "@shared/schema";
 import { insertChildSchema, insertGiftSchema, insertThankYouMessageSchema, signupSchema, loginSchema, updateProfileSchema, createSproutRequestSchema, createRecurringContributionSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -52,12 +54,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = signupSchema.parse(req.body);
       
-      // Check if username or email already exists
-      const existingUser = await storage.getUserByUsername(validatedData.username) || 
-                          await storage.getUserByEmail(validatedData.email);
+      // Check if email already exists
+      const existingUserByEmail = await storage.getUserByEmail(validatedData.email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
       
-      if (existingUser) {
-        return res.status(400).json({ error: "Username or email already exists" });
+      // Check if username exists (only for custodians who need username)
+      if (validatedData.username) {
+        const existingUserByUsername = await storage.getUserByUsername(validatedData.username);
+        if (existingUserByUsername) {
+          return res.status(400).json({ error: "Username already exists" });
+        }
       }
       
       // Hash password
@@ -65,17 +73,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create user
       const user = await storage.createUser({
-        username: validatedData.username,
+        username: validatedData.username || null,
         email: validatedData.email,
         name: validatedData.name,
         password: hashedPassword,
-        profileImageUrl: null,
+        phone: validatedData.phone || null,
+        profileImageUrl: validatedData.profileImageUrl || null,
         bankAccountNumber: validatedData.bankAccountNumber || null,
       });
       
       // Generate JWT token
       const token = jwt.sign(
-        { userId: user.id, username: user.username },
+        { userId: user.id, email: user.email },
         process.env.JWT_SECRET || "fallback-secret",
         { expiresIn: "7d" }
       );
@@ -96,23 +105,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = loginSchema.parse(req.body);
       
-      // Find user by username
-      const user = await storage.getUserByUsername(validatedData.username);
+      // Try to find user by email first, then by username (for backwards compatibility)
+      let user = await storage.getUserByEmail(validatedData.email);
+      if (!user) {
+        user = await storage.getUserByUsername(validatedData.email); // email field can be username too
+      }
+      
       if (!user) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
       
       // TEMPORARILY DISABLED: Password verification for testing
       // TODO: Re-enable password checking in production
-      // const isValidPassword = await bcrypt.compare(validatedData.password, user.password);
-      // if (!isValidPassword) {
-      //   return res.status(401).json({ error: "Invalid credentials" });
+      // if (user.password) {
+      //   const isValidPassword = await bcrypt.compare(validatedData.password, user.password);
+      //   if (!isValidPassword) {
+      //     return res.status(401).json({ error: "Invalid credentials" });
+      //   }
       // }
-      console.log('⚠️  PASSWORD CHECK DISABLED - FOR TESTING ONLY');
+      console.log(`⚠️  PASSWORD CHECK DISABLED - FOR TESTING ONLY`);
       
       // Generate JWT token
       const token = jwt.sign(
-        { userId: user.id, username: user.username },
+        { userId: user.id, email: user.email },
         process.env.JWT_SECRET || "fallback-secret",
         { expiresIn: "7d" }
       );
@@ -152,28 +167,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/profile", async (req, res) => {
+  const updateProfileHandler = async (req: any, res: any) => {
     try {
       const token = req.headers.authorization?.replace("Bearer ", "");
       if (!token) {
+        console.log("No token provided");
         return res.status(401).json({ error: "No token provided" });
       }
       
       const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
+      console.log("Updating profile for user:", decoded.userId);
+      console.log("Request body keys:", Object.keys(req.body));
+      if (req.body.profileImageUrl) {
+        console.log("Profile image URL length:", req.body.profileImageUrl.length);
+      }
+      
       const validatedData = updateProfileSchema.parse(req.body);
+      console.log("Validation passed");
       
       const updatedUser = await storage.updateUserProfile(decoded.userId, validatedData);
       if (!updatedUser) {
+        console.log("User not found:", decoded.userId);
         return res.status(404).json({ error: "User not found" });
       }
       
+      console.log("Profile updated successfully");
       const { password, ...userWithoutPassword } = updatedUser;
-      res.json(userWithoutPassword);
+      return res.json(userWithoutPassword);
     } catch (error) {
       console.error("Profile update error:", error);
-      res.status(400).json({ error: "Invalid profile data" });
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid profile data" });
     }
-  });
+  };
+
+  app.patch("/api/profile", updateProfileHandler);
+  app.put("/api/profile", updateProfileHandler);
 
   // Children routes
   app.get("/api/children/:parentId", async (req, res) => {
@@ -734,6 +766,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEST ONLY: List all contributors
+  app.get("/api/test/contributors", async (req, res) => {
+    try {
+      const allContributors = await db.select().from(contributors);
+      res.json({ 
+        count: allContributors.length,
+        contributors: allContributors.map(c => ({
+          id: c.id,
+          email: c.email,
+          name: c.name,
+          isRegistered: c.isRegistered,
+          createdAt: c.createdAt,
+        }))
+      });
+    } catch (error) {
+      console.error("Failed to list contributors:", error);
+      res.status(500).json({ error: "Failed to list contributors" });
+    }
+  });
+
+  // TEST ONLY: Create a test contributor
+  app.post("/api/test/create-contributor", async (req, res) => {
+    try {
+      const testEmail = "test@contributor.com";
+      const existingContributor = await storage.getContributorByEmail(testEmail);
+      
+      if (existingContributor) {
+        return res.json({ 
+          message: "Test contributor already exists",
+          email: testEmail,
+          contributor: existingContributor
+        });
+      }
+      
+      const contributor = await storage.createContributor({
+        email: testEmail,
+        name: "Test Contributor",
+        password: null,
+        phone: null,
+        profileImageUrl: null,
+        isRegistered: false,
+      });
+      
+      res.json({ 
+        message: "Test contributor created",
+        email: testEmail,
+        contributor
+      });
+    } catch (error) {
+      console.error("Failed to create test contributor:", error);
+      res.status(500).json({ error: "Failed to create test contributor" });
+    }
+  });
+
   // Contributor routes
   app.post("/api/contributors/signup", async (req, res) => {
     try {
@@ -810,17 +896,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Find contributor by email
       const contributor = await storage.getContributorByEmail(email);
-      if (!contributor || !contributor.isRegistered) {
+      if (!contributor) {
         return res.status(401).json({ error: "Invalid email or password" });
       }
       
-      // TEMPORARILY DISABLED: Password verification for testing
-      // TODO: Re-enable password checking in production
+      // TEMPORARILY DISABLED: Registration and password checks for testing
+      // TODO: Re-enable in production
+      // if (!contributor.isRegistered) {
+      //   return res.status(401).json({ error: "Invalid email or password" });
+      // }
       // const isValidPassword = await bcrypt.compare(password, contributor.password);
       // if (!isValidPassword) {
       //   return res.status(401).json({ error: "Invalid email or password" });
       // }
-      console.log('⚠️  PASSWORD CHECK DISABLED - FOR TESTING ONLY');
+      console.log('⚠️  PASSWORD AND REGISTRATION CHECKS DISABLED - FOR TESTING ONLY');
       
       // Link any previous guest gifts to this contributor
       await storage.linkGiftsToContributor(email, contributor.id);

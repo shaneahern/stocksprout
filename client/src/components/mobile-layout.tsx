@@ -253,7 +253,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 pb-20">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 pb-32">
         {children}
       </div>
 

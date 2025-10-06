@@ -15,7 +15,8 @@ import {
   Calendar,
   ArrowLeft,
   User,
-  Heart
+  Heart,
+  LogOut
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Gift as GiftType, Investment, Contributor } from "@shared/schema";
@@ -32,7 +33,7 @@ type EnrichedGift = GiftType & {
 };
 
 export default function ContributorDashboard() {
-  const { contributor, contributorToken } = useAuth();
+  const { user, token, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   
@@ -40,17 +41,17 @@ export default function ContributorDashboard() {
   const urlParams = new URLSearchParams(window.location.search);
   const returnTo = urlParams.get('returnTo') || '/';
 
-  // Fetch all gifts made by this contributor
+  // Fetch all gifts made by this user
   const { data: allGifts = [], isLoading } = useQuery<EnrichedGift[]>({
-    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryKey: ["/api/contributors/gifts", user?.id],
     queryFn: async () => {
-      if (!contributor?.id || !contributorToken) {
-        throw new Error("Contributor not authenticated");
+      if (!user?.id || !token) {
+        throw new Error("User not authenticated");
       }
       
-      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
         headers: {
-          'Authorization': `Bearer ${contributorToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       
@@ -60,10 +61,10 @@ export default function ContributorDashboard() {
       
       return response.json();
     },
-    enabled: !!contributor?.id && !!contributorToken,
+    enabled: !!user?.id && !!token,
   });
 
-  if (!contributor) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md mx-4">
@@ -109,6 +110,11 @@ export default function ContributorDashboard() {
     return acc;
   }, {} as Record<string, { child: any; gifts: EnrichedGift[]; totalContributed: number }>);
 
+  const handleSignOut = () => {
+    logout();
+    setLocation('/');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -128,16 +134,16 @@ export default function ContributorDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <Avatar className="w-12 h-12">
-                {contributor.profileImageUrl ? (
-                  <AvatarImage src={contributor.profileImageUrl} alt={contributor.name} />
+                {user.profileImageUrl ? (
+                  <AvatarImage src={user.profileImageUrl} alt={user.name} />
                 ) : (
                   <AvatarFallback className="bg-white/20 text-white">
-                    {contributor.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
                 )}
               </Avatar>
               <div>
-                <h1 className="text-2xl font-bold">{contributor.name}</h1>
+                <h1 className="text-2xl font-bold">{user.name}</h1>
                 <p className="text-white/90">Contribution Dashboard</p>
               </div>
             </div>
@@ -277,11 +283,11 @@ export default function ContributorDashboard() {
                       <CardContent className="p-4">
                         <div className="flex items-start space-x-3">
                           <Avatar className="w-10 h-10">
-                            {contributor.profileImageUrl ? (
-                              <AvatarImage src={contributor.profileImageUrl} alt={contributor.name} />
+                            {user.profileImageUrl ? (
+                              <AvatarImage src={user.profileImageUrl} alt={user.name} />
                             ) : (
                               <AvatarFallback className="bg-green-500 text-white">
-                                {contributor.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                               </AvatarFallback>
                             )}
                           </Avatar>
@@ -319,6 +325,18 @@ export default function ContributorDashboard() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Sign Out Button */}
+        <div className="mt-8 mb-8 flex justify-center">
+          <Button 
+            variant="outline" 
+            onClick={handleSignOut}
+            className="w-full max-w-md"
+          >
+            <LogOut className="w-5 h-5 mr-2" />
+            Sign Out
+          </Button>
+        </div>
       </div>
     </div>
   );

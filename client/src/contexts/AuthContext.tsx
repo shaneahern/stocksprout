@@ -2,51 +2,32 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 export interface User {
   id: string;
-  username: string;
+  username?: string | null;
   email: string;
   name: string;
+  phone?: string | null;
   profileImageUrl?: string | null;
   bankAccountNumber?: string | null;
-}
-
-export interface Contributor {
-  id: string;
-  email: string;
-  phone?: string | null;
-  name: string;
-  profileImageUrl?: string | null;
-  isRegistered: boolean;
   createdAt: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  contributor: Contributor | null;
   token: string | null;
-  contributorToken: string | null;
-  login: (username: string, password: string) => Promise<void>;
-  contributorSignin: (email: string, password: string) => Promise<void>;
-  contributorSignup: (data: ContributorSignupData) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
   logout: () => void;
-  contributorLogout: () => void;
   updateProfile: (data: UpdateProfileData) => Promise<void>;
   isLoading: boolean;
 }
 
 interface SignupData {
-  username: string;
+  username?: string;
   email: string;
   password: string;
   name: string;
-  bankAccountNumber?: string;
-}
-
-interface ContributorSignupData {
-  name: string;
-  email: string;
   phone?: string;
-  password: string;
+  bankAccountNumber?: string;
   profileImageUrl?: string;
 }
 
@@ -60,26 +41,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [contributor, setContributor] = useState<Contributor | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [contributorToken, setContributorToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored tokens on mount
+    // Check for stored token on mount
     const storedToken = localStorage.getItem('token');
-    const storedContributorToken = localStorage.getItem('contributorToken');
-    const storedContributorData = localStorage.getItem('contributorData');
     
-    
-    if (storedContributorToken) {
-      setContributorToken(storedContributorToken);
-      fetchContributorProfile(storedContributorToken);
-    } else if (storedToken) {
+    if (storedToken) {
       setToken(storedToken);
       fetchProfile(storedToken);
     } else {
-      console.log('AuthContext: No stored tokens found');
+      console.log('AuthContext: No stored token found');
       setIsLoading(false);
     }
   }, []);
@@ -109,39 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const fetchContributorProfile = async (authToken: string) => {
-    try {
-      // For contributors, we need to decode the JWT to get the contributor ID
-      // Since we don't have a dedicated profile endpoint for contributors,
-      // we'll store the contributor data in localStorage and retrieve it here
-      const storedContributorData = localStorage.getItem('contributorData');
-      if (storedContributorData) {
-        const contributorData = JSON.parse(storedContributorData);
-        setContributor(contributorData);
-      } else {
-        // Token exists but no stored data, remove it
-        localStorage.removeItem('contributorToken');
-        setContributorToken(null);
-      }
-    } catch (error) {
-      console.error('Failed to fetch contributor profile:', error);
-      localStorage.removeItem('contributorToken');
-      localStorage.removeItem('contributorData');
-      setContributorToken(null);
-      setContributor(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (username: string, password: string) => {
+  const login = async (email: string, password: string) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
@@ -154,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       localStorage.setItem('token', data.token);
     } catch (error) {
+      console.error('AuthContext: login error', error);
       throw error;
     }
   };
@@ -178,29 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       localStorage.setItem('token', data.token);
     } catch (error) {
-      throw error;
-    }
-  };
-
-  const updateProfile = async (profileData: UpdateProfileData) => {
-    try {
-      const response = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(profileData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Profile update failed');
-      }
-
-      setUser(data);
-    } catch (error) {
+      console.error('AuthContext: signup error', error);
       throw error;
     }
   };
@@ -211,84 +138,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
   };
 
-  const contributorSignin = async (email: string, password: string) => {
+  const updateProfile = async (updates: UpdateProfileData) => {
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
     try {
-      const response = await fetch('/api/contributors/signin', {
-        method: 'POST',
+      const response = await fetch('/api/profile', {
+        method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(updates),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Contributor signin failed');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update profile');
       }
 
-      setContributorToken(data.token);
-      setContributor(data.contributor);
-      localStorage.setItem('contributorToken', data.token);
-      localStorage.setItem('contributorData', JSON.stringify(data.contributor));
-      
-      // Return the contributor data for immediate use
-      return data.contributor;
+      const updatedUser = await response.json();
+      setUser(updatedUser);
     } catch (error) {
-      console.error('AuthContext: contributorSignin error', error);
+      console.error('AuthContext: updateProfile error', error);
       throw error;
     }
-  };
-
-  const contributorSignup = async (signupData: ContributorSignupData) => {
-    try {
-      const response = await fetch('/api/contributors/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(signupData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Contributor signup failed');
-      }
-
-      setContributorToken(data.token);
-      setContributor(data.contributor);
-      localStorage.setItem('contributorToken', data.token);
-      localStorage.setItem('contributorData', JSON.stringify(data.contributor));
-      
-      // Return the contributor data for immediate use
-      return data.contributor;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const contributorLogout = () => {
-    setContributor(null);
-    setContributorToken(null);
-    localStorage.removeItem('contributorToken');
-    localStorage.removeItem('contributorData');
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      contributor, 
-      token, 
-      contributorToken, 
-      login, 
-      contributorSignin, 
-      contributorSignup, 
-      signup, 
-      logout, 
-      contributorLogout, 
-      updateProfile, 
-      isLoading 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      login,
+      signup,
+      logout,
+      updateProfile,
+      isLoading,
     }}>
       {children}
     </AuthContext.Provider>
@@ -302,3 +188,6 @@ export function useAuth() {
   }
   return context;
 }
+
+// Legacy exports for backwards compatibility
+export type { SignupData as ContributorSignupData };

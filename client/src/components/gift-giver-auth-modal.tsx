@@ -32,7 +32,7 @@ export function GiftGiverAuthModal({
   const [mode, setMode] = useState<'choose' | 'signin' | 'signup' | 'guest'>('choose');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { contributorSignin, contributorSignup } = useAuth();
+  const { login, signup } = useAuth();
 
   // Sign in form
   const [signInData, setSignInData] = useState({
@@ -46,15 +46,13 @@ export function GiftGiverAuthModal({
     email: '',
     phone: '',
     password: '',
-    confirmPassword: '',
-    profileImageUrl: ''
+    confirmPassword: ''
   });
 
   // Guest form
   const [guestData, setGuestData] = useState({
     name: '',
-    email: '',
-    profileImageUrl: ''
+    email: ''
   });
 
   const handleSignIn = async () => {
@@ -69,10 +67,10 @@ export function GiftGiverAuthModal({
 
     setIsLoading(true);
     try {
-      const contributorData = await contributorSignin(signInData.email, signInData.password);
+      await login(signInData.email, signInData.password);
       
-      // Call the callback with the returned contributor data
-      onAuthenticated(contributorData, false);
+      // Call the callback
+      onAuthenticated({ name: signInData.email, email: signInData.email }, false);
       toast({
         title: "Welcome Back!",
         description: `Signed in successfully. You can now send a gift to ${childName}.`,
@@ -110,16 +108,15 @@ export function GiftGiverAuthModal({
 
     setIsLoading(true);
     try {
-      const contributorData = await contributorSignup({
+      await signup({
         name: signUpData.name,
         email: signUpData.email,
         phone: signUpData.phone,
-        password: signUpData.password,
-        profileImageUrl: signUpData.profileImageUrl || undefined
+        password: signUpData.password
       });
       
       // User is automatically signed in after account creation
-      onAuthenticated(contributorData, true);
+      onAuthenticated({ name: signUpData.name, email: signUpData.email }, true);
       toast({
         title: "Account Created!",
         description: `Welcome! You are now signed in and can send a gift to ${childName}.`,
@@ -149,12 +146,11 @@ export function GiftGiverAuthModal({
     const guestContributor = {
       id: `guest-${Date.now()}`,
       name: guestData.name,
-      email: guestData.email || undefined,
-      profileImageUrl: guestData.profileImageUrl || undefined
+      email: guestData.email || undefined
     };
 
     onAuthenticated(guestContributor, false);
-    onClose(); // Close the modal after guest continues
+    onClose();
   };
 
   const resetForm = () => {
@@ -164,10 +160,9 @@ export function GiftGiverAuthModal({
       email: '', 
       phone: '', 
       password: '', 
-      confirmPassword: '',
-      profileImageUrl: ''
+      confirmPassword: ''
     });
-    setGuestData({ name: '', email: '', profileImageUrl: '' });
+    setGuestData({ name: '', email: '' });
   };
 
   const handleClose = () => {
@@ -328,16 +323,6 @@ export function GiftGiverAuthModal({
                     placeholder="Confirm your password"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="signup-profile-image">Profile Image URL (Optional)</Label>
-                  <Input
-                    id="signup-profile-image"
-                    type="url"
-                    value={signUpData.profileImageUrl}
-                    onChange={(e) => setSignUpData(prev => ({ ...prev, profileImageUrl: e.target.value }))}
-                    placeholder="https://example.com/your-photo.jpg"
-                  />
-                </div>
               </div>
               
               <Button onClick={handleSignUp} disabled={isLoading} className="w-full">
@@ -375,16 +360,6 @@ export function GiftGiverAuthModal({
                     value={guestData.email}
                     onChange={(e) => setGuestData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="Enter your email for receipt"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="guest-profile-image">Profile Image URL (Optional)</Label>
-                  <Input
-                    id="guest-profile-image"
-                    type="url"
-                    value={guestData.profileImageUrl}
-                    onChange={(e) => setGuestData(prev => ({ ...prev, profileImageUrl: e.target.value }))}
-                    placeholder="https://example.com/your-photo.jpg"
                   />
                 </div>
               </div>

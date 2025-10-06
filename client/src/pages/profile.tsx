@@ -5,14 +5,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera, Upload, X } from "lucide-react";
+import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export default function Profile() {
-  const { user, contributor, logout, contributorLogout, updateProfile } = useAuth();
-  const currentUser = user || contributor;
+  const { user, logout, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: '',
@@ -20,22 +19,21 @@ export default function Profile() {
     profileImageUrl: '',
   });
 
-  // Update editData when user/contributor changes
+  // Update editData when user changes
   useEffect(() => {
-    if (currentUser) {
+    if (user) {
       setEditData({
-        name: currentUser.name || '',
-        bankAccountNumber: (user as any)?.bankAccountNumber || '',
-        profileImageUrl: currentUser.profileImageUrl || '',
+        name: user.name || '',
+        bankAccountNumber: user.bankAccountNumber || '',
+        profileImageUrl: user.profileImageUrl || '',
       });
     }
-  }, [currentUser, user]);
+  }, [user]);
   const [isLoading, setIsLoading] = useState(false);
   
   // Camera functionality state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [cameraMode, setCameraMode] = useState<'url' | 'camera'>('camera'); // Default to camera
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -52,11 +50,7 @@ export default function Profile() {
   }, 0);
 
   const handleLogout = () => {
-    if (user) {
-      logout();
-    } else if (contributor) {
-      contributorLogout();
-    }
+    logout();
   };
 
   const handleEditSubmit = async () => {
@@ -77,8 +71,6 @@ export default function Profile() {
       setIsEditing(false);
       setIsCameraOpen(false); // Close camera dialog on success
       setCapturedImage(null); // Clear captured image
-      setCameraMode('url'); // Reset to URL mode
-      alert('Profile updated successfully!');
     } catch (error) {
       console.error('Failed to update profile:', error);
       alert(`Failed to update profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -108,17 +100,16 @@ export default function Profile() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-      setCameraMode('camera');
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please check permissions.');
-      setCameraMode('url'); // Fallback to URL mode if camera fails
+      alert('Unable to access camera. Please check permissions and try again.');
+      setIsCameraOpen(false);
     }
   };
 
   // Auto-start camera when dialog opens
   useEffect(() => {
-    if (isCameraOpen && cameraMode === 'camera' && !capturedImage) {
+    if (isCameraOpen && !capturedImage) {
       startCamera();
     }
   }, [isCameraOpen]);
@@ -157,11 +148,6 @@ export default function Profile() {
     setCapturedImage(null);
     setEditData(prev => ({ ...prev, profileImageUrl: '' }));
     startCamera();
-  };
-
-  const switchToUrlMode = () => {
-    stopCamera();
-    setCameraMode('url');
   };
 
   // Cleanup camera stream on unmount
@@ -204,7 +190,6 @@ export default function Profile() {
                 if (!open) {
                   stopCamera();
                   setCapturedImage(null);
-                  setCameraMode('camera'); // Reset to camera mode for next time
                 }
               }}>
                 <DialogTrigger asChild>
@@ -222,32 +207,8 @@ export default function Profile() {
                     <DialogTitle>Update Profile Picture</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    {/* Mode Selection - Only show if in URL mode */}
-                    {!capturedImage && cameraMode === 'url' && (
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="profileImageUrl">Image URL</Label>
-                          <Input
-                            id="profileImageUrl"
-                            value={editData.profileImageUrl}
-                            onChange={(e) => handleEditChange('profileImageUrl', e.target.value)}
-                            placeholder="Enter image URL"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={handleEditSubmit} disabled={isLoading} className="flex-1">
-                            {isLoading ? 'Updating...' : 'Update Picture'}
-                          </Button>
-                          <Button variant="outline" onClick={startCamera} className="flex-1">
-                            <Camera className="w-4 h-4 mr-2" />
-                            Use Camera
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Camera Mode */}
-                    {cameraMode === 'camera' && !capturedImage && (
+                    {/* Camera View */}
+                    {!capturedImage && (
                       <div className="space-y-4">
                         <div className="relative">
                           <video
@@ -257,19 +218,11 @@ export default function Profile() {
                             muted
                             className="w-full h-64 object-cover rounded-lg bg-gray-100"
                           />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={switchToUrlMode}
-                            className="absolute top-2 right-2 text-white bg-black/50 hover:bg-black/70"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
                         </div>
                         <div className="flex gap-2">
                           <Button 
-                            variant="destructive" 
-                            onClick={switchToUrlMode} 
+                            variant="outline" 
+                            onClick={() => setIsCameraOpen(false)} 
                             className="flex-1"
                           >
                             Cancel
@@ -312,9 +265,8 @@ export default function Profile() {
                 </DialogContent>
               </Dialog>
             </div>
-            <h2 className="text-2xl font-bold mb-2">{currentUser?.name || 'User'}</h2>
-            <p className="text-muted-foreground">{user ? 'Parent Account' : 'Contributor Account'}</p>
-            <p className="text-sm text-muted-foreground">{currentUser?.email || 'user@email.com'}</p>
+            <h2 className="text-2xl font-bold mb-2">{user?.name || 'User'}</h2>
+            <p className="text-sm text-muted-foreground">{user?.email || 'user@email.com'}</p>
             {user?.bankAccountNumber && (
               <p className="text-sm text-muted-foreground mt-1">
                 Bank Account: {user.bankAccountNumber}
@@ -435,7 +387,7 @@ export default function Profile() {
         {/* Logout */}
         <Button 
           variant="outline" 
-          className="w-full"
+          className="w-full mb-16"
           onClick={handleLogout}
           data-testid="button-logout"
         >
