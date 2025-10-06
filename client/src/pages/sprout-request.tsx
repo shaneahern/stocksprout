@@ -38,7 +38,7 @@ export default function SproutRequestPage() {
 
   const signupMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/contributors/signup', {
+      const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

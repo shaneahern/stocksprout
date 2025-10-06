@@ -868,9 +868,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Generate JWT token
+      // Generate JWT token with unified format
       const token = jwt.sign(
-        { contributorId: contributor?.id, email: contributor?.email, type: 'contributor' },
+        { userId: contributor?.id, email: contributor?.email },
         process.env.JWT_SECRET || "fallback-secret",
         { expiresIn: "7d" }
       );
@@ -878,6 +878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password: _, ...contributorWithoutPassword } = contributor || {};
       res.status(201).json({
         contributor: contributorWithoutPassword,
+        user: contributorWithoutPassword, // Also return as 'user' for compatibility
         token
       });
     } catch (error) {
@@ -914,9 +915,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Link any previous guest gifts to this contributor
       await storage.linkGiftsToContributor(email, contributor.id);
       
-      // Generate JWT token
+      // Generate JWT token with unified format
       const token = jwt.sign(
-        { contributorId: contributor.id, email: contributor.email, type: 'contributor' },
+        { userId: contributor.id, email: contributor.email },
         process.env.JWT_SECRET || "fallback-secret",
         { expiresIn: "7d" }
       );
@@ -924,6 +925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password: _, ...contributorWithoutPassword } = contributor;
       res.json({
         contributor: contributorWithoutPassword,
+        user: contributorWithoutPassword, // Also return as 'user' for compatibility
         token
       });
     } catch (error) {
@@ -947,15 +949,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
         
-        // Verify the contributor ID matches the token
-        if (decoded.contributorId !== id) {
-          return res.status(403).json({ error: "Not authorized to view this contributor's gifts" });
+        // Verify the user ID matches the token
+        if (decoded.userId !== id) {
+          return res.status(403).json({ error: "Not authorized to view these gifts" });
         }
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid or expired token" });
       }
       
-      // Get all gifts made by this contributor
+      // Get all gifts made by this user (as a contributor)
       const gifts = await storage.getGiftsByContributor(id);
       res.json(gifts);
     } catch (error) {
@@ -984,9 +986,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
         
-        // Verify the contributor ID matches the token
-        if (decoded.contributorId !== id) {
-          return res.status(403).json({ error: "Not authorized to update this contributor" });
+        // Verify the user ID matches the token
+        if (decoded.userId !== id) {
+          return res.status(403).json({ error: "Not authorized to update this profile" });
         }
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid or expired token" });
