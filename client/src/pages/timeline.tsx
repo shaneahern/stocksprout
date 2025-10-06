@@ -362,7 +362,7 @@ export default function Timeline() {
                               `From ${gift.giftGiverName}` // External gift
                             }
                           </h3>
-                          <Badge variant="outline" className="text-xs w-fit">
+                          <Badge variant="outline" className={`text-xs w-fit ${gift.videoMessageUrl ? 'mr-20 sm:mr-0' : ''}`}>
                             {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
                           </Badge>
                         </div>
