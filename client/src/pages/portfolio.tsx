@@ -18,25 +18,25 @@ type EnrichedHolding = PortfolioHolding & { investment: Investment };
 export default function Portfolio() {
   const [, params] = useRoute("/portfolio/:childId");
   const [, setLocation] = useLocation();
-  const { user, contributor, contributorToken } = useAuth();
+  const { user, token } = useAuth();
   const childId = params?.childId;
 
-  // Fetch children that contributor has contributed to
+  // Fetch children that user has contributed to (gifts they've given)
   const { data: contributorGifts = [] } = useQuery<any[]>({
-    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryKey: ["/api/contributors/gifts", user?.id],
     queryFn: async () => {
-      if (!contributor?.id || !contributorToken) return [];
+      if (!user?.id || !token) return [];
       
-      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
         headers: {
-          'Authorization': `Bearer ${contributorToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: !!contributor?.id && !!contributorToken && !user,
+    enabled: !!user?.id && !!token,
   });
 
   // Extract unique children from contributor gifts
@@ -47,12 +47,12 @@ export default function Portfolio() {
     return acc;
   }, []);
 
-  // Auto-redirect contributor to first child's portfolio if no childId
+  // Auto-redirect to first contributed child's portfolio if no childId and no own children
   useEffect(() => {
-    if (contributor && !user && !childId && contributedChildren.length > 0) {
+    if (!childId && contributedChildren.length > 0) {
       setLocation(`/portfolio/${contributedChildren[0].id}`);
     }
-  }, [contributor, user, childId, contributedChildren, setLocation]);
+  }, [childId, contributedChildren, setLocation]);
 
   // Fetch custodian's children
   const { data: userChildren = [] } = useQuery<any[]>({
@@ -77,7 +77,7 @@ export default function Portfolio() {
     enabled: !!childId,
   });
 
-  const isLoading = loadingHoldings || (contributor && !user && contributorGifts === undefined);
+  const isLoading = loadingHoldings || contributorGifts === undefined;
 
   if (isLoading) {
     return (
@@ -109,8 +109,8 @@ export default function Portfolio() {
     );
   }
 
-  // Show message for contributors with no contributions yet
-  if (contributor && !user && !childId && contributedChildren.length === 0) {
+  // Show message if no child is selected and user has no children
+  if (!childId && contributedChildren.length === 0 && userChildren.length === 0) {
     return (
       <MobileLayout currentTab="portfolio">
         <Card>
@@ -118,7 +118,7 @@ export default function Portfolio() {
             <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No Portfolio to Display</h3>
             <p className="text-muted-foreground mb-4">
-              You haven't contributed to any children yet. Send your first investment gift to see portfolio information here.
+              You haven't added any children or contributed to any children yet.
             </p>
             <Button onClick={() => setLocation("/")}>
               Go to Home
@@ -184,8 +184,8 @@ export default function Portfolio() {
           </div>
         )}
         
-        {/* Send Gift Button - for contributors viewing contributed children */}
-        {contributor && !user && childId && (
+        {/* Send Gift Button - when viewing a child you've contributed to (not your own child) */}
+        {childId && contributedChildren.some((c: any) => c.id === childId) && !userChildren.some((c: any) => c.id === childId) && (
           <div className="grid grid-cols-1 gap-4 pt-2">
             <Button 
               onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}

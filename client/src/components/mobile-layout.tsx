@@ -16,30 +16,30 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
   const [location, setLocation] = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showPendingGifts, setShowPendingGifts] = useState(false);
-  const { user, contributor, contributorToken } = useAuth();
+  const { user, token } = useAuth();
 
-  // Fetch custodian's children
+  // Fetch custodian's children (children where user is parent)
   const { data: childrenData = [] } = useQuery<any[]>({
     queryKey: ["/api/children", user?.id],
     enabled: !!user?.id,
   });
 
-  // Fetch children that contributor has contributed to
+  // Fetch children that user has contributed to (gifts they've given)
   const { data: contributorGifts = [] } = useQuery<any[]>({
-    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryKey: ["/api/contributors/gifts", user?.id],
     queryFn: async () => {
-      if (!contributor?.id || !contributorToken) return [];
+      if (!user?.id || !token) return [];
       
-      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
         headers: {
-          'Authorization': `Bearer ${contributorToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: !!contributor?.id && !!contributorToken && !user,
+    enabled: !!user?.id && !!token,
   });
 
   // Extract unique children from contributor gifts
@@ -51,9 +51,12 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
   }, []);
 
   const handlePortfolioClick = () => {
-    if (user && childrenData.length > 0) {
+    // First check if user has their own children (as custodian)
+    if (childrenData.length > 0) {
       setLocation(`/portfolio/${childrenData[0].id}`);
-    } else if (contributor && !user && contributedChildren.length > 0) {
+    } 
+    // Otherwise check for children they've contributed to
+    else if (contributedChildren.length > 0) {
       setLocation(`/portfolio/${contributedChildren[0].id}`);
     } else {
       setLocation("/portfolio"); // Let the page handle empty state
@@ -61,9 +64,12 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
   };
 
   const handleTimelineClick = () => {
-    if (user && childrenData.length > 0) {
+    // First check if user has their own children (as custodian)
+    if (childrenData.length > 0) {
       setLocation(`/timeline/${childrenData[0].id}`);
-    } else if (contributor && !user && contributedChildren.length > 0) {
+    } 
+    // Otherwise check for children they've contributed to
+    else if (contributedChildren.length > 0) {
       setLocation(`/timeline/${contributedChildren[0].id}`);
     } else {
       setLocation("/timeline"); // Let the page handle empty state

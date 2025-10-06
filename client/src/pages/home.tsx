@@ -10,30 +10,30 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { user, contributor, contributorToken } = useAuth();
+  const { user, token } = useAuth();
 
-  //Fetch custodian's children
+  //Fetch custodian's children (children where user is parent)
   const { data: children = [], isLoading: loadingChildren } = useQuery<any[]>({
     queryKey: ["/api/children", user?.id],
     enabled: !!user?.id,
   });
 
-  // Fetch children that contributor has contributed to
+  // Fetch children that user has contributed to (gifts they've given)
   const { data: contributorGifts = [], isLoading: loadingGifts } = useQuery<any[]>({
-    queryKey: ["/api/contributors/gifts", contributor?.id],
+    queryKey: ["/api/contributors/gifts", user?.id],
     queryFn: async () => {
-      if (!contributor?.id || !contributorToken) return [];
+      if (!user?.id || !token) return [];
       
-      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
         headers: {
-          'Authorization': `Bearer ${contributorToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: !!contributor?.id && !!contributorToken && !user?.id,
+    enabled: !!user?.id && !!token,
   });
 
   const isLoading = loadingChildren || loadingGifts;
@@ -112,19 +112,14 @@ export default function Home() {
                       Add Your First Child
                     </Button>
                   )}
-                  {contributor && !user && (
-                    <p className="text-sm text-muted-foreground">
-                      Contributors can add children once they upgrade to a full account
-                    </p>
-                  )}
                 </CardContent>
               </Card>
             )}
           </div>
         </div>
 
-        {/* Other Children Section - for contributors */}
-        {contributor && !user && contributedChildren.length > 0 && (
+        {/* Children You've Contributed To */}
+        {contributedChildren.length > 0 && (
           <div>
             <div className="mb-4">
               <h2 className="text-xl font-bold text-foreground">Children You've Helped</h2>

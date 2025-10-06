@@ -19,31 +19,31 @@ interface ChildSelectorProps {
 }
 
 export function ChildSelector({ currentChildId, onChildChange, redirectPath }: ChildSelectorProps) {
-  const { user, contributor, contributorToken } = useAuth();
+  const { user, token } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Fetch custodian's children
+  // Fetch custodian's children (children where user is parent)
   const { data: userChildren = [] } = useQuery<any[]>({
     queryKey: ['/api/children', user?.id],
     enabled: !!user?.id,
   });
 
-  // Fetch children that contributor has contributed to
+  // Fetch children that user has contributed to (gifts they've given)
   const { data: contributorGifts = [] } = useQuery<any[]>({
-    queryKey: ['/api/contributors/gifts-for-selector', contributor?.id],
+    queryKey: ['/api/contributors/gifts-for-selector', user?.id],
     queryFn: async () => {
-      if (!contributor?.id || !contributorToken) return [];
+      if (!user?.id || !token) return [];
       
-      const response = await fetch(`/api/contributors/${contributor.id}/gifts`, {
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
         headers: {
-          'Authorization': `Bearer ${contributorToken}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: !!contributor?.id && !!contributorToken,
+    enabled: !!user?.id && !!token,
   });
 
   // Extract unique children from contributor gifts
@@ -60,8 +60,8 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
     return acc;
   }, []);
 
-  // Combine children lists
-  const allChildren = user ? userChildren : contributedChildren;
+  // Combine both lists - user's own children and children they've contributed to
+  const allChildren = [...userChildren, ...contributedChildren];
 
   const handleValueChange = (childId: string) => {
     if (onChildChange) {
