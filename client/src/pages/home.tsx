@@ -38,16 +38,22 @@ export default function Home() {
 
   const isLoading = loadingChildren || loadingGifts;
 
-  // Extract unique children from contributor gifts
+  // Extract unique children from contributor gifts (excluding own children)
   const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
     if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
-      acc.push({
-        id: gift.child.id,
-        name: gift.child.name,
-        giftLinkCode: gift.child.giftCode,
-        totalValue: 0, // Contributors don't see portfolio values
-        totalGain: 0,
-      });
+      // Only include if this is not one of the user's own children
+      const isOwnChild = children.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push({
+          id: gift.child.id,
+          name: gift.child.name,
+          giftLinkCode: gift.child.giftCode,
+          profileImageUrl: gift.child.profileImageUrl,
+          age: gift.child.age,
+          totalValue: 0, // Contributors don't see portfolio values
+          totalGain: 0,
+        });
+      }
     }
     return acc;
   }, []);
@@ -72,7 +78,7 @@ export default function Home() {
 
   return (
     <MobileLayout currentTab="home">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-16">
         {/* Recent Gift Notification - only for custodians */}
         {user && <GiftNotification />}
 

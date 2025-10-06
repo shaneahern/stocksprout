@@ -11,7 +11,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export default function Profile() {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, token, logout, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: '',
@@ -38,16 +38,56 @@ export default function Profile() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Fetch real data for account overview
+  // Fetch user's own children (as custodian)
   const { data: children = [] } = useQuery<any[]>({
     queryKey: ["/api/children", user?.id],
     enabled: !!user?.id,
   });
 
-  // Calculate total portfolio value across all children
-  const totalPortfolioValue = children.reduce((sum: number, child: any) => {
+  // Fetch children the user has contributed to
+  const { data: contributorGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", user?.id],
+    queryFn: async () => {
+      if (!user?.id || !token) return [];
+      
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!user?.id && !!token,
+  });
+
+  // Extract unique children from contributor gifts (excluding own children)
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      // Only include if this is not one of the user's own children
+      const isOwnChild = children.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push(gift.child);
+      }
+    }
+    return acc;
+  }, []);
+
+  // Calculate total portfolio value for own children
+  const ownChildrenPortfolioValue = children.reduce((sum: number, child: any) => {
     return sum + (child.totalValue || 0);
   }, 0);
+
+  // Calculate total contributed amount (only to other children, not own)
+  const totalContributedAmount = contributorGifts
+    .filter((gift: any) => {
+      const isOwnChild = children.some((child: any) => child.id === gift.childId);
+      return gift.status === 'approved' && !isOwnChild;
+    })
+    .reduce((sum: number, gift: any) => {
+      return sum + parseFloat(gift.amount || "0");
+    }, 0);
 
   const handleLogout = () => {
     logout();
@@ -171,7 +211,7 @@ export default function Profile() {
 
   return (
     <MobileLayout currentTab="profile">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-16">
         {/* Profile Header */}
         <Card>
           <CardContent className="pt-6 text-center">
@@ -280,17 +320,47 @@ export default function Profile() {
           <CardHeader>
             <CardTitle>Account Overview</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 text-center">
+          <CardContent className="space-y-6">
+            {/* Your Children Section */}
+            {children.length > 0 && (
               <div>
-                <p className="text-2xl font-bold text-primary">{children.length}</p>
-                <p className="text-sm text-muted-foreground">Children</p>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3">Your Children</h3>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-primary">{children.length}</p>
+                    <p className="text-sm text-muted-foreground">Children</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-success">${ownChildrenPortfolioValue.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Total Portfolio</p>
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Children You've Helped Section */}
+            {contributedChildren.length > 0 && (
               <div>
-                <p className="text-2xl font-bold text-success">${totalPortfolioValue.toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">Total Portfolio</p>
+                <h3 className="text-sm font-semibold text-muted-foreground mb-3">Children You've Helped</h3>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{contributedChildren.length}</p>
+                    <p className="text-sm text-muted-foreground">Children</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">${totalContributedAmount.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Total Contributed</p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Empty State */}
+            {children.length === 0 && contributedChildren.length === 0 && (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No children added yet</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

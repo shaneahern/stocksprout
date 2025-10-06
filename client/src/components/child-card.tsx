@@ -19,7 +19,7 @@ interface ChildCardProps {
 export default function ChildCard({ child, isContributedChild = false }: ChildCardProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { token } = useAuth();
+  const { user, token } = useAuth();
 
   // Camera states
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -170,13 +170,55 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   };
 
   // Fetch real portfolio data
-  const { data: portfolioData = [] } = useQuery<any[]>({
+  const { data: allPortfolioData = [] } = useQuery<any[]>({
     queryKey: ["/api/portfolio", child.id],
   });
 
-  const { data: gifts = [] } = useQuery<any[]>({
+  const { data: allGifts = [] } = useQuery<any[]>({
     queryKey: ["/api/gifts", child.id],
   });
+
+  // Filter data based on whether this is a contributed child
+  const portfolioData = isContributedChild 
+    ? allPortfolioData
+        .filter((holding: any) => {
+          // Only show holdings from user's gifts
+          return allGifts.some((gift: any) => 
+            gift.contributorId === user?.id && gift.investmentId === holding.investmentId
+          );
+        })
+        .map((holding: any) => {
+          // Recalculate shares and values based on only user's gifts
+          const userGiftsForInvestment = allGifts.filter((gift: any) => 
+            gift.contributorId === user?.id && 
+            gift.investmentId === holding.investmentId &&
+            gift.status === 'approved'
+          );
+          
+          const totalUserShares = userGiftsForInvestment.reduce((sum: number, gift: any) => 
+            sum + parseFloat(gift.shares || "0"), 0
+          );
+          
+          const totalUserCost = userGiftsForInvestment.reduce((sum: number, gift: any) => 
+            sum + parseFloat(gift.amount || "0"), 0
+          );
+          
+          const avgCost = totalUserShares > 0 ? totalUserCost / totalUserShares : 0;
+          const currentPrice = parseFloat(holding.investment?.currentPrice || holding.currentPrice || "0");
+          const currentValue = totalUserShares * currentPrice;
+          
+          return {
+            ...holding,
+            shares: totalUserShares.toFixed(6),
+            averageCost: avgCost.toFixed(2),
+            currentValue: currentValue.toFixed(2),
+          };
+        })
+    : allPortfolioData;
+
+  const gifts = isContributedChild
+    ? allGifts.filter((g: any) => g.contributorId === user?.id)
+    : allGifts;
 
   // Calculate real portfolio stats
   const totalValue = portfolioData.reduce((sum, holding) => sum + parseFloat(holding.currentValue || 0), 0);
@@ -234,13 +276,17 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
             <p className="text-2xl font-bold text-foreground" data-testid={`text-child-value-${child.id}`}>
               ${portfolioStats.totalValue.toLocaleString()}
             </p>
-            <p className="text-muted-foreground text-sm">Total Portfolio</p>
+            <p className="text-muted-foreground text-sm">
+              {isContributedChild ? "Your Contribution" : "Total Portfolio"}
+            </p>
           </div>
         </div>
         
         <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
           <div className="bg-muted rounded-lg p-2 sm:p-3 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Gifts Received</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              {isContributedChild ? "Your Gifts" : "Gifts Received"}
+            </p>
             <p className="font-bold text-foreground text-sm sm:text-base">{portfolioStats.giftsCount}</p>
           </div>
           <div className="bg-muted rounded-lg p-2 sm:p-3 text-center">

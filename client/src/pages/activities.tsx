@@ -403,7 +403,9 @@ export default function Activities() {
 
   return (
     <MobileLayout currentTab="activities">
-      {selectedGame === 'financial-quiz' ? renderQuiz() : renderGameList()}
+      <div className="pb-16">
+        {selectedGame === 'financial-quiz' ? renderQuiz() : renderGameList()}
+      </div>
     </MobileLayout>
   );
 }

@@ -30,6 +30,12 @@ export default function Timeline() {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ url: string; giverName: string } | null>(null);
 
+  // Fetch custodian's children first
+  const { data: userChildren = [] } = useQuery<any[]>({
+    queryKey: ["/api/children", user?.id],
+    enabled: !!user?.id,
+  });
+
   // Fetch children that user has contributed to (gifts they've given)
   const { data: userGifts = [] } = useQuery<any[]>({
     queryKey: ["/api/contributors/gifts", user?.id],
@@ -48,19 +54,17 @@ export default function Timeline() {
     enabled: !!user?.id && !!token,
   });
 
-  // Extract unique children from user's gifts
+  // Extract unique children from user's gifts (excluding own children)
   const contributedChildren = userGifts.reduce((acc: any[], gift: any) => {
     if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
-      acc.push(gift.child);
+      // Only include if this is not one of the user's own children
+      const isOwnChild = userChildren.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push(gift.child);
+      }
     }
     return acc;
   }, []);
-
-  // Fetch custodian's children
-  const { data: userChildren = [] } = useQuery<any[]>({
-    queryKey: ["/api/children", user?.id],
-    enabled: !!user?.id,
-  });
 
   // Auto-redirect custodian to first child's timeline if no childId
   useEffect(() => {
@@ -74,9 +78,20 @@ export default function Timeline() {
     enabled: !!childId,
   });
 
+  // Determine if this is the user's own child or a contributed child
+  const isOwnChild = userChildren.some((child: any) => child.id === childId);
+
   // Filter to show only approved gifts in timeline
-  const gifts = allGifts.filter((gift: any) => gift.status === 'approved');
-  const pendingGifts = allGifts.filter((gift: any) => gift.status === 'pending');
+  // For contributed children, only show gifts from this user
+  const gifts = allGifts.filter((gift: any) => {
+    if (gift.status !== 'approved') return false;
+    if (isOwnChild) return true; // Custodians see all gifts
+    return gift.contributorId === user?.id; // Contributors only see their own gifts
+  });
+  
+  const pendingGifts = isOwnChild 
+    ? allGifts.filter((gift: any) => gift.status === 'pending')
+    : []; // Contributors don't see pending gifts for other children
 
   const isLoadingData = isLoading;
 
@@ -200,7 +215,7 @@ export default function Timeline() {
         />
       )}
       
-      <div className="space-y-6">
+      <div className="space-y-6 pb-16">
         {/* Child Selector */}
         {childId && (
           <div className="flex items-center justify-between">

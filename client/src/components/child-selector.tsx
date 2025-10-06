@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 
 interface ChildSelectorProps {
@@ -46,16 +46,21 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
     enabled: !!user?.id && !!token,
   });
 
-  // Extract unique children from contributor gifts
+  // Extract unique children from contributor gifts (excluding own children)
   const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
     if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
-      acc.push({
-        id: gift.child.id,
-        name: gift.child.name,
-        giftLinkCode: gift.child.giftCode,
-        age: 0, // Don't have age for contributed children
-        isContributed: true
-      });
+      // Only include if this is not one of the user's own children
+      const isOwnChild = userChildren.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push({
+          id: gift.child.id,
+          name: gift.child.name,
+          giftLinkCode: gift.child.giftCode,
+          profileImageUrl: gift.child.profileImageUrl,
+          age: gift.child.age || 0,
+          isContributed: true
+        });
+      }
     }
     return acc;
   }, []);
@@ -84,13 +89,12 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
         <Avatar className="w-6 h-6">
-          {currentChild?.profileImageUrl ? (
-            <img src={currentChild.profileImageUrl} alt={currentChild.name} />
-          ) : (
-            <AvatarFallback className="text-xs">
-              {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
-            </AvatarFallback>
+          {currentChild?.profileImageUrl && (
+            <AvatarImage src={currentChild.profileImageUrl} alt={currentChild.name} />
           )}
+          <AvatarFallback className="text-xs">
+            {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
+          </AvatarFallback>
         </Avatar>
         <span className="font-semibold text-sm">{currentChild?.name || 'Child'}</span>
       </div>
@@ -103,13 +107,12 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
         <SelectValue>
           <div className="flex items-center gap-2">
             <Avatar className="w-5 h-5">
-              {currentChild?.profileImageUrl ? (
-                <img src={currentChild.profileImageUrl} alt={currentChild.name} />
-              ) : (
-                <AvatarFallback className="text-xs">
-                  {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
-                </AvatarFallback>
+              {currentChild?.profileImageUrl && (
+                <AvatarImage src={currentChild.profileImageUrl} alt={currentChild.name} />
               )}
+              <AvatarFallback className="text-xs">
+                {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
+              </AvatarFallback>
             </Avatar>
             <span className="font-semibold text-sm truncate">
               {currentChild?.name || 'Select Child'}
@@ -122,13 +125,12 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
           <SelectItem key={child.id} value={child.id}>
             <div className="flex items-center gap-2">
               <Avatar className="w-5 h-5">
-                {child.profileImageUrl ? (
-                  <img src={child.profileImageUrl} alt={child.name} />
-                ) : (
-                  <AvatarFallback className="text-xs">
-                    {child.name?.charAt(0)?.toUpperCase()}
-                  </AvatarFallback>
+                {child.profileImageUrl && (
+                  <AvatarImage src={child.profileImageUrl} alt={child.name} />
                 )}
+                <AvatarFallback className="text-xs">
+                  {child.name?.charAt(0)?.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <span>{child.name}</span>
               {!child.isContributed && child.age !== undefined && (

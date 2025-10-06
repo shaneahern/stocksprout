@@ -563,6 +563,8 @@ export class DatabaseStorage implements IStorage {
         // Child fields
         childName: children.name,
         childGiftCode: children.giftLinkCode,
+        childProfileImageUrl: children.profileImageUrl,
+        childAge: children.age,
       })
       .from(gifts)
       .leftJoin(investments, eq(gifts.investmentId, investments.id))
@@ -595,6 +597,8 @@ export class DatabaseStorage implements IStorage {
         id: row.childId,
         name: row.childName,
         giftCode: row.childGiftCode,
+        profileImageUrl: row.childProfileImageUrl,
+        age: row.childAge,
       }
     }));
   }

@@ -42,10 +42,14 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
     enabled: !!user?.id && !!token,
   });
 
-  // Extract unique children from contributor gifts
+  // Extract unique children from contributor gifts (excluding own children)
   const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
     if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
-      acc.push(gift.child);
+      // Only include if this is not one of the user's own children
+      const isOwnChild = childrenData.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push(gift.child);
+      }
     }
     return acc;
   }, []);

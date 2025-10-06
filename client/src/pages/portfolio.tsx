@@ -21,6 +21,12 @@ export default function Portfolio() {
   const { user, token } = useAuth();
   const childId = params?.childId;
 
+  // Fetch custodian's children first
+  const { data: userChildren = [] } = useQuery<any[]>({
+    queryKey: ["/api/children", user?.id],
+    enabled: !!user?.id,
+  });
+
   // Fetch children that user has contributed to (gifts they've given)
   const { data: contributorGifts = [] } = useQuery<any[]>({
     queryKey: ["/api/contributors/gifts", user?.id],
@@ -39,10 +45,14 @@ export default function Portfolio() {
     enabled: !!user?.id && !!token,
   });
 
-  // Extract unique children from contributor gifts
+  // Extract unique children from contributor gifts (excluding own children)
   const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
     if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
-      acc.push(gift.child);
+      // Only include if this is not one of the user's own children
+      const isOwnChild = userChildren.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push(gift.child);
+      }
     }
     return acc;
   }, []);
@@ -53,12 +63,6 @@ export default function Portfolio() {
       setLocation(`/portfolio/${contributedChildren[0].id}`);
     }
   }, [childId, contributedChildren, setLocation]);
-
-  // Fetch custodian's children
-  const { data: userChildren = [] } = useQuery<any[]>({
-    queryKey: ["/api/children", user?.id],
-    enabled: !!user?.id,
-  });
 
   // Auto-redirect custodian to first child's portfolio if no childId
   useEffect(() => {
@@ -72,10 +76,54 @@ export default function Portfolio() {
     enabled: !!childId,
   });
 
-  const { data: holdings = [], isLoading: loadingHoldings } = useQuery<EnrichedHolding[]>({
+  const { data: allHoldings = [], isLoading: loadingHoldings } = useQuery<EnrichedHolding[]>({
     queryKey: ["/api/portfolio", childId],
     enabled: !!childId,
   });
+
+  // Fetch gifts for this child to determine which investments are from this user
+  const { data: childGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/gifts", childId],
+    enabled: !!childId,
+  });
+
+  // Determine if this is the user's own child or a contributed child
+  const isOwnChild = userChildren.some((child: any) => child.id === childId);
+  
+  // Filter holdings: if viewing a contributed child, recalculate based on user's gifts only
+  const holdings = isOwnChild ? allHoldings : allHoldings
+    .filter((holding: any) => {
+      // Check if this investment came from a gift by this user
+      return childGifts.some((gift: any) => 
+        gift.contributorId === user?.id && gift.investmentId === holding.investmentId
+      );
+    })
+    .map((holding: any) => {
+      // Recalculate shares and values based on only user's gifts
+      const userGiftsForInvestment = childGifts.filter((gift: any) => 
+        gift.contributorId === user?.id && 
+        gift.investmentId === holding.investmentId &&
+        gift.status === 'approved'
+      );
+      
+      const totalUserShares = userGiftsForInvestment.reduce((sum: number, gift: any) => 
+        sum + parseFloat(gift.shares || "0"), 0
+      );
+      
+      const totalUserCost = userGiftsForInvestment.reduce((sum: number, gift: any) => 
+        sum + parseFloat(gift.amount || "0"), 0
+      );
+      
+      const avgCost = totalUserShares > 0 ? totalUserCost / totalUserShares : 0;
+      const currentValue = totalUserShares * parseFloat(holding.investment?.currentPrice || holding.currentPrice || "0");
+      
+      return {
+        ...holding,
+        shares: totalUserShares.toFixed(6),
+        averageCost: avgCost.toFixed(2),
+        currentValue: currentValue.toFixed(2),
+      };
+    });
 
   const isLoading = loadingHoldings || contributorGifts === undefined;
 
@@ -142,7 +190,7 @@ export default function Portfolio() {
 
   return (
     <MobileLayout currentTab="portfolio">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-16">
         {/* Child Selector */}
         {childId && (
           <div className="flex items-center justify-between">
