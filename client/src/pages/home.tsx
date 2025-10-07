@@ -41,24 +41,45 @@ export default function Home() {
   const isLoading = loadingChildren || loadingGifts;
 
   // Extract unique children from contributor gifts (excluding own children)
+  // Calculate total contributed and pending count per child
   const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
-    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
-      // Only include if this is not one of the user's own children
+    if (gift.child) {
       const isOwnChild = children.some((child: any) => child.id === gift.child.id);
       if (!isOwnChild) {
-        acc.push({
-          id: gift.child.id,
-          name: gift.child.name,
-          giftLinkCode: gift.child.giftCode,
-          profileImageUrl: gift.child.profileImageUrl,
-          age: gift.child.age,
-          totalValue: 0, // Contributors don't see portfolio values
-          totalGain: 0,
-        });
+        // Find existing child in accumulator
+        let existingChild = acc.find((c: any) => c.id === gift.child.id);
+        
+        if (!existingChild) {
+          // Create new entry for this child
+          existingChild = {
+            id: gift.child.id,
+            name: gift.child.name,
+            giftLinkCode: gift.child.giftCode,
+            profileImageUrl: gift.child.profileImageUrl,
+            age: gift.child.age,
+            totalValue: 0, // This will be the sum of all gifts
+            totalGain: 0,
+            pendingCount: 0,
+            approvedCount: 0,
+          };
+          acc.push(existingChild);
+        }
+        
+        // Add this gift's amount to the child's total
+        existingChild.totalValue += parseFloat(gift.amount || '0');
+        
+        // Track pending vs approved gifts
+        if (gift.status === 'pending') {
+          existingChild.pendingCount++;
+        } else if (gift.status === 'approved') {
+          existingChild.approvedCount++;
+        }
       }
     }
     return acc;
   }, []);
+  
+  console.log('🏠 Contributed children with totals:', contributedChildren);
 
   const handleAddChild = () => {
     setLocation("/add-child");

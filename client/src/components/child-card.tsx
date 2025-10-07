@@ -4,7 +4,8 @@ import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TrendingUp, Share2, Gift, Camera } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
@@ -273,12 +274,25 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-foreground" data-testid={`text-child-value-${child.id}`}>
-              ${portfolioStats.totalValue.toLocaleString()}
-            </p>
+            <div className="flex items-center justify-end gap-2">
+              <p className="text-2xl font-bold text-foreground" data-testid={`text-child-value-${child.id}`}>
+                ${(isContributedChild ? child.totalValue : portfolioStats.totalValue).toLocaleString()}
+              </p>
+              {isContributedChild && child.pendingCount > 0 && (
+                <span title={`${child.pendingCount} gift(s) pending approval`}>
+                  <Clock className="w-5 h-5 text-amber-500" />
+                </span>
+              )}
+            </div>
             <p className="text-muted-foreground text-sm">
               {isContributedChild ? "Your Contribution" : "Total Portfolio"}
             </p>
+            {isContributedChild && child.pendingCount > 0 && (
+              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 mt-1">
+                <Clock className="w-3 h-3 mr-1" />
+                {child.pendingCount} Pending Approval
+              </Badge>
+            )}
           </div>
         </div>
         
@@ -287,7 +301,14 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
             <p className="text-xs text-muted-foreground mb-1">
               {isContributedChild ? "Your Gifts" : "Gifts Received"}
             </p>
-            <p className="font-bold text-foreground text-sm sm:text-base">{portfolioStats.giftsCount}</p>
+            <div className="flex items-center justify-center gap-1">
+              <p className="font-bold text-foreground text-sm sm:text-base">
+                {isContributedChild ? (child.approvedCount + child.pendingCount) : portfolioStats.giftsCount}
+              </p>
+              {isContributedChild && child.pendingCount > 0 && (
+                <span className="text-xs text-amber-600">({child.pendingCount} pending)</span>
+              )}
+            </div>
           </div>
           <div className="bg-muted rounded-lg p-2 sm:p-3 text-center">
             <p className="text-xs text-muted-foreground mb-1">Investments</p>
