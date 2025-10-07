@@ -38,7 +38,7 @@ export default function SproutRequestPage() {
 
   const signupMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch('/api/contributors/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,10 +59,9 @@ export default function SproutRequestPage() {
         description: 'Your account has been created. Redirecting to gift page...',
       });
       // Store token and redirect to gift giving page
-      localStorage.setItem('contributor_token', data.token);
-      setTimeout(() => {
-        setLocation(`/gift/${requestData?.child?.giftLinkCode}`);
-      }, 1500);
+      localStorage.setItem('token', data.token);
+      // Reload the page to trigger AuthContext to pick up the new token
+      window.location.href = `/gift/${requestData?.child?.giftLinkCode}`;
     },
     onError: (error: Error) => {
       toast({

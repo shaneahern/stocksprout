@@ -153,10 +153,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
-      const user = await storage.getUser(decoded.userId);
       
+      // Try to find user first (parent/custodian)
+      let user = await storage.getUser(decoded.userId);
+      
+      // If not found in users, try contributors table
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        const contributor = await storage.getContributor(decoded.userId);
+        if (!contributor) {
+          return res.status(404).json({ error: "User not found" });
+        }
+        const { password, ...contributorWithoutPassword } = contributor;
+        return res.json(contributorWithoutPassword);
       }
       
       const { password, ...userWithoutPassword } = user;

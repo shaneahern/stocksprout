@@ -125,19 +125,39 @@ export default function Home() {
         </div>
 
         {/* Children You've Contributed To */}
-        {contributedChildren.length > 0 && (
-          <div>
-            <div className="mb-4">
-              <h2 className="text-xl font-bold text-foreground">Children You've Helped</h2>
-              <p className="text-sm text-muted-foreground">View and send more gifts to these children</p>
-            </div>
-            <div className="space-y-4">
-              {contributedChildren.map((child: any) => (
-                <ChildCard key={child.id} child={child} isContributedChild={true} />
-              ))}
-            </div>
+        <div>
+          <div className="mb-4">
+            <h2 className="text-xl font-bold text-foreground">Children You've Helped</h2>
+            <p className="text-sm text-muted-foreground">
+              {contributedChildren.length > 0 
+                ? "View and send more gifts to these children" 
+                : "Start making a difference in other children's futures"}
+            </p>
           </div>
-        )}
+          <div className="space-y-4">
+            {contributedChildren.length > 0 ? (
+              contributedChildren.map((child: any) => (
+                <ChildCard key={child.id} child={child} isContributedChild={true} />
+              ))
+            ) : (
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <div className="max-w-md mx-auto">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Plus className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">No Children Helped Yet</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      When other parents invite you to contribute through a Sprout Request, 
+                      you'll be able to share investment gifts to their children. 
+                      All children you've helped will be tracked here so you can watch their investments grow!
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
 
         {/* Portfolio Summary - only for custodians with children */}
         {user && children.length > 0 && (
