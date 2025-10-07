@@ -231,35 +231,57 @@ export default function Portfolio() {
         {/* Portfolio Chart */}
         <PortfolioChart holdings={holdings} />
         
-        {/* Pending Gifts Alert */}
+        {/* Pending Gifts Alert - Different messages for custodians vs contributors */}
         {userPendingGifts.length > 0 && (
           <Card className="border-amber-500 bg-amber-50">
             <CardContent className="pt-4">
               <div className="flex items-start gap-3">
                 <Clock className="w-5 h-5 text-amber-600 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-900 mb-2">
-                    {userPendingGifts.length} gift{userPendingGifts.length > 1 ? 's' : ''} pending approval
-                  </p>
-                  <div className="space-y-2">
-                    {userPendingGifts.map((gift: any) => (
-                      <div key={gift.id} className="bg-white/50 rounded p-2 text-xs">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">{gift.investment?.name || 'Investment'}</span>
-                          <span className="font-semibold">${parseFloat(gift.amount).toFixed(2)}</span>
-                        </div>
-                        <div className="text-amber-700 mt-1">
-                          {isOwnChild 
-                            ? `From ${gift.giftGiverName} • Awaiting your review`
-                            : 'Awaiting custodian approval'}
-                        </div>
+                  {isOwnChild ? (
+                    <>
+                      <p className="text-sm font-semibold text-amber-900 mb-2">
+                        {userPendingGifts.length} gift{userPendingGifts.length > 1 ? 's' : ''} waiting for your review
+                      </p>
+                      <div className="space-y-2">
+                        {userPendingGifts.map((gift: any) => (
+                          <div key={gift.id} className="bg-white/50 rounded p-2 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{gift.investment?.name || 'Investment'}</span>
+                              <span className="font-semibold">${parseFloat(gift.amount).toFixed(2)}</span>
+                            </div>
+                            <div className="text-amber-700 mt-1">
+                              From {gift.giftGiverName} • Awaiting your review
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  {!isOwnChild && (
-                    <p className="text-xs text-amber-700 mt-2">
-                      These investments will appear in the portfolio once approved by the custodian.
-                    </p>
+                      <p className="text-xs text-amber-700 mt-2">
+                        Click the notification bell to approve or reject
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-amber-900 mb-2">
+                        {userPendingGifts.length} gift{userPendingGifts.length > 1 ? 's' : ''} pending approval
+                      </p>
+                      <div className="space-y-2">
+                        {userPendingGifts.map((gift: any) => (
+                          <div key={gift.id} className="bg-white/50 rounded p-2 text-xs">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">{gift.investment?.name || 'Investment'}</span>
+                              <span className="font-semibold">${parseFloat(gift.amount).toFixed(2)}</span>
+                            </div>
+                            <div className="text-amber-700 mt-1">
+                              Awaiting custodian approval
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-amber-700 mt-2">
+                        These investments will appear in the portfolio once approved by the custodian.
+                      </p>
+                    </>
                   )}
                 </div>
               </div>

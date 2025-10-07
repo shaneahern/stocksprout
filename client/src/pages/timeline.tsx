@@ -231,7 +231,7 @@ export default function Timeline() {
         )}
 
         {/* Pending Gifts Alert - Only for custodians */}
-        {user && pendingGifts.length > 0 && (
+        {user && isOwnChild && pendingGifts.length > 0 && (
           <Card className="border-orange-500 bg-orange-50">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
