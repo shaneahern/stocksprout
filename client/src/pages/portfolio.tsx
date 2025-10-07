@@ -98,7 +98,7 @@ export default function Portfolio() {
       );
   
   // Filter holdings: if viewing a contributed child, recalculate based on user's gifts only
-  const holdings = isOwnChild ? allHoldings : allHoldings
+  const holdings = (isOwnChild ? allHoldings : allHoldings
     .filter((holding: any) => {
       // Check if this investment came from a gift by this user
       return childGifts.some((gift: any) => 
@@ -130,6 +130,10 @@ export default function Portfolio() {
         averageCost: avgCost.toFixed(2),
         currentValue: currentValue.toFixed(2),
       };
+    }))
+    .filter((holding: any) => {
+      // Filter out holdings with 0 value (from pending gifts not yet approved)
+      return parseFloat(holding.currentValue || "0") > 0;
     });
 
   const isLoading = loadingHoldings || contributorGifts === undefined;
