@@ -8,7 +8,7 @@ import { ChildSelector } from "@/components/child-selector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpIcon, ArrowDownIcon, User, Gift } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, User, Gift, Clock, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PortfolioHolding, Investment, Child } from "@shared/schema";
 import { useEffect } from "react";
@@ -89,6 +89,13 @@ export default function Portfolio() {
 
   // Determine if this is the user's own child or a contributed child
   const isOwnChild = userChildren.some((child: any) => child.id === childId);
+  
+  // Get pending gifts for this user (contributor's own pending gifts)
+  const userPendingGifts = isOwnChild 
+    ? childGifts.filter((gift: any) => gift.status === 'pending')
+    : childGifts.filter((gift: any) => 
+        gift.contributorId === user?.id && gift.status === 'pending'
+      );
   
   // Filter holdings: if viewing a contributed child, recalculate based on user's gifts only
   const holdings = isOwnChild ? allHoldings : allHoldings
@@ -223,6 +230,42 @@ export default function Portfolio() {
 
         {/* Portfolio Chart */}
         <PortfolioChart holdings={holdings} />
+        
+        {/* Pending Gifts Alert */}
+        {userPendingGifts.length > 0 && (
+          <Card className="border-amber-500 bg-amber-50">
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900 mb-2">
+                    {userPendingGifts.length} gift{userPendingGifts.length > 1 ? 's' : ''} pending approval
+                  </p>
+                  <div className="space-y-2">
+                    {userPendingGifts.map((gift: any) => (
+                      <div key={gift.id} className="bg-white/50 rounded p-2 text-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{gift.investment?.name || 'Investment'}</span>
+                          <span className="font-semibold">${parseFloat(gift.amount).toFixed(2)}</span>
+                        </div>
+                        <div className="text-amber-700 mt-1">
+                          {isOwnChild 
+                            ? `From ${gift.giftGiverName} • Awaiting your review`
+                            : 'Awaiting custodian approval'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {!isOwnChild && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      These investments will appear in the portfolio once approved by the custodian.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Buttons - Only for parents/custodians */}
         {user && childId && (

@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User, Video } from "lucide-react";
+import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User, Video, Clock, CheckCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,17 +81,16 @@ export default function Timeline() {
   // Determine if this is the user's own child or a contributed child
   const isOwnChild = userChildren.some((child: any) => child.id === childId);
 
-  // Filter to show only approved gifts in timeline
+  // Filter gifts based on view type
   // For contributed children, only show gifts from this user
   const gifts = allGifts.filter((gift: any) => {
-    if (gift.status !== 'approved') return false;
-    if (isOwnChild) return true; // Custodians see all gifts
+    if (isOwnChild) return true; // Custodians see all gifts (approved and pending)
     return gift.contributorId === user?.id; // Contributors only see their own gifts
   });
   
   const pendingGifts = isOwnChild 
     ? allGifts.filter((gift: any) => gift.status === 'pending')
-    : []; // Contributors don't see pending gifts for other children
+    : gifts.filter((gift: any) => gift.status === 'pending'); // Contributors see their pending gifts
 
   const isLoadingData = isLoading;
 
@@ -377,9 +376,23 @@ export default function Timeline() {
                               `From ${gift.giftGiverName}` // External gift
                             }
                           </h3>
-                          <Badge variant="outline" className={`text-xs w-fit ${gift.videoMessageUrl ? 'mr-20 sm:mr-0' : ''}`}>
-                            {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {gift.status === 'pending' && (
+                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Pending Approval
+                              </Badge>
+                            )}
+                            {gift.status === 'approved' && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Approved
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className={`text-xs w-fit ${gift.videoMessageUrl ? 'mr-20 sm:mr-0' : ''}`}>
+                              {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
+                            </Badge>
+                          </div>
                         </div>
                         
                         <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
