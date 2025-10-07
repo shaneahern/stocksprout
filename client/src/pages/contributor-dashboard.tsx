@@ -16,7 +16,9 @@ import {
   ArrowLeft,
   User,
   Heart,
-  LogOut
+  LogOut,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { Gift as GiftType, Investment, Contributor } from "@shared/schema";
@@ -95,6 +97,8 @@ export default function ContributorDashboard() {
   const totalContributed = allGifts.reduce((sum, gift) => sum + parseFloat(gift.amount), 0);
   const totalChildren = new Set(allGifts.map(gift => gift.childId)).size;
   const totalGifts = allGifts.length;
+  const pendingGifts = allGifts.filter(gift => gift.status === 'pending').length;
+  const approvedGifts = allGifts.filter(gift => gift.status === 'approved').length;
 
   // Group gifts by child
   const giftsByChild = allGifts.reduce((acc, gift) => {
@@ -102,13 +106,17 @@ export default function ContributorDashboard() {
       acc[gift.childId] = {
         child: gift.child,
         gifts: [],
-        totalContributed: 0
+        totalContributed: 0,
+        pendingCount: 0
       };
     }
     acc[gift.childId].gifts.push(gift);
     acc[gift.childId].totalContributed += parseFloat(gift.amount);
+    if (gift.status === 'pending') {
+      acc[gift.childId].pendingCount++;
+    }
     return acc;
-  }, {} as Record<string, { child: any; gifts: EnrichedGift[]; totalContributed: number }>);
+  }, {} as Record<string, { child: any; gifts: EnrichedGift[]; totalContributed: number; pendingCount: number }>);
 
   const handleSignOut = () => {
     logout();
@@ -236,7 +244,14 @@ export default function ContributorDashboard() {
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-muted-foreground">Total Contributed:</span>
-                            <span className="font-semibold">${data.totalContributed.toFixed(2)}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">${data.totalContributed.toFixed(2)}</span>
+                              {data.pendingCount > 0 && (
+                                <span title={`${data.pendingCount} gift(s) pending approval`}>
+                                  <Clock className="w-4 h-4 text-amber-500" />
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-muted-foreground">Last Gift:</span>
@@ -244,6 +259,12 @@ export default function ContributorDashboard() {
                               {formatDistanceToNow(new Date(data.gifts[0]?.createdAt || Date.now()), { addSuffix: true })}
                             </span>
                           </div>
+                          {data.pendingCount > 0 && (
+                            <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>{data.pendingCount} gift{data.pendingCount !== 1 ? 's' : ''} pending custodian approval</span>
+                            </div>
+                          )}
                           <Button 
                             variant="outline" 
                             size="sm" 
@@ -296,9 +317,23 @@ export default function ContributorDashboard() {
                               <h3 className="font-bold text-base">
                                 Gift to {gift.child?.name || 'Unknown Child'}
                               </h3>
-                              <Badge variant="outline" className="text-xs w-fit">
-                                {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                {gift.status === 'pending' && (
+                                  <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Pending Approval
+                                  </Badge>
+                                )}
+                                {gift.status === 'approved' && (
+                                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Approved
+                                  </Badge>
+                                )}
+                                <Badge variant="outline" className="text-xs w-fit">
+                                  {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
+                                </Badge>
+                              </div>
                             </div>
                             <div className="space-y-1">
                               <div className="flex items-center space-x-2">
