@@ -31,9 +31,7 @@ export default function Home() {
       });
       
       if (!response.ok) return [];
-      const data = await response.json();
-      console.log('🏠 Home page - contributor gifts:', data);
-      return data;
+      return response.json();
     },
     enabled: !!user?.id && !!token,
   });
@@ -78,8 +76,6 @@ export default function Home() {
     }
     return acc;
   }, []);
-  
-  console.log('🏠 Contributed children with totals:', contributedChildren);
 
   const handleAddChild = () => {
     setLocation("/add-child");

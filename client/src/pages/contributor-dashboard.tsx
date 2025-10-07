@@ -61,10 +61,7 @@ export default function ContributorDashboard() {
         throw new Error(`Failed to fetch gifts: ${response.statusText}`);
       }
       
-      const data = await response.json();
-      console.log('📊 Contributor gifts data:', data);
-      console.log('📊 First gift details:', data[0]);
-      return data;
+      return response.json();
     },
     enabled: !!user?.id && !!token,
   });
@@ -88,13 +85,7 @@ export default function ContributorDashboard() {
     );
   }
 
-  console.log('🔍 ContributorDashboard - isLoading:', isLoading);
-  console.log('🔍 ContributorDashboard - user:', user);
-  console.log('🔍 ContributorDashboard - allGifts:', allGifts);
-  console.log('🔍 ContributorDashboard - allGifts.length:', allGifts.length);
-  
   if (isLoading) {
-    console.log('⏳ Loading contributor dashboard...');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -108,15 +99,6 @@ export default function ContributorDashboard() {
   const totalGifts = allGifts.length;
   const pendingGifts = allGifts.filter(gift => gift.status === 'pending').length;
   const approvedGifts = allGifts.filter(gift => gift.status === 'approved').length;
-  
-  console.log('📈 Stats - Total gifts:', totalGifts, 'Pending:', pendingGifts, 'Approved:', approvedGifts);
-  console.log('📈 Stats - Total contributed:', totalContributed);
-  
-  if (allGifts.length > 0) {
-    console.log('🎁 First gift status:', allGifts[0].status);
-    console.log('🎁 First gift amount:', allGifts[0].amount);
-    console.log('🎁 First gift full object:', allGifts[0]);
-  }
 
   // Group gifts by child
   const giftsByChild = allGifts.reduce((acc, gift) => {
