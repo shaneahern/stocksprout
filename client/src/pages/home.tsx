@@ -31,7 +31,9 @@ export default function Home() {
       });
       
       if (!response.ok) return [];
-      return response.json();
+      const data = await response.json();
+      console.log('🏠 Home page - contributor gifts:', data);
+      return data;
     },
     enabled: !!user?.id && !!token,
   });

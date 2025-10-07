@@ -61,7 +61,10 @@ export default function ContributorDashboard() {
         throw new Error(`Failed to fetch gifts: ${response.statusText}`);
       }
       
-      return response.json();
+      const data = await response.json();
+      console.log('📊 Contributor gifts data:', data);
+      console.log('📊 First gift details:', data[0]);
+      return data;
     },
     enabled: !!user?.id && !!token,
   });
