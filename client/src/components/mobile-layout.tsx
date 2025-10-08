@@ -125,7 +125,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
               data-testid="img-logo"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-tagline">Grow their future</p>
+              <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-tagline">Start before they know what money is, end with more then they imagined...</p>
             </div>
           </div>
           <div className="relative">

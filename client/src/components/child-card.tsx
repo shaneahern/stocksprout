@@ -241,7 +241,11 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
 
   return (
     <>
-      <Card className="border border-border shadow-sm" data-testid={`card-child-${child.id}`}>
+      <Card 
+        onClick={handleViewPortfolio}
+        className="border border-border shadow-sm cursor-pointer hover:shadow-md transition-shadow" 
+        data-testid={`card-child-${child.id}`}
+      >
         <CardContent className="p-5">
           <div className="flex items-center space-x-4 mb-4">
             <div className="relative">
@@ -321,17 +325,12 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         </div>
         
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <Button 
-            onClick={handleViewPortfolio}
-            className="flex-1 bg-primary text-primary-foreground font-semibold text-sm sm:text-base"
-            data-testid={`button-view-portfolio-${child.id}`}
-          >
-            <TrendingUp className="w-4 h-4 mr-2" />
-            View Portfolio
-          </Button>
           {isContributedChild ? (
             <Button 
-              onClick={handleSendGift}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSendGift();
+              }}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm sm:text-base"
               data-testid={`button-send-gift-${child.id}`}
             >
@@ -339,16 +338,32 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               Send Gift
             </Button>
           ) : (
-            <Button 
-              onClick={handleShareGiftLink}
-              disabled={generateLinkMutation.isPending}
-              className="flex-1 bg-secondary text-secondary-foreground font-semibold text-sm sm:text-base"
-              data-testid={`button-share-link-${child.id}`}
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">{generateLinkMutation.isPending ? "Generating..." : "Share Gift Link"}</span>
-              <span className="sm:hidden">{generateLinkMutation.isPending ? "..." : "Share Link"}</span>
-            </Button>
+            <>
+              <Button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSendGift();
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm sm:text-base"
+                data-testid={`button-send-gift-${child.id}`}
+              >
+                <Gift className="w-4 h-4 mr-2" />
+                Send Gift
+              </Button>
+              <Button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShareGiftLink();
+                }}
+                disabled={generateLinkMutation.isPending}
+                className="flex-1 bg-red-800 hover:bg-red-900 text-white font-semibold text-sm sm:text-base"
+                data-testid={`button-sprout-request-${child.id}`}
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">{generateLinkMutation.isPending ? "Requesting..." : "Sprout Request"}</span>
+                <span className="sm:hidden">{generateLinkMutation.isPending ? "..." : "Request"}</span>
+              </Button>
+            </>
           )}
         </div>
       </CardContent>

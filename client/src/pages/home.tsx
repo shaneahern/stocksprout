@@ -105,7 +105,7 @@ export default function Home() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-foreground">
-              {user ? "Your Children" : "Your Children / Sprouts"}
+              Your Children / Sprouts
             </h2>
             {user && (
               <Button 
@@ -146,7 +146,7 @@ export default function Home() {
         {/* Children You've Contributed To */}
         <div>
           <div className="mb-4">
-            <h2 className="text-xl font-bold text-foreground">Children You've Helped</h2>
+            <h2 className="text-xl font-bold text-foreground">Children / Sprouts You've Helped</h2>
             <p className="text-sm text-muted-foreground">
               {contributedChildren.length > 0 
                 ? "View and send more gifts to these children" 
