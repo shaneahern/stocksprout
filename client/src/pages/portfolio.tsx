@@ -217,6 +217,7 @@ export default function Portfolio() {
     const target = e.currentTarget;
     // Prevent infinite loop if fallback also fails
     if (!target.src.startsWith('data:')) {
+      console.log(`[Logo] Failed to load logo for ${symbol}, using fallback`);
       target.src = getFallbackLogoUrl(symbol);
     }
   };
@@ -362,6 +363,7 @@ export default function Portfolio() {
                               src={getStockLogoUrl(holding.investment.symbol, holding.investment.name)}
                               alt={`${holding.investment.symbol} logo`}
                               className="w-full h-full object-contain p-1"
+                              crossOrigin="anonymous"
                               onError={(e) => handleImageError(e, holding.investment.symbol)}
                             />
                           </div>

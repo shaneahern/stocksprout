@@ -165,6 +165,7 @@ export function getStockLogoUrl(symbol: string, companyName?: string, size: numb
   // Strategy 1: Try our curated domain mapping with Clearbit
   const domain = TICKER_TO_DOMAIN[ticker];
   if (domain) {
+    // Add crossorigin attribute to allow fallback on CORS errors
     return `https://logo.clearbit.com/${domain}`;
   }
   
@@ -176,9 +177,9 @@ export function getStockLogoUrl(symbol: string, companyName?: string, size: numb
     }
   }
   
-  // Strategy 3: Try Financialmodelingprep (free, no auth, accepts tickers)
-  // This is a backup that works for many stocks
-  return `https://financialmodelingprep.com/image-stock/${ticker}.png`;
+  // Strategy 3: Use fallback logo directly
+  // For unmapped stocks, use our generated SVG logo
+  return getFallbackLogoUrl(ticker);
 }
 
 /**

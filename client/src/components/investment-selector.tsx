@@ -41,6 +41,7 @@ export default function InvestmentSelector({
     const target = e.currentTarget;
     // Prevent infinite loop if fallback also fails
     if (!target.src.startsWith('data:')) {
+      console.log(`[Logo] Failed to load logo for ${symbol}, using fallback`);
       target.src = getFallbackLogoUrl(symbol);
     }
   };
@@ -69,6 +70,7 @@ export default function InvestmentSelector({
                       src={getStockLogoUrl(investment.symbol, investment.name)}
                       alt={`${investment.symbol} logo`}
                       className="w-full h-full object-contain"
+                      crossOrigin="anonymous"
                       onError={(e) => handleImageError(e, investment.symbol)}
                     />
                   </div>
@@ -156,6 +158,7 @@ export default function InvestmentSelector({
                               src={getStockLogoUrl(investment.symbol, investment.name)}
                               alt={`${investment.symbol} logo`}
                               className="w-full h-full object-contain"
+                              crossOrigin="anonymous"
                               onError={(e) => handleImageError(e, investment.symbol)}
                             />
                           </div>
