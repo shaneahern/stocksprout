@@ -162,25 +162,21 @@ const TICKER_TO_DOMAIN: Record<string, string> = {
 export function getStockLogoUrl(symbol: string, companyName?: string, size: number = 64): string {
   const ticker = symbol.toUpperCase();
   
-  // Strategy 1: Use server-side proxy for curated stocks (bypasses ad blockers)
+  // Strategy 1: Use server-side proxy (works for both mapped and unmapped stocks)
+  // The server will try our curated mapping first, then guess from company name
+  if (companyName) {
+    // Include company name so server can guess the domain if not mapped
+    return `/api/logo/${ticker}?name=${encodeURIComponent(companyName)}`;
+  }
+  
+  // Strategy 2: Use proxy even without company name (for mapped stocks)
   const domain = TICKER_TO_DOMAIN[ticker];
   if (domain) {
-    // Use our logo proxy endpoint to bypass ad blockers
     return `/api/logo/${ticker}`;
   }
   
-  // Strategy 2: If we have a company name, try to construct a domain and proxy it
-  if (companyName) {
-    const guessedDomain = guessCompanyDomain(companyName);
-    // For guessed domains, go straight to fallback to avoid extra API calls
-    if (guessedDomain) {
-      // Could add to proxy, but for now use fallback
-      return getFallbackLogoUrl(ticker);
-    }
-  }
-  
   // Strategy 3: Use fallback logo directly
-  // For unmapped stocks, use our generated SVG logo
+  // For unmapped stocks with no company name
   return getFallbackLogoUrl(ticker);
 }
 

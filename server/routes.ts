@@ -820,6 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/logo/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
+      const companyName = req.query.name as string | undefined;
       const ticker = symbol.toUpperCase();
       
       // Full ticker to domain mapping (matches client-side mapping)
@@ -855,7 +856,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'SPY': 'ssga.com', 'VOO': 'vanguard.com', 'VTI': 'vanguard.com', 'QQQ': 'invesco.com',
       };
       
-      const domain = domainMapping[ticker];
+      let domain = domainMapping[ticker];
+      
+      // If not in mapping, try to guess from company name
+      if (!domain && companyName) {
+        const guessed = companyName
+          .replace(/\s+(Inc\.?|Corp\.?|Corporation|Company|Co\.?|Ltd\.?|Limited|Group|plc|LLC|LP)$/i, '')
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '');
+        
+        if (guessed.length >= 3 && guessed.length <= 30) {
+          domain = `${guessed}.com`;
+        }
+      }
+      
       if (!domain) {
         return res.status(404).json({ error: 'Logo not available' });
       }
