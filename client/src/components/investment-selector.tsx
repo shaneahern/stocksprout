@@ -41,7 +41,6 @@ export default function InvestmentSelector({
     const target = e.currentTarget;
     // Prevent infinite loop if fallback also fails
     if (!target.src.startsWith('data:')) {
-      console.log(`[Logo] Failed to load logo for ${symbol}, using fallback`);
       target.src = getFallbackLogoUrl(symbol);
     }
   };

@@ -83,17 +83,6 @@ export default function Portfolio() {
     enabled: !!childId,
   });
 
-  // Debug: Log holdings data
-  useEffect(() => {
-    if (allHoldings.length > 0) {
-      console.log('[Portfolio] Holdings loaded:', allHoldings.map(h => ({
-        id: h.id,
-        symbol: h.investment?.symbol,
-        name: h.investment?.name,
-        hasInvestment: !!h.investment
-      })));
-    }
-  }, [allHoldings]);
 
   // Fetch gifts for this child to determine which investments are from this user
   const { data: childGifts = [] } = useQuery<any[]>({
@@ -217,7 +206,6 @@ export default function Portfolio() {
     const target = e.currentTarget;
     // Prevent infinite loop if fallback also fails
     if (!target.src.startsWith('data:')) {
-      console.log(`[Logo] Failed to load logo for ${symbol}, using fallback`);
       target.src = getFallbackLogoUrl(symbol);
     }
   };

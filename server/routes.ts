@@ -444,8 +444,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const investment = await storage.getInvestment(holding.investmentId);
           if (!investment) {
             console.error(`[Portfolio] ERROR: Holding ${holding.id} references investmentId ${holding.investmentId} but investment not found in database!`);
-          } else {
-            console.log(`[Portfolio] Holding ${holding.id}: ${investment.symbol} - ${investment.name}`);
           }
           return { ...holding, investment };
         })
@@ -541,17 +539,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/gifts", async (req, res) => {
     try {
       const validatedData = insertGiftSchema.parse(req.body);
-      console.log(`[Gift] Received gift data with investmentId: ${validatedData.investmentId}`);
       
       // Handle temporary investment IDs from search results
       let investmentId = validatedData.investmentId;
       let investment = await storage.getInvestment(investmentId);
       
-      console.log(`[Gift] Checked database for investment ${investmentId}: ${investment ? 'FOUND' : 'NOT FOUND'}`);
-      
       // If investment doesn't exist (temp ID from search), create it
       if (!investment && investmentId.startsWith('temp-')) {
-        console.log(`[Gift] Detected temp ID, will create new investment`);
         const symbol = investmentId.replace('temp-', '');
         
         // Get real-time data from Finnhub
@@ -571,7 +565,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Create the investment in our database
-        console.log(`[Gift] Creating new investment: ${symbol} - ${profile.name}`);
         investment = await storage.createInvestment({
           symbol: symbol,
           name: profile.name,
@@ -580,7 +573,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ytdReturn: quote.changePercent.toFixed(2),
         });
         
-        console.log(`[Gift] Investment created:`, investment);
         investmentId = investment.id;
       }
       
@@ -600,8 +592,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Auto-approve parent purchases (skip custodian review)
       if (isParentPurchase) {
         await storage.approveGift(gift.id);
-        
-        console.log(`[Gift] Auto-approving parent purchase, creating portfolio holding with investmentId: ${investmentId}`);
         
         // Update portfolio holdings for auto-approved gifts
         const existingHolding = await storage.getPortfolioHoldingByInvestment(
