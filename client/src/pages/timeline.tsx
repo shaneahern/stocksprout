@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User, Video, Clock, CheckCircle } from "lucide-react";
+import { Gift, PlayCircle, Heart, Sprout, Leaf, AlertCircle, User, Video, Clock, CheckCircle, ChevronDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +19,8 @@ type EnrichedGift = GiftType & {
   investment: Investment;
   contributor?: Contributor | null;
   giftGiverProfileImageUrl?: string | null;
+  cumulativeAmount?: number;
+  giftIndex?: number;
 };
 
 export default function Timeline() {
@@ -215,19 +217,19 @@ export default function Timeline() {
       )}
       
       <div className="space-y-6 pb-16">
-        {/* Child Selector */}
-        {childId && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Sprout className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold">Growth Timeline</h1>
-              </div>
-            </div>
-            <ChildSelector currentChildId={childId} redirectPath="timeline" />
-          </div>
+        {/* Header - Growth Timeline */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900">Growth Timeline</h1>
+          {childId && <ChildSelector currentChildId={childId} redirectPath="timeline" />}
+        </div>
+
+        {/* Full Video Reel Button */}
+        {gifts.some(gift => gift.videoMessageUrl) && (
+          <Button className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2 py-3 rounded-xl">
+            <Leaf className="w-5 h-5" />
+            <PlayCircle className="w-4 h-4" />
+            Full Video Reel
+          </Button>
         )}
 
         {/* Pending Gifts Alert - Only for custodians */}
@@ -249,7 +251,7 @@ export default function Timeline() {
           </Card>
         )}
 
-        {/* Growing Sprout Timeline */}
+        {/* Timeline */}
         {gifts.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center">
@@ -261,176 +263,119 @@ export default function Timeline() {
             </CardContent>
           </Card>
         ) : (
-          <div className="flex gap-6">
-            {/* Left: Growing Sprout Visualization */}
-            <div className="w-20 flex-shrink-0 relative">
-              <div className="relative h-full">
-                {/* Vertical Stem */}
-                <div 
-                  className="absolute left-1/2 transform -translate-x-1/2 bg-green-700 transition-all duration-1000 ease-out"
-                  style={{ 
-                    width: '4px',
-                    height: `${giftsWithCumulative.length * 300 + 200}px`,
-                    borderRadius: '2px'
-                  }}
-                  data-testid="stem-sprout"
-                />
-                
-                {/* Leaf Nodes for each gift */}
-                {giftsWithCumulative.map((gift, index) => {
-                  const yPosition = index * 300 + 120;
-                  const isLeft = index % 2 === 0;
-                  
-                  return (
-                    <div
-                      key={gift.id}
-                      className="absolute flex items-center transition-all duration-700 ease-out"
-                      style={{
-                        top: `${yPosition}px`,
-                        left: isLeft ? '6px' : '30px',
-                        transform: isLeft ? 'translateX(-100%)' : 'translateX(0)'
-                      }}
-                      data-testid={`node-gift-${gift.id}`}
-                    >
-                      {/* Leaf */}
-                      <div className={`flex items-center ${isLeft ? 'flex-row-reverse' : 'flex-row'} gap-1`}>
-                        <Leaf 
-                          className={`w-5 h-5 text-green-500 transform ${isLeft ? 'scale-x-[-1]' : ''}`}
-                        />
-                        <div className="w-3 h-0.5 bg-green-600" />
-                      </div>
-                      
-                      {/* Cumulative Amount Label */}
-                      <div 
-                        className={`absolute ${isLeft ? 'right-8' : 'left-8'} top-1/2 transform -translate-y-1/2`}
-                        data-testid={`text-cumulative-${gift.id}`}
-                      >
-                        <div className="bg-green-50 border border-green-200 rounded-lg px-2 py-1 whitespace-nowrap">
-                          <div className="text-xs font-bold text-green-800">
-                            ${gift.cumulativeAmount.toFixed(0)}
-                          </div>
-                          <div className="text-xs text-green-600">
-                            Total
-                          </div>
-                        </div>
+          <div className="relative">
+            {/* Timeline Line */}
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-green-700" />
+            
+            {/* Timeline Items */}
+            <div className="space-y-6">
+              {giftsWithCumulative.map((gift: EnrichedGift, index: number) => (
+                <div key={gift.id} className="relative flex items-start gap-4">
+                  {/* Timeline Node with Leaf */}
+                  <div className="relative z-10 flex-shrink-0">
+                    <div className="w-12 h-12 bg-white border-2 border-green-700 rounded-full flex items-center justify-center">
+                      <Leaf className="w-6 h-6 text-green-700" />
+                    </div>
+                    {/* Cumulative Amount Tag */}
+                    <div className="absolute -top-2 -right-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1 whitespace-nowrap">
+                      <div className="text-xs font-bold text-green-800">
+                        ${gift.cumulativeAmount?.toFixed(0) || '0'} Total
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            {/* Right: Gift Details */}
-            <div className="flex-1 space-y-8">
-              {giftsWithCumulative.map((gift: EnrichedGift, index: number) => (
-                <Card key={gift.id} className="relative overflow-hidden" data-testid={`card-gift-${gift.id}`}>
-                  {/* Video Indicator Badge - Clickable */}
-                  {gift.videoMessageUrl && (
-                    <button
-                      onClick={() => handlePlayVideo(gift.videoMessageUrl!, gift.giftGiverName)}
-                      className="absolute top-2 right-2 z-10 transition-transform hover:scale-105"
-                      title="Click to play video message"
-                    >
-                      <Badge className="bg-purple-500 hover:bg-purple-600 text-white flex items-center gap-1 px-2 py-1 cursor-pointer shadow-md">
-                        <PlayCircle className="w-3 h-3" />
-                        <span className="text-xs">Video</span>
-                      </Badge>
-                    </button>
-                  )}
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      {(gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl) ? (
-                        <Avatar className="w-10 h-10 flex-shrink-0">
-                          <AvatarImage 
-                            src={gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl || undefined} 
-                            alt={gift.contributor?.name || gift.giftGiverName}
-                            className="object-cover"
-                          />
-                          <AvatarFallback className={`text-white text-sm font-semibold ${
-                            gift.contributor?.phone === null ? 
-                              'bg-gradient-to-br from-blue-500 to-blue-600' : // Parent purchase
-                              'bg-gradient-to-br from-green-500 to-green-600' // External gift
-                          }`}>
-                            {(gift.contributor?.name || gift.giftGiverName).split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          gift.contributor?.phone === null ? 
-                            'bg-gradient-to-br from-blue-500 to-blue-600' : // Parent purchase (no phone = user)
-                            'bg-gradient-to-br from-green-500 to-green-600' // External gift
-                        }`}>
-                          {gift.contributor?.phone === null ? (
-                            <User className="w-5 h-5 text-white" />
+                  </div>
+                  
+                  {/* Gift Card */}
+                  <Card className="flex-1 shadow-sm border-0 bg-white">
+                    <CardContent className="p-4">
+                      {/* Header with Profile Picture and Video Button */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          {(gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl) ? (
+                            <Avatar className="w-10 h-10">
+                              <AvatarImage 
+                                src={gift.contributor?.profileImageUrl || gift.giftGiverProfileImageUrl || undefined} 
+                                alt={gift.contributor?.name || gift.giftGiverName}
+                                className="object-cover"
+                              />
+                              <AvatarFallback className={`text-white text-sm font-semibold ${
+                                gift.contributor?.phone === null ? 
+                                  'bg-gradient-to-br from-blue-500 to-blue-600' : 
+                                  'bg-gradient-to-br from-green-500 to-green-600'
+                              }`}>
+                                {(gift.contributor?.name || gift.giftGiverName).split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
                           ) : (
-                            <Gift className="w-5 h-5 text-white" />
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              gift.contributor?.phone === null ? 
+                                'bg-gradient-to-br from-blue-500 to-blue-600' : 
+                                'bg-gradient-to-br from-green-500 to-green-600'
+                            }`}>
+                              {gift.contributor?.phone === null ? (
+                                <User className="w-5 h-5 text-white" />
+                              ) : (
+                                <Gift className="w-5 h-5 text-white" />
+                              )}
+                            </div>
                           )}
+                          <h3 className="font-bold text-gray-900">
+                            {gift.contributor?.phone === null ? 
+                              `Investment by ${gift.giftGiverName}` : 
+                              `From ${gift.giftGiverName}`
+                            }
+                          </h3>
+                        </div>
+                        
+                        {/* Video Button */}
+                        {gift.videoMessageUrl && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePlayVideo(gift.videoMessageUrl!, gift.giftGiverName)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white border-blue-500 flex items-center gap-1"
+                          >
+                            <Video className="w-3 h-3" />
+                            Video
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {/* Investment Details */}
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 border-gray-200">
+                          {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">
+                          {gift.investment?.name} ({gift.investment?.symbol})
+                        </Badge>
+                        <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">
+                          ${parseFloat(gift.amount).toFixed(2)} ({parseFloat(gift.shares).toFixed(4)} shares)
+                        </Badge>
+                      </div>
+                      
+                      {/* Personal Message */}
+                      {gift.message && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+                          <p className="text-sm italic text-gray-700">"{gift.message}"</p>
                         </div>
                       )}
                       
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
-                          <h3 className={`font-bold text-base ${gift.videoMessageUrl ? 'pr-16 sm:pr-0' : ''}`}>
-                            {gift.contributor?.phone === null ? 
-                              `Investment by ${gift.giftGiverName}` : // Parent purchase
-                              `From ${gift.giftGiverName}` // External gift
-                            }
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            {gift.status === 'pending' && (
-                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
-                                <Clock className="w-3 h-3 mr-1" />
-                                Pending Approval
-                              </Badge>
-                            )}
-                            {gift.status === 'approved' && (
-                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Approved
-                              </Badge>
-                            )}
-                            <Badge variant="outline" className={`text-xs w-fit ${gift.videoMessageUrl ? 'mr-20 sm:mr-0' : ''}`}>
-                              {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
-                          <div className="flex justify-between items-center gap-2 mb-1">
-                            <span className="font-semibold text-sm">
-                              {gift.investment?.name} ({gift.investment?.symbol})
-                            </span>
-                            <span className="font-bold text-sm text-green-700">${parseFloat(gift.amount).toFixed(2)}</span>
-                          </div>
-                          <div className="text-xs text-green-600">
-                            {parseFloat(gift.shares).toFixed(4)} shares
-                          </div>
-                        </div>
-                        
-                        {gift.message && (
-                          <div className="bg-card border rounded-lg p-3 mb-3">
-                            <p className="text-sm italic">"{gift.message}"</p>
-                          </div>
-                        )}
-                        
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          {user && !gift.thankYouSent && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSendThankYou(gift.id)}
-                              className="text-xs"
-                              data-testid={`button-thank-you-${gift.id}`}
-                            >
-                              <Heart className="w-4 h-4 mr-2" />
-                              Say Thanks
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                      {/* Say Thanks Button */}
+                      {user && !gift.thankYouSent && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendThankYou(gift.id)}
+                          className="w-full bg-white hover:bg-gray-50 text-gray-700 border-gray-300 flex items-center justify-center gap-2"
+                          data-testid={`button-thank-you-${gift.id}`}
+                        >
+                          <Heart className="w-4 h-4" />
+                          Say Thanks
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               ))}
             </div>
           </div>
