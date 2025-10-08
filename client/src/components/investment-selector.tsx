@@ -70,7 +70,6 @@ export default function InvestmentSelector({
                       src={getStockLogoUrl(investment.symbol, investment.name)}
                       alt={`${investment.symbol} logo`}
                       className="w-full h-full object-contain"
-                      crossOrigin="anonymous"
                       onError={(e) => handleImageError(e, investment.symbol)}
                     />
                   </div>
@@ -158,7 +157,6 @@ export default function InvestmentSelector({
                               src={getStockLogoUrl(investment.symbol, investment.name)}
                               alt={`${investment.symbol} logo`}
                               className="w-full h-full object-contain"
-                              crossOrigin="anonymous"
                               onError={(e) => handleImageError(e, investment.symbol)}
                             />
                           </div>

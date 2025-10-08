@@ -162,18 +162,20 @@ const TICKER_TO_DOMAIN: Record<string, string> = {
 export function getStockLogoUrl(symbol: string, companyName?: string, size: number = 64): string {
   const ticker = symbol.toUpperCase();
   
-  // Strategy 1: Try our curated domain mapping with Clearbit
+  // Strategy 1: Use server-side proxy for curated stocks (bypasses ad blockers)
   const domain = TICKER_TO_DOMAIN[ticker];
   if (domain) {
-    // Add crossorigin attribute to allow fallback on CORS errors
-    return `https://logo.clearbit.com/${domain}`;
+    // Use our logo proxy endpoint to bypass ad blockers
+    return `/api/logo/${ticker}`;
   }
   
-  // Strategy 2: If we have a company name, try to construct a domain
+  // Strategy 2: If we have a company name, try to construct a domain and proxy it
   if (companyName) {
     const guessedDomain = guessCompanyDomain(companyName);
+    // For guessed domains, go straight to fallback to avoid extra API calls
     if (guessedDomain) {
-      return `https://logo.clearbit.com/${guessedDomain}`;
+      // Could add to proxy, but for now use fallback
+      return getFallbackLogoUrl(ticker);
     }
   }
   

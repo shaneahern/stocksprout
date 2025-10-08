@@ -816,6 +816,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded videos
   app.use('/uploads', express.static('uploads'));
 
+  // Logo proxy endpoint to bypass ad blockers
+  app.get("/api/logo/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const ticker = symbol.toUpperCase();
+      
+      // Full ticker to domain mapping (matches client-side mapping)
+      const domainMapping: Record<string, string> = {
+        // Tech
+        'AAPL': 'apple.com', 'GOOGL': 'abc.xyz', 'GOOG': 'abc.xyz',
+        'MSFT': 'microsoft.com', 'AMZN': 'amazon.com', 'META': 'meta.com', 'FB': 'meta.com',
+        'TSLA': 'tesla.com', 'NVDA': 'nvidia.com', 'NFLX': 'netflix.com',
+        'ADBE': 'adobe.com', 'CRM': 'salesforce.com', 'ORCL': 'oracle.com',
+        'INTC': 'intel.com', 'AMD': 'amd.com', 'UBER': 'uber.com', 'LYFT': 'lyft.com',
+        'SNAP': 'snap.com', 'SPOT': 'spotify.com', 'SQ': 'squareup.com', 'PYPL': 'paypal.com',
+        'SHOP': 'shopify.com', 'TWLO': 'twilio.com', 'ZM': 'zoom.us',
+        'DOCU': 'docusign.com', 'SNOW': 'snowflake.com', 'CRWD': 'crowdstrike.com',
+        'ABNB': 'airbnb.com', 'ROKU': 'roku.com', 'RBLX': 'roblox.com',
+        'DASH': 'doordash.com', 'COIN': 'coinbase.com', 'PLTR': 'palantir.com',
+        'IBM': 'ibm.com', 'CSCO': 'cisco.com', 'QCOM': 'qualcomm.com',
+        'TXN': 'ti.com', 'NOW': 'servicenow.com', 'PANW': 'paloaltonetworks.com',
+        'NET': 'cloudflare.com', 'DDOG': 'datadoghq.com', 'MDB': 'mongodb.com', 'ZS': 'zscaler.com',
+        // Finance
+        'JPM': 'jpmorganchase.com', 'BAC': 'bankofamerica.com', 'WFC': 'wellsfargo.com',
+        'GS': 'goldmansachs.com', 'MS': 'morganstanley.com', 'C': 'citigroup.com',
+        'V': 'visa.com', 'MA': 'mastercard.com', 'AXP': 'americanexpress.com', 'BLK': 'blackrock.com',
+        // Consumer
+        'WMT': 'walmart.com', 'HD': 'homedepot.com', 'NKE': 'nike.com',
+        'MCD': 'mcdonalds.com', 'SBUX': 'starbucks.com', 'DIS': 'disney.com',
+        'KO': 'coca-cola.com', 'PEP': 'pepsi.com', 'PG': 'pg.com',
+        'COST': 'costco.com', 'TGT': 'target.com', 'LOW': 'lowes.com',
+        'F': 'ford.com', 'GM': 'gm.com', 'CMG': 'chipotle.com',
+        // Healthcare
+        'JNJ': 'jnj.com', 'UNH': 'unitedhealthgroup.com', 'PFE': 'pfizer.com',
+        'ABBV': 'abbvie.com', 'TMO': 'thermofisher.com', 'ABT': 'abbott.com',
+        // ETFs
+        'SPY': 'ssga.com', 'VOO': 'vanguard.com', 'VTI': 'vanguard.com', 'QQQ': 'invesco.com',
+      };
+      
+      const domain = domainMapping[ticker];
+      if (!domain) {
+        return res.status(404).json({ error: 'Logo not available' });
+      }
+      
+      // Fetch logo from Clearbit and proxy it
+      const logoUrl = `https://logo.clearbit.com/${domain}`;
+      const logoResponse = await fetch(logoUrl);
+      
+      if (!logoResponse.ok) {
+        return res.status(404).json({ error: 'Logo not found' });
+      }
+      
+      // Set proper headers
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+      
+      // Stream the logo image
+      const buffer = await logoResponse.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      console.error('Logo proxy error:', error);
+      res.status(500).json({ error: 'Failed to fetch logo' });
+    }
+  });
+
   // Sprout Request routes
   app.post("/api/sprout-requests", async (req, res) => {
     try {

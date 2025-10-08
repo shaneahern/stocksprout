@@ -363,7 +363,6 @@ export default function Portfolio() {
                               src={getStockLogoUrl(holding.investment.symbol, holding.investment.name)}
                               alt={`${holding.investment.symbol} logo`}
                               className="w-full h-full object-contain p-1"
-                              crossOrigin="anonymous"
                               onError={(e) => handleImageError(e, holding.investment.symbol)}
                             />
                           </div>
