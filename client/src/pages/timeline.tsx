@@ -225,19 +225,25 @@ export default function Timeline() {
 
         {/* Full Video Reel Button */}
         {gifts.some(gift => gift.videoMessageUrl) && (
-          <div className="w-full bg-green-100 rounded-xl overflow-hidden flex items-center">
-            {/* Left section - Dark green with plant icon and line */}
-            <div className="bg-green-700 flex items-center justify-center p-4 relative">
-              <Sprout className="w-6 h-6 text-white" />
-              {/* Vertical line extending down */}
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0.5 h-4 bg-green-700" />
+          <div className="flex items-start gap-4">
+            {/* Button - narrower width */}
+            <div className="w-80 bg-green-100 rounded-xl overflow-hidden flex items-center">
+              {/* Left section - Dark green with plant icon and line */}
+              <div className="bg-green-700 flex items-center justify-center p-4 relative">
+                <Sprout className="w-6 h-6 text-white" />
+                {/* Vertical line extending down to connect with timeline */}
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-8 bg-green-700" />
+              </div>
+              
+              {/* Right section - Light green with play icon and text */}
+              <div className="flex-1 bg-green-100 flex items-center justify-center gap-2 py-4 px-6">
+                <PlayCircle className="w-5 h-5 text-black" />
+                <span className="text-black font-medium">Full Video Reel</span>
+              </div>
             </div>
             
-            {/* Right section - Light green with play icon and text */}
-            <div className="flex-1 bg-green-100 flex items-center justify-center gap-2 py-4 px-6">
-              <PlayCircle className="w-5 h-5 text-black" />
-              <span className="text-black font-medium">Full Video Reel</span>
-            </div>
+            {/* Spacer to push button left */}
+            <div className="flex-1" />
           </div>
         )}
 
