@@ -265,7 +265,7 @@ export default function Timeline() {
         ) : (
           <div className="relative">
             {/* Timeline Line */}
-            <div className="absolute left-6 top-0 bottom-0 w-2 bg-green-700" />
+            <div className="absolute left-6 top-0 bottom-0 w-4 bg-green-700" />
             
             {/* Timeline Items */}
             <div className="space-y-6">
