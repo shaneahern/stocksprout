@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import MobileLayout from "@/components/mobile-layout";
 import PortfolioChart from "@/components/portfolio-chart";
+import PortfolioGrowthChart from "@/components/portfolio-growth-chart";
 import { SproutRequestForm } from "@/components/sprout-request-form";
 import { PurchaseForChild } from "@/components/purchase-for-child";
 import { ChildSelector } from "@/components/child-selector";
@@ -202,38 +203,44 @@ export default function Portfolio() {
   return (
     <MobileLayout currentTab="portfolio">
       <div className="space-y-6 pb-16">
-        {/* Child Selector */}
         {childId && (
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Portfolio</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-2xl font-bold">Portfolio</h2>
             <ChildSelector currentChildId={childId} redirectPath="portfolio" />
           </div>
         )}
 
-        {/* Portfolio Header */}
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl" data-testid="text-portfolio-value">
-              ${totalValue.toFixed(2)}
-            </CardTitle>
-            <div className="flex items-center justify-center space-x-2">
-              {totalGain >= 0 ? (
-                <ArrowUpIcon className="w-4 h-4 text-success" />
-              ) : (
-                <ArrowDownIcon className="w-4 h-4 text-destructive" />
-              )}
-              <span 
-                className={`font-semibold ${totalGain >= 0 ? 'text-success' : 'text-destructive'}`}
-                data-testid="text-portfolio-gain"
-              >
-                ${Math.abs(totalGain).toFixed(2)} ({Math.abs(totalGainPercent).toFixed(1)}%)
-              </span>
+        {child && (
+          <div className="flex justify-end">
+            <div className="inline-flex items-center gap-2 bg-muted px-4 py-2 rounded-lg">
+              <span className="font-semibold">{child.name}</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
-          </CardHeader>
-        </Card>
+          </div>
+        )}
 
-        {/* Portfolio Chart */}
-        <PortfolioChart holdings={holdings} />
+        <div className="text-center mb-6">
+          <div className="text-4xl font-bold mb-2" data-testid="text-portfolio-value">
+            ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <span 
+              className={`text-xl font-semibold ${totalGain >= 0 ? 'text-success' : 'text-destructive'}`}
+              data-testid="text-portfolio-gain"
+            >
+              {totalGain >= 0 ? '+' : ''}${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Gain
+            </span>
+          </div>
+        </div>
+
+        <PortfolioChart holdings={holdings} child={child} />
+
+        <PortfolioGrowthChart 
+          currentValue={totalValue} 
+          ytdReturn={totalGainPercent}
+        />
         
         {/* Pending Gifts Alert - Different messages for custodians vs contributors */}
         {userPendingGifts.length > 0 && (
@@ -314,9 +321,8 @@ export default function Portfolio() {
           </div>
         )}
 
-        {/* Holdings List */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold">Holdings</h2>
+          <h2 className="text-2xl font-bold">Holdings</h2>
           {holdings.map((holding: EnrichedHolding) => {
             const currentValue = parseFloat(holding.currentValue || "0");
             const cost = parseFloat(holding.shares || "0") * parseFloat(holding.averageCost || "0");
@@ -324,38 +330,37 @@ export default function Portfolio() {
             const gainPercent = cost > 0 ? (gain / cost) * 100 : 0;
 
             return (
-              <Card key={holding.id} data-testid={`card-holding-${holding.id}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h3 className="font-bold text-lg">{holding.investment?.symbol}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {holding.investment?.name}
-                      </p>
+              <Card key={holding.id} data-testid={`card-holding-${holding.id}`} className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg font-bold text-foreground">
+                          {holding.investment?.symbol.substring(0, 2)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-lg">{holding.investment?.symbol}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {parseFloat(holding.shares).toFixed(0)} shares
+                        </div>
+                      </div>
                     </div>
-                    <Badge variant="secondary" className="capitalize">
-                      {holding.investment?.type}
-                    </Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Shares</p>
-                      <p className="font-semibold">{parseFloat(holding.shares).toFixed(4)}</p>
+
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <div className="font-bold text-lg">
+                        ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        +${gain.toFixed(2)}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Avg Cost</p>
-                      <p className="font-semibold">${parseFloat(holding.averageCost).toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Current Value</p>
-                      <p className="font-semibold">${currentValue.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Gain/Loss</p>
-                      <p className={`font-semibold ${gain >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        ${gain.toFixed(2)} ({gainPercent.toFixed(1)}%)
-                      </p>
+
+                    <div className={`ml-4 px-4 py-2 rounded-lg font-bold text-lg ${
+                      gain >= 0 ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'
+                    }`}>
+                      {gainPercent >= 0 ? '+' : ''}{gainPercent.toFixed(2)}%
                     </div>
                   </div>
                 </CardContent>

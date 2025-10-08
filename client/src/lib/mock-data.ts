@@ -5,7 +5,7 @@ export const mockInvestments = [
     name: "S&P 500 ETF",
     type: "etf",
     currentPrice: "445.20",
-    ytdReturn: "11.2"
+    ytdReturn: "45.2"
   },
   {
     id: "inv-2",
@@ -13,7 +13,7 @@ export const mockInvestments = [
     name: "Bitcoin",
     type: "crypto",
     currentPrice: "43250.00",
-    ytdReturn: "24.7"
+    ytdReturn: "78.5"
   },
   {
     id: "inv-3",
@@ -21,7 +21,7 @@ export const mockInvestments = [
     name: "Tesla Inc",
     type: "stock",
     currentPrice: "241.50",
-    ytdReturn: "18.3"
+    ytdReturn: "62.3"
   },
   {
     id: "inv-4",
@@ -29,7 +29,7 @@ export const mockInvestments = [
     name: "Apple Inc",
     type: "stock",
     currentPrice: "189.95",
-    ytdReturn: "14.8"
+    ytdReturn: "38.7"
   },
   {
     id: "inv-5",
@@ -37,7 +37,7 @@ export const mockInvestments = [
     name: "Alphabet Inc",
     type: "stock",
     currentPrice: "142.65",
-    ytdReturn: "22.1"
+    ytdReturn: "55.8"
   }
 ];
 

@@ -1,0 +1,242 @@
+import React, { useState, useMemo } from "react";
+import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
+import { Button } from "@/components/ui/button";
+
+interface PortfolioGrowthChartProps {
+  currentValue: number;
+  ytdReturn: number;
+}
+
+type Period = "1D" | "1W" | "1M" | "3M" | "YTD" | "1Y" | "All";
+
+export default function PortfolioGrowthChart({ currentValue, ytdReturn }: PortfolioGrowthChartProps) {
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("All");
+
+  const periods: Period[] = ["1D", "1W", "1M", "3M", "YTD", "1Y", "All"];
+
+  const chartData = useMemo(() => {
+    const dataPoints: { date: string; value: number }[] = [];
+    let numPoints = 30;
+    let startDate = new Date();
+    let timeIncrement: number; // Time increment in milliseconds
+    
+    switch (selectedPeriod) {
+      case "1D":
+        numPoints = 96; // 15-minute intervals for 1 day (96 points = 24 hours * 4 intervals per hour)
+        timeIncrement = 15 * 60 * 1000; // 15 minutes in milliseconds
+        startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        break;
+      case "1W":
+        numPoints = 28; // 6-hour intervals for 1 week (28 points = 7 days * 4 intervals per day)
+        timeIncrement = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+        startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "1M":
+        numPoints = 30; // Daily data for 1 month
+        timeIncrement = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+        startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case "3M":
+        numPoints = 90; // Daily data for 3 months
+        timeIncrement = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+        startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case "YTD":
+        const yearStart = new Date(new Date().getFullYear(), 0, 1);
+        const daysSinceYearStart = Math.floor((Date.now() - yearStart.getTime()) / (24 * 60 * 60 * 1000));
+        numPoints = Math.min(daysSinceYearStart, 365); // Weekly data for YTD
+        timeIncrement = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
+        startDate = yearStart;
+        break;
+      case "1Y":
+        numPoints = 52; // Weekly data for 1 year
+        timeIncrement = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
+        startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      case "All":
+        numPoints = 104; // Bi-weekly data for all time (2+ years)
+        timeIncrement = 14 * 24 * 60 * 60 * 1000; // 2 weeks in milliseconds
+        startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+        break;
+    }
+
+    const totalGrowthFactor = 1 + (ytdReturn / 100);
+    const baseValue = currentValue / totalGrowthFactor;
+    
+    // Generate data with appropriate granularity and volatility for each timeframe
+    let previousValue = baseValue;
+    let trend = 0; // Running trend to make data smoother
+    
+    // Adjust volatility based on timeframe - more realistic ups and downs
+    let baseVolatility: number;
+    switch (selectedPeriod) {
+      case "1D":
+        baseVolatility = 0.008; // Lower volatility for 15-minute data
+        break;
+      case "1W":
+        baseVolatility = 0.012; // Slightly higher for 6-hour data
+        break;
+      case "1M":
+      case "3M":
+        baseVolatility = 0.018; // Medium volatility for daily data
+        break;
+      case "YTD":
+      case "1Y":
+        baseVolatility = 0.025; // Higher volatility for weekly data
+        break;
+      case "All":
+        baseVolatility = 0.03; // Highest volatility for bi-weekly data
+        break;
+      default:
+        baseVolatility = 0.025;
+    }
+    
+    for (let i = 0; i <= numPoints; i++) {
+      // Use time increment for precise time calculations
+      const timeMs = startDate.getTime() + (i * timeIncrement);
+      const date = new Date(timeMs);
+      
+      // Calculate the target value based on growth
+      const progressRatio = i / numPoints;
+      const targetValue = baseValue * (1 + (ytdReturn / 100) * progressRatio);
+      
+      // Add more realistic volatility with both positive and negative movements
+      const randomMove = (Math.random() - 0.5) * 2; // Range from -1 to 1
+      const volatility = randomMove * baseVolatility;
+      
+      // Create more realistic momentum - sometimes trending up, sometimes down
+      const momentumFactor = Math.sin(i / numPoints * Math.PI * 4) * 0.3; // Creates cyclical momentum
+      trend = trend * 0.3 + volatility * 0.7; // Less smoothing for more realistic movements
+      
+      // Calculate new value with more realistic market behavior
+      const marketNoise = (Math.random() - 0.5) * baseVolatility * 0.5;
+      const value = previousValue * (1 + trend + volatility * 0.6 + marketNoise + momentumFactor * 0.1);
+      
+      // Allow more deviation from target to create realistic market movements
+      const deviation = (value - targetValue) / targetValue;
+      if (Math.abs(deviation) > 0.15) { // Max 15% deviation from target (increased from 5%)
+        // Pull back towards target but not too aggressively
+        const pullbackStrength = 0.3;
+        previousValue = previousValue * (1 - pullbackStrength) + targetValue * pullbackStrength;
+      } else {
+        previousValue = value;
+      }
+      
+      // Format date based on timeframe
+      let dateStr: string;
+      if (selectedPeriod === "1D") {
+        dateStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      } else if (selectedPeriod === "1W") {
+        // For 6-hour intervals, show time and day
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+        const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        dateStr = `${dayName} ${time}`;
+      } else if (["1M", "3M"].includes(selectedPeriod)) {
+        dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else {
+        // For YTD, 1Y, All - show month and day
+        dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      
+      dataPoints.push({
+        date: dateStr,
+        value: Math.max(0, previousValue),
+      });
+    }
+
+    return dataPoints;
+  }, [currentValue, ytdReturn, selectedPeriod]);
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
+          <p className="text-sm font-semibold">
+            ${payload[0].value.toFixed(2)}
+          </p>
+          <p className="text-xs text-muted-foreground">{payload[0].payload.date}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const values = chartData.map(d => d.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const padding = Math.max((maxValue - minValue) * 0.1, 50); // Ensure minimum padding
+
+  return (
+    <div className="bg-card rounded-lg border border-border">
+      <div className="p-6">
+        <div className="h-64 mb-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={chartData} key={`chart-${Date.now()}`}>
+              <defs>
+                <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(210, 70%, 60%)" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="hsl(210, 70%, 60%)" stopOpacity={0.1}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis 
+                dataKey="date" 
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis 
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                domain={[minValue - padding, maxValue + padding]}
+                tickFormatter={(value) => {
+                  if (value >= 1000) {
+                    return `$${(value / 1000).toFixed(0)}K`;
+                  } else {
+                    return `$${value.toFixed(0)}`;
+                  }
+                }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="hsl(120, 50%, 35%)" 
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 6 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="none"
+                fill="url(#portfolioGradient)"
+                fillOpacity={0.6}
+                connectNulls={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="flex items-center justify-center gap-2">
+          {periods.map((period) => (
+            <Button
+              key={period}
+              variant={selectedPeriod === period ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setSelectedPeriod(period)}
+              className={`text-xs font-medium ${
+                selectedPeriod === period 
+                  ? "bg-foreground text-background" 
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {period}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
