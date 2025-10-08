@@ -268,7 +268,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       </div>
 
       {/* Tab Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-emerald-50 border-t border-border shadow-lg z-40">
         <div className="flex relative">
           <div 
             className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-in-out"
