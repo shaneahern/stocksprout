@@ -214,22 +214,12 @@ export default function Portfolio() {
     <MobileLayout currentTab="portfolio">
       <div className="space-y-6 pb-16">
         {childId && (
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold">Portfolio</h2>
             <ChildSelector currentChildId={childId} redirectPath="portfolio" />
           </div>
         )}
-
-        {child && (
-          <div className="flex justify-end">
-            <div className="inline-flex items-center gap-2 bg-muted px-4 py-2 rounded-lg">
-              <span className="font-semibold">{child.name}</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        )}
+        {!childId && <h2 className="text-2xl font-bold">Portfolio</h2>}
 
         <div className="text-center mb-6">
           <div className="text-4xl font-bold mb-2" data-testid="text-portfolio-value">

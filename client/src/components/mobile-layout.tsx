@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,7 +16,29 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
   const [location, setLocation] = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showPendingGifts, setShowPendingGifts] = useState(false);
+  const [currentQuote, setCurrentQuote] = useState("");
   const { user, token } = useAuth();
+
+
+  // Pool of motivational quotes
+  const quotes = [
+    "Start before they know what money is, and with more than they imagined...",
+    "Diapers may change, but wealth can...",
+    "While they learn to walk, their money learns to run...",
+    "Crayons in one hand, a portfolio in the other...",
+    "Start small, grow tall. Investing young builds powerful kids' futures...",
+    "Plant seeds today, harvest wealth tomorrow...",
+    "From piggy banks to portfolios...",
+    "Building tomorrow's millionaires, one investment at a time...",
+    "Childhood dreams, adult wealth...",
+    "The best time to invest was yesterday, the second best is now..."
+  ];
+
+  // Pick a random quote when the tab changes
+  useEffect(() => {
+    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+    setCurrentQuote(randomQuote);
+  }, [currentTab]);
 
   // Fetch custodian's children (children where user is parent)
   const { data: childrenData = [] } = useQuery<any[]>({
@@ -125,23 +147,21 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
               data-testid="img-logo"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-tagline">Start before they know what money is, end with more then they imagined...</p>
+              <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-tagline">
+                {currentQuote}
+              </p>
             </div>
           </div>
           <div className="relative">
             <button 
               onClick={handleNotificationClick}
-              className={`w-10 h-10 ${pendingCount > 0 ? 'bg-orange-500' : 'bg-primary'} rounded-full flex items-center justify-center transition-colors`}
+              className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center transition-colors hover:bg-green-700"
               data-testid="button-notifications"
             >
-              {pendingCount > 0 ? (
-                <AlertCircle className="w-5 h-5 text-white" />
-              ) : (
-                <Bell className="w-5 h-5 text-primary-foreground" />
-              )}
+              <Bell className="w-5 h-5 text-white" />
             </button>
             {(unreadApprovedCount > 0 || pendingCount > 0) && (
-              <div className={`absolute -top-1 -right-1 w-5 h-5 ${pendingCount > 0 ? 'bg-orange-600' : 'bg-destructive'} rounded-full flex items-center justify-center`}>
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-xs font-bold">{pendingCount > 0 ? pendingCount : unreadApprovedCount}</span>
               </div>
             )}

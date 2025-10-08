@@ -225,14 +225,12 @@ export default function Timeline() {
 
         {/* Full Video Reel Button */}
         {gifts.some(gift => gift.videoMessageUrl) && (
-          <div className="flex items-start gap-4">
+          <div className="relative">
             {/* Button - narrower width */}
-            <div className="w-80 bg-green-100 rounded-xl overflow-hidden flex items-center">
-              {/* Left section - Dark green with plant icon and line */}
-              <div className="bg-green-700 flex items-center justify-center p-4 relative">
+            <div className="w-64 bg-green-100 rounded-xl overflow-hidden flex items-center">
+              {/* Left section - Dark green with plant icon */}
+              <div className="bg-green-700 flex items-center justify-center p-4 relative z-10">
                 <Sprout className="w-6 h-6 text-white" />
-                {/* Vertical line extending down to connect with timeline */}
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-8 bg-green-700" />
               </div>
               
               {/* Right section - Light green with play icon and text */}
@@ -242,8 +240,8 @@ export default function Timeline() {
               </div>
             </div>
             
-            {/* Spacer to push button left */}
-            <div className="flex-1" />
+            {/* Connecting line from button to timeline - same thickness as timeline */}
+            <div className="absolute left-6 top-full w-2 h-8 bg-green-700" />
           </div>
         )}
 
@@ -280,27 +278,32 @@ export default function Timeline() {
         ) : (
           <div className="relative">
             {/* Timeline Line */}
-            <div className="absolute left-6 top-0 bottom-0 w-4 bg-green-700" />
+            <div className="absolute left-6 top-0 bottom-0 w-2 bg-green-700" />
             
             {/* Timeline Items */}
             <div className="space-y-6">
               {giftsWithCumulative.map((gift: EnrichedGift, index: number) => (
-                <div key={gift.id} className="relative flex items-start gap-4">
-                  {/* Timeline Node with Leaf */}
+                <div key={gift.id} className="relative flex items-start">
+                  {/* Timeline Node with Leaf - positioned to the right of line */}
+                  <div className="relative z-10 flex-shrink-0 ml-8">
+                    {/* Leaf icon positioned to the right of timeline line */}
+                    <Leaf className="w-8 h-8 text-green-700 mt-2" />
+                  </div>
+                  
+                  {/* Cumulative Amount Tag - positioned to the right of leaf */}
                   <div className="relative z-10 flex-shrink-0">
-                    <div className="w-12 h-12 bg-white border-2 border-green-700 rounded-full flex items-center justify-center">
-                      <Leaf className="w-6 h-6 text-green-700" />
-                    </div>
-                    {/* Cumulative Amount Tag */}
-                    <div className="absolute -top-2 -right-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1 whitespace-nowrap">
+                    <div className="bg-green-100 border-t border-l border-b border-green-200 rounded-l-lg px-2 py-1 text-center">
                       <div className="text-xs font-bold text-green-800">
-                        ${gift.cumulativeAmount?.toFixed(0) || '0'} Total
+                        ${gift.cumulativeAmount?.toFixed(0) || '0'}
+                      </div>
+                      <div className="text-xs font-bold text-green-800">
+                        Total
                       </div>
                     </div>
                   </div>
                   
                   {/* Gift Card */}
-                  <Card className="flex-1 shadow-sm border-0 bg-white">
+                  <Card className="flex-1 shadow-sm border border-gray-200 bg-white rounded-l-none">
                     <CardContent className="p-4">
                       {/* Header with Profile Picture and Video Button */}
                       <div className="flex items-center justify-between mb-3">
@@ -334,10 +337,7 @@ export default function Timeline() {
                             </div>
                           )}
                           <h3 className="font-bold text-gray-900">
-                            {gift.contributor?.phone === null ? 
-                              `Investment by ${gift.giftGiverName}` : 
-                              `From ${gift.giftGiverName}`
-                            }
+                            From {gift.giftGiverName}
                           </h3>
                         </div>
                         
@@ -345,11 +345,10 @@ export default function Timeline() {
                         {gift.videoMessageUrl && (
                           <Button
                             size="sm"
-                            variant="outline"
                             onClick={() => handlePlayVideo(gift.videoMessageUrl!, gift.giftGiverName)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white border-blue-500 flex items-center gap-1"
+                            className="bg-blue-500 hover:bg-blue-600 text-white border-0 flex items-center gap-1 rounded-full"
                           >
-                            <Video className="w-3 h-3" />
+                            <PlayCircle className="w-3 h-3" />
                             Video
                           </Button>
                         )}
@@ -364,7 +363,7 @@ export default function Timeline() {
                           {gift.investment?.name} ({gift.investment?.symbol})
                         </Badge>
                         <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-200">
-                          ${parseFloat(gift.amount).toFixed(2)} ({parseFloat(gift.shares).toFixed(4)} shares)
+                          ${parseFloat(gift.amount).toFixed(2)} ({parseFloat(gift.shares).toFixed(1)} shares)
                         </Badge>
                       </div>
                       
@@ -381,7 +380,7 @@ export default function Timeline() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleSendThankYou(gift.id)}
-                          className="w-full bg-white hover:bg-gray-50 text-gray-700 border-gray-300 flex items-center justify-center gap-2"
+                          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 flex items-center justify-center gap-2"
                           data-testid={`button-thank-you-${gift.id}`}
                         >
                           <Heart className="w-4 h-4" />
