@@ -259,7 +259,10 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               </Avatar>
               {!isContributedChild && (
                 <button
-                  onClick={() => setIsCameraOpen(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCameraOpen(true);
+                  }}
                   className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
                   aria-label="Add profile photo"
                 >
