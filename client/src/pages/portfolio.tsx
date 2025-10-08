@@ -13,6 +13,7 @@ import { ArrowUpIcon, ArrowDownIcon, User, Gift, Clock, AlertCircle } from "luci
 import { useAuth } from "@/contexts/AuthContext";
 import type { PortfolioHolding, Investment, Child } from "@shared/schema";
 import { useEffect } from "react";
+import { getStockLogoUrl, getFallbackLogoUrl } from "@/lib/stock-logo";
 
 type EnrichedHolding = PortfolioHolding & { investment: Investment };
 
@@ -81,6 +82,18 @@ export default function Portfolio() {
     queryKey: ["/api/portfolio", childId],
     enabled: !!childId,
   });
+
+  // Debug: Log holdings data
+  useEffect(() => {
+    if (allHoldings.length > 0) {
+      console.log('[Portfolio] Holdings loaded:', allHoldings.map(h => ({
+        id: h.id,
+        symbol: h.investment?.symbol,
+        name: h.investment?.name,
+        hasInvestment: !!h.investment
+      })));
+    }
+  }, [allHoldings]);
 
   // Fetch gifts for this child to determine which investments are from this user
   const { data: childGifts = [] } = useQuery<any[]>({
@@ -199,6 +212,14 @@ export default function Portfolio() {
 
   const totalGain = totalValue - totalCost;
   const totalGainPercent = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, symbol: string) => {
+    const target = e.currentTarget;
+    // Prevent infinite loop if fallback also fails
+    if (!target.src.startsWith('data:')) {
+      target.src = getFallbackLogoUrl(symbol);
+    }
+  };
 
   return (
     <MobileLayout currentTab="portfolio">
@@ -334,18 +355,35 @@ export default function Portfolio() {
                 <CardContent className="p-0">
                   <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg font-bold text-foreground">
-                          {holding.investment?.symbol.substring(0, 2)}
-                        </span>
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-lg">{holding.investment?.symbol}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {parseFloat(holding.shares).toFixed(0)} shares
+                      {holding.investment?.symbol ? (
+                        <>
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            <img 
+                              src={getStockLogoUrl(holding.investment.symbol, holding.investment.name)}
+                              alt={`${holding.investment.symbol} logo`}
+                              className="w-full h-full object-contain p-1"
+                              onError={(e) => handleImageError(e, holding.investment.symbol)}
+                            />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-lg">{holding.investment.symbol}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {parseFloat(holding.shares).toFixed(0)} shares
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 text-xl font-bold text-muted-foreground">
+                            ?
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-bold text-lg">Unknown</div>
+                            <div className="text-sm text-muted-foreground">No data</div>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     <div className="text-right flex-shrink-0 ml-4">

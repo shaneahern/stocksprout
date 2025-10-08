@@ -43,6 +43,8 @@ StockSprout is a custodial investment platform that allows parents to manage inv
 
 ### Investment Options
 - Stocks, ETFs, and cryptocurrency options
+- **Real-time stock prices** via Finnhub API
+- **Professional company logos** via Clearbit API
 - Real-time search functionality
 - Fractional share calculations
 - Performance metrics (YTD returns)
@@ -62,6 +64,11 @@ StockSprout is a custodial investment platform that allows parents to manage inv
 - JWT authentication
 - bcryptjs for password hashing
 - Multer for file uploads
+- Finnhub API for real-time stock data
+
+**External APIs:**
+- Finnhub (stock prices & quotes)
+- Clearbit (company logos)
 
 ## 📦 Installation
 
@@ -89,9 +96,14 @@ Create a `.env` file in the root:
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/stocksprout
 JWT_SECRET=your-super-secret-jwt-key-here
+FINNHUB_API_KEY=your-finnhub-api-key-here
 PORT=3000
 NODE_ENV=development
 ```
+
+> **Get a free Finnhub API key** at [finnhub.io/register](https://finnhub.io/register)
+> - Free tier: 60 API calls/minute
+> - If not set, the app will use mock stock data
 
 4. **Push database schema**
 ```bash
@@ -128,6 +140,7 @@ See **[REPLIT_DEPLOYMENT_GUIDE.md](./REPLIT_DEPLOYMENT_GUIDE.md)** for detailed 
 
 - **[AUTHENTICATION.md](./AUTHENTICATION.md)** - Authentication system details
 - **[SPROUT_REQUESTS.md](./SPROUT_REQUESTS.md)** - Contribution invitation system
+- **[STOCK_API_SETUP.md](./STOCK_API_SETUP.md)** - Stock API integration guide
 - **[REQUIREMENTS_VERIFICATION.md](./REQUIREMENTS_VERIFICATION.md)** - All requirements status
 - **[FEATURES_COMPLETE.md](./FEATURES_COMPLETE.md)** - Complete feature list
 - **[REPLIT_DEPLOYMENT_GUIDE.md](./REPLIT_DEPLOYMENT_GUIDE.md)** - Replit deployment

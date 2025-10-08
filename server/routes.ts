@@ -10,6 +10,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
 import { mkdirSync } from "fs";
+import { stockAPI } from "./stock-api";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -332,10 +333,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!query) {
         return res.status(400).json({ error: "Search query required" });
       }
-      const investments = await storage.searchInvestments(query);
-      res.json(investments);
+      
+      // Use Finnhub to search for real stocks
+      const searchResults = await stockAPI.searchSymbols(query);
+      
+      // Convert Finnhub results to Investment format with real-time prices
+      const investments = await Promise.all(
+        searchResults.map(async (result) => {
+          // Check if we already have this investment in our database
+          let investment = await storage.getInvestmentBySymbol(result.symbol);
+          
+          if (!investment) {
+            // Get real-time quote for this symbol
+            const quote = await stockAPI.getQuote(result.symbol);
+            
+            if (quote) {
+              // Determine investment type (ETF, stock, etc.)
+              let investmentType = 'stock';
+              if (result.type.includes('ETF') || result.type.includes('Fund')) {
+                investmentType = 'etf';
+              } else if (result.symbol.match(/^(BTC|ETH|DOGE|SOL|ADA)/)) {
+                investmentType = 'crypto';
+              }
+              
+              // Create a temporary investment object (we'll save it when user selects it)
+              investment = {
+                id: `temp-${result.symbol}`,
+                symbol: result.symbol,
+                name: result.description,
+                type: investmentType,
+                currentPrice: quote.currentPrice.toFixed(2),
+                ytdReturn: quote.changePercent.toFixed(2),
+              };
+            }
+          } else {
+            // Update price from real-time quote if available
+            const quote = await stockAPI.getQuote(result.symbol);
+            if (quote) {
+              investment.currentPrice = quote.currentPrice.toFixed(2);
+              investment.ytdReturn = quote.changePercent.toFixed(2);
+            }
+          }
+          
+          return investment;
+        })
+      );
+      
+      // Filter out any null results
+      res.json(investments.filter(inv => inv !== null && inv !== undefined));
     } catch (error) {
+      console.error("Investment search error:", error);
       res.status(500).json({ error: "Failed to search investments" });
+    }
+  });
+
+  // Stock API routes (Finnhub integration)
+  app.get("/api/stocks/quote/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const quote = await stockAPI.getQuote(symbol);
+      
+      if (!quote) {
+        return res.status(404).json({ error: "Stock not found" });
+      }
+      
+      res.json(quote);
+    } catch (error) {
+      console.error("Stock quote error:", error);
+      res.status(500).json({ error: "Failed to fetch stock quote" });
+    }
+  });
+
+  app.get("/api/stocks/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.length < 1) {
+        return res.status(400).json({ error: "Search query required" });
+      }
+      
+      const results = await stockAPI.searchSymbols(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Stock search error:", error);
+      res.status(500).json({ error: "Failed to search stocks" });
+    }
+  });
+
+  app.get("/api/stocks/profile/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const profile = await stockAPI.getCompanyProfile(symbol);
+      
+      if (!profile) {
+        return res.status(404).json({ error: "Company profile not found" });
+      }
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Company profile error:", error);
+      res.status(500).json({ error: "Failed to fetch company profile" });
     }
   });
 
@@ -346,6 +442,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enrichedHoldings = await Promise.all(
         holdings.map(async (holding) => {
           const investment = await storage.getInvestment(holding.investmentId);
+          if (!investment) {
+            console.error(`[Portfolio] ERROR: Holding ${holding.id} references investmentId ${holding.investmentId} but investment not found in database!`);
+          } else {
+            console.log(`[Portfolio] Holding ${holding.id}: ${investment.symbol} - ${investment.name}`);
+          }
           return { ...holding, investment };
         })
       );
@@ -440,15 +541,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/gifts", async (req, res) => {
     try {
       const validatedData = insertGiftSchema.parse(req.body);
+      console.log(`[Gift] Received gift data with investmentId: ${validatedData.investmentId}`);
       
-      // Calculate shares based on amount and current price
-      const investment = await storage.getInvestment(validatedData.investmentId);
+      // Handle temporary investment IDs from search results
+      let investmentId = validatedData.investmentId;
+      let investment = await storage.getInvestment(investmentId);
+      
+      console.log(`[Gift] Checked database for investment ${investmentId}: ${investment ? 'FOUND' : 'NOT FOUND'}`);
+      
+      // If investment doesn't exist (temp ID from search), create it
+      if (!investment && investmentId.startsWith('temp-')) {
+        console.log(`[Gift] Detected temp ID, will create new investment`);
+        const symbol = investmentId.replace('temp-', '');
+        
+        // Get real-time data from Finnhub
+        const quote = await stockAPI.getQuote(symbol);
+        const profile = await stockAPI.getCompanyProfile(symbol);
+        
+        if (!quote || !profile) {
+          return res.status(404).json({ error: "Could not fetch investment data" });
+        }
+        
+        // Determine investment type
+        let investmentType = 'stock';
+        if (symbol.match(/^(SPY|VOO|VTI|QQQ|IWM|EEM|VIG|AGG|BND|GLD|SLV|XL[A-Z])/)) {
+          investmentType = 'etf';
+        } else if (symbol.match(/^(BTC|ETH|DOGE|SOL|ADA)/)) {
+          investmentType = 'crypto';
+        }
+        
+        // Create the investment in our database
+        console.log(`[Gift] Creating new investment: ${symbol} - ${profile.name}`);
+        investment = await storage.createInvestment({
+          symbol: symbol,
+          name: profile.name,
+          type: investmentType,
+          currentPrice: quote.currentPrice.toFixed(2),
+          ytdReturn: quote.changePercent.toFixed(2),
+        });
+        
+        console.log(`[Gift] Investment created:`, investment);
+        investmentId = investment.id;
+      }
+      
       if (!investment) {
         return res.status(404).json({ error: "Investment not found" });
       }
       
       const shares = parseFloat(validatedData.amount) / parseFloat(investment.currentPrice);
-      const giftData = { ...validatedData, shares: shares.toFixed(6) };
+      const giftData = { ...validatedData, investmentId, shares: shares.toFixed(6) };
       
       // Check if this is a parent purchasing for their own child
       const child = await storage.getChild(validatedData.childId);
@@ -460,10 +601,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isParentPurchase) {
         await storage.approveGift(gift.id);
         
+        console.log(`[Gift] Auto-approving parent purchase, creating portfolio holding with investmentId: ${investmentId}`);
+        
         // Update portfolio holdings for auto-approved gifts
         const existingHolding = await storage.getPortfolioHoldingByInvestment(
           validatedData.childId,
-          validatedData.investmentId
+          investmentId  // Use the updated investmentId, not validatedData.investmentId
         );
         
         if (existingHolding) {
@@ -481,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           await storage.createPortfolioHolding({
             childId: validatedData.childId,
-            investmentId: validatedData.investmentId,
+            investmentId: investmentId,  // Use the updated investmentId, not validatedData.investmentId
             shares: shares.toFixed(6),
             averageCost: investment.currentPrice,
             currentValue: validatedData.amount,
@@ -804,6 +947,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Recurring contribution cancelled" });
     } catch (error) {
       res.status(500).json({ error: "Failed to cancel recurring contribution" });
+    }
+  });
+
+  // TEST ONLY: Clean up broken holdings with temp investment IDs
+  app.post("/api/test/cleanup-broken-holdings/:childId", async (req, res) => {
+    try {
+      const { childId } = req.params;
+      const { portfolioHoldings } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const holdings = await storage.getPortfolioHoldingsByChild(childId);
+      
+      const brokenHoldings = [];
+      for (const holding of holdings) {
+        const investment = await storage.getInvestment(holding.investmentId);
+        if (!investment) {
+          brokenHoldings.push(holding);
+          console.log(`[Cleanup] Deleting broken holding ${holding.id} with invalid investmentId: ${holding.investmentId}`);
+          // Delete the broken holding using db directly
+          await db.delete(portfolioHoldings).where(eq(portfolioHoldings.id, holding.id));
+        }
+      }
+      
+      res.json({ 
+        message: `Cleaned up ${brokenHoldings.length} broken holdings`,
+        deleted: brokenHoldings.map(h => ({ id: h.id, investmentId: h.investmentId }))
+      });
+    } catch (error) {
+      console.error("Cleanup error:", error);
+      res.status(500).json({ error: "Failed to cleanup holdings" });
     }
   });
 
