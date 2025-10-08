@@ -216,11 +216,11 @@ export default function Profile() {
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="relative inline-block">
-              <Avatar className="w-24 h-24 mx-auto mb-4">
+              <Avatar className="w-32 h-32 mx-auto mb-6">
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <AvatarFallback className="text-2xl">
+                  <AvatarFallback className="text-3xl">
                     {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                   </AvatarFallback>
                 )}
@@ -235,11 +235,11 @@ export default function Profile() {
                 <DialogTrigger asChild>
                   <Button
                     size="sm"
-                    className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0"
-                    variant="secondary"
+                    className="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-500 hover:bg-blue-600 border-2 border-white"
+                    variant="default"
                     onClick={() => setIsCameraOpen(true)}
                   >
-                    <Camera className="w-4 h-4" />
+                    <Camera className="w-4 h-4 text-white" />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
@@ -307,73 +307,42 @@ export default function Profile() {
             </div>
             <h2 className="text-2xl font-bold mb-2">{user?.name || 'User'}</h2>
             <p className="text-sm text-muted-foreground">{user?.email || 'user@email.com'}</p>
-            {user?.bankAccountNumber && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Bank Account: {user.bankAccountNumber}
-              </p>
-            )}
           </CardContent>
         </Card>
 
-        {/* Account Stats */}
+        {/* Account Overview */}
         <Card>
           <CardHeader>
             <CardTitle>Account Overview</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Your Children Section */}
-            {children.length > 0 && (
+          <CardContent>
+            <div className="grid grid-cols-3 gap-6 text-center">
               <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3">Your Children</h3>
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-primary">{children.length}</p>
-                    <p className="text-sm text-muted-foreground">Children</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-success">${ownChildrenPortfolioValue.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Total Portfolio</p>
-                  </div>
-                </div>
+                <p className="text-3xl font-bold text-green-600">{children.length}</p>
+                <p className="text-sm text-muted-foreground">Your Children / Sprouts</p>
               </div>
-            )}
-
-            {/* Children You've Helped Section */}
-            {contributedChildren.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3">Children You've Helped</h3>
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">{contributedChildren.length}</p>
-                    <p className="text-sm text-muted-foreground">Children</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">${totalContributedAmount.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Total Contributed</p>
-                  </div>
-                </div>
+                <p className="text-3xl font-bold text-green-600">{contributedChildren.length}</p>
+                <p className="text-sm text-muted-foreground">Children / Sprouts You've Helped</p>
               </div>
-            )}
-
-            {/* Empty State */}
-            {children.length === 0 && contributedChildren.length === 0 && (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground">No children added yet</p>
+              <div>
+                <p className="text-3xl font-bold text-green-600">1</p>
+                <p className="text-sm text-muted-foreground">Months on StockSprout</p>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Menu Options */}
-        <div className="space-y-2">
+        {/* Settings Options */}
+        <div className="space-y-0">
           <Dialog open={isEditing} onOpenChange={setIsEditing}>
             <DialogTrigger asChild>
               <Button 
                 variant="ghost" 
-                className="w-full justify-start"
+                className="w-full justify-start h-12 px-4 text-base"
                 data-testid="button-edit-profile"
               >
-                <Edit3 className="w-5 h-5 mr-3" />
+                <Edit3 className="w-7 h-7 mr-4" />
                 Edit Profile
               </Button>
             </DialogTrigger>
@@ -414,54 +383,44 @@ export default function Profile() {
 
           <Button 
             variant="ghost" 
-            className="w-full justify-start"
+            className="w-full justify-start h-12 px-4 text-base"
             onClick={handleSettings}
             data-testid="button-settings"
           >
-            <Settings className="w-5 h-5 mr-3" />
+            <Settings className="w-7 h-7 mr-4" />
             Account Settings
           </Button>
           
           <Button 
             variant="ghost" 
-            className="w-full justify-start"
+            className="w-full justify-start h-12 px-4 text-base"
             onClick={handleSecurity}
             data-testid="button-security"
           >
-            <Shield className="w-5 h-5 mr-3" />
+            <Shield className="w-7 h-7 mr-4" />
             Security & Privacy
           </Button>
           
           <Button 
             variant="ghost" 
-            className="w-full justify-start"
+            className="w-full justify-start h-12 px-4 text-base"
             onClick={handleHelp}
             data-testid="button-help"
           >
-            <HelpCircle className="w-5 h-5 mr-3" />
+            <HelpCircle className="w-7 h-7 mr-4" />
             Help & Support
           </Button>
         </div>
 
-        {/* App Info */}
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <h3 className="font-bold text-lg mb-2">StockSprout</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Growing their future, one gift at a time
-            </p>
-            <p className="text-xs text-muted-foreground">Version 1.0.0</p>
-          </CardContent>
-        </Card>
 
-        {/* Logout */}
+        {/* Sign Out */}
         <Button 
           variant="outline" 
-          className="w-full mb-16"
+          className="w-full bg-gray-100 hover:bg-gray-200 border-gray-300 mb-16 px-6 py-3 text-base"
           onClick={handleLogout}
           data-testid="button-logout"
         >
-          <LogOut className="w-5 h-5 mr-3" />
+          <LogOut className="w-7 h-7 mr-3" />
           Sign Out
         </Button>
       </div>
