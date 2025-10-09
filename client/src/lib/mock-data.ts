@@ -45,20 +45,36 @@ export const mockChildren = [
   {
     id: "child-1",
     parentId: "parent-1",
-    name: "Emma",
+    name: "Blaise",
     age: 8,
     birthday: "March 15th",
     giftLinkCode: "FG-EMM-8BD",
-    profileImageUrl: null
+    profileImageUrl: null,
+    financialJourneyStage: "savings",
+    progress: {
+      points: 1200,
+      level: 3,
+      gamesPlayed: 5,
+      achievements: 2,
+      badgesEarned: 3
+    }
   },
   {
     id: "child-2", 
     parentId: "parent-1",
-    name: "Alex",
-    age: 14,
-    birthday: "September 22nd",
-    giftLinkCode: "FG-ALX-9CF",
-    profileImageUrl: null
+    name: "Finn",
+    age: 12,
+    birthday: "July 10th",
+    giftLinkCode: "FG-FIN-7AH",
+    profileImageUrl: null,
+    financialJourneyStage: "compound-interest",
+    progress: {
+      points: 2200,
+      level: 5,
+      gamesPlayed: 8,
+      achievements: 6,
+      badgesEarned: 4
+    }
   }
 ];
 
