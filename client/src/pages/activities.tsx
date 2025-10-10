@@ -27,10 +27,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { mockChildren } from '@/lib/mock-data';
 
 export default function Activities() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
   // Journey stages configuration - positioned on the S-shaped path
@@ -79,21 +78,62 @@ export default function Activities() {
     }
   ];
 
-  // Fetch user's children from API for profile photos
-  const { data: apiChildren = [] } = useQuery<any[]>({
+  // Fetch custodian's children (children where user is parent)
+  const { data: userChildren = [] } = useQuery<any[]>({
     queryKey: ["/api/children", user?.id],
     enabled: !!user?.id,
   });
 
-  // Merge API children data with mock journey stage data
-  const children = mockChildren.map(mockChild => {
-    const apiChild = apiChildren.find(apiChild => apiChild.name === mockChild.name);
+  // Fetch children that user has contributed to (gifts they've given)
+  const { data: contributorGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", user?.id],
+    queryFn: async () => {
+      if (!user?.id || !token) return [];
+      
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!user?.id && !!token,
+  });
+
+  // Extract unique children from contributor gifts (excluding own children)
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      // Only include if this is not one of the user's own children
+      const isOwnChild = userChildren.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push(gift.child);
+      }
+    }
+    return acc;
+  }, []);
+
+  // Combine all children (own + contributed)
+  const allChildren = [...userChildren, ...contributedChildren];
+
+  // Assign random journey stages to all children
+  const children = allChildren.map(child => {
+    // Randomly assign a journey stage
+    const randomStage = journeyStages[Math.floor(Math.random() * journeyStages.length)];
+    
     return {
-      ...mockChild,
-      profileImageUrl: apiChild?.profileImageUrl || null,
-      // Keep mock journey stage data
-      financialJourneyStage: mockChild.financialJourneyStage,
-      progress: mockChild.progress
+      id: child.id,
+      name: child.name,
+      profileImageUrl: child.profileImageUrl,
+      financialJourneyStage: randomStage.id,
+      progress: {
+        points: Math.floor(Math.random() * 500),
+        level: 1,
+        gamesPlayed: Math.floor(Math.random() * 20),
+        achievements: Math.floor(Math.random() * 10),
+        badgesEarned: Math.floor(Math.random() * 5)
+      }
     };
   });
 
@@ -106,39 +146,44 @@ export default function Activities() {
 
   // Calculate child positions on journey
   const getChildJourneyPositions = (): ChildJourneyPosition[] => {
-    return children.map((child: any, index: number) => {
-      const stage = journeyStages.find(s => s.id === child.financialJourneyStage);
-      let position;
-      
-      if (child.financialJourneyStage === "savings") {
-        // Position child on Savings stage
-        position = {
-          x: 270,  // Slightly adjusted to the left
-          y: 230   // Slightly above the Savings stage
-        };
-      } else if (child.financialJourneyStage === "compound-interest") {
-        // Position child on Compound Interest stage
-        position = {
-          x: 130,  // Slightly adjusted to the left
-          y: 130   // Slightly above the Compound Interest stage
-        };
-      } else {
-        // Default positioning above the stage
-        const stagePosition = stage?.position || journeyStages[0].position;
-        position = {
-          x: stagePosition.x + 10,  // Slightly adjusted to the left
-          y: stagePosition.y - 40
-        };
+    // Group children by their journey stage
+    const childrenByStage = children.reduce((acc: any, child: any) => {
+      if (!acc[child.financialJourneyStage]) {
+        acc[child.financialJourneyStage] = [];
       }
+      acc[child.financialJourneyStage].push(child);
+      return acc;
+    }, {});
+
+    // Calculate positions for each child, placing multiple children side-by-side
+    const positions: ChildJourneyPosition[] = [];
+    
+    Object.keys(childrenByStage).forEach(stageId => {
+      const childrenAtStage = childrenByStage[stageId];
+      const stage = journeyStages.find(s => s.id === stageId);
+      const stagePosition = stage?.position || journeyStages[0].position;
       
-      return {
-        childId: child.id,
-        childName: child.name,
-        avatarUrl: child.profileImageUrl,
-        stageId: child.financialJourneyStage,
-        position
-      };
+      // Calculate spacing for side-by-side placement
+      const childCount = childrenAtStage.length;
+      const spacing = 30; // Horizontal spacing between avatars
+      const totalWidth = (childCount - 1) * spacing;
+      const startX = stagePosition.x - totalWidth / 2;
+      
+      childrenAtStage.forEach((child: any, index: number) => {
+        positions.push({
+          childId: child.id,
+          childName: child.name,
+          avatarUrl: child.profileImageUrl,
+          stageId: child.financialJourneyStage,
+          position: {
+            x: startX + (index * spacing),
+            y: stagePosition.y - 40 // Position above the stage
+          }
+        });
+      });
     });
+    
+    return positions;
   };
 
   // Get current child and their progress
