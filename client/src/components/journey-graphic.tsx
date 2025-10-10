@@ -90,7 +90,7 @@ const JourneyGraphic: React.FC<JourneyGraphicProps> = ({
             <circle
               cx={child.position.x}
               cy={child.position.y}
-              r="12"
+              r="16"
               fill="white"
               stroke="#3B82F6"
               strokeWidth="2"
@@ -98,14 +98,14 @@ const JourneyGraphic: React.FC<JourneyGraphicProps> = ({
             
             {/* Child Avatar */}
             <foreignObject
-              x={child.position.x - 10}
-              y={child.position.y - 10}
-              width="20"
-              height="20"
+              x={child.position.x - 14}
+              y={child.position.y - 14}
+              width="28"
+              height="28"
             >
-              <Avatar className="w-5 h-5">
+              <Avatar className="w-7 h-7">
                 <AvatarImage src={child.avatarUrl} />
-                <AvatarFallback className="text-xs">
+                <AvatarFallback className="text-sm">
                   {child.childName.charAt(0)}
                 </AvatarFallback>
               </Avatar>

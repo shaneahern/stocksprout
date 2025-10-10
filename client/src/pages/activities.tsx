@@ -163,11 +163,15 @@ export default function Activities() {
       const stage = journeyStages.find(s => s.id === stageId);
       const stagePosition = stage?.position || journeyStages[0].position;
       
-      // Calculate spacing for side-by-side placement
+      // Calculate spacing for side-by-side placement starting from upper right corner
       const childCount = childrenAtStage.length;
-      const spacing = 30; // Horizontal spacing between avatars
-      const totalWidth = (childCount - 1) * spacing;
-      const startX = stagePosition.x - totalWidth / 2;
+      const spacing = 24; // Horizontal spacing between avatars (increased for larger icons)
+      
+      // Position in upper right corner of stage icon (stage radius is 20, child radius is 16)
+      // Position so edges just touch (distance between centers = 20 + 16 = 36)
+      // At 45 degree angle: offset = 36 * cos(45°) = 36 * 0.707 ≈ 25.5
+      const startX = stagePosition.x + 26; // Upper right corner X, edges touching
+      const startY = stagePosition.y - 26; // Upper right corner Y, edges touching
       
       childrenAtStage.forEach((child: any, index: number) => {
         positions.push({
@@ -176,8 +180,8 @@ export default function Activities() {
           avatarUrl: child.profileImageUrl,
           stageId: child.financialJourneyStage,
           position: {
-            x: startX + (index * spacing),
-            y: stagePosition.y - 40 // Position above the stage
+            x: startX - (index * spacing), // Move left for each additional child
+            y: startY
           }
         });
       });
