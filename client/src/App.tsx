@@ -13,6 +13,8 @@ import GiftGiver from "@/pages/gift-giver";
 import AddChild from "@/pages/add-child";
 import AuthPage from "@/pages/auth";
 import SproutRequestPage from "@/pages/sprout-request";
+import PrivacyPolicy from "@/pages/privacy-policy";
+import ForgotPassword from "@/pages/forgot-password";
 // Contributor dashboard now uses standard home page
 import NotFound from "@/pages/not-found";
 
@@ -42,6 +44,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/gift/:giftCode" component={GiftGiver} />
       <Route path="/sprout/:requestCode" component={SproutRequestPage} />
       {/* Redirect contributor dashboard to home */}

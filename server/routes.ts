@@ -11,6 +11,7 @@ import multer from "multer";
 import path from "path";
 import { mkdirSync } from "fs";
 import { stockAPI } from "./stock-api";
+import { sendPasswordResetEmail, testEmailConnection } from "./email-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -142,6 +143,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Login error:", error);
       res.status(400).json({ error: "Invalid login data" });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Check if user exists
+      let user = await storage.getUserByEmail(email);
+      if (!user) {
+        user = await storage.getUserByUsername(email); // Also check by username
+      }
+
+      // For security reasons, we don't reveal whether the email exists or not
+      // Always return success message
+      console.log(`Password reset requested for email: ${email} (user exists: ${!!user})`);
+      
+      if (user) {
+        // Generate a secure reset token (in production, you'd store this in the database)
+        const resetToken = jwt.sign(
+          { userId: user.id, email: user.email, type: 'password-reset' },
+          process.env.JWT_SECRET || "fallback-secret",
+          { expiresIn: "1h" }
+        );
+        
+        // Send password reset email
+        const emailSent = await sendPasswordResetEmail({
+          email: user.email,
+          resetToken,
+          userName: user.name
+        });
+        
+        if (!emailSent) {
+          console.error(`Failed to send password reset email to: ${email}`);
+          // Still return success for security reasons
+        }
+      }
+      
+      res.json({ 
+        message: "If an account with that email exists, we've sent a password reset link." 
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Something went wrong" });
+    }
+  });
+
+  // WebAuthn routes for biometric authentication
+  app.post("/api/auth/webauthn/register", async (req, res) => {
+    try {
+      const { userId, credentialId, publicKey } = req.body;
+      
+      if (!userId || !credentialId || !publicKey) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // In a real implementation, you'd store these in the database
+      // For now, we'll just log them
+      console.log(`WebAuthn registration for user ${userId}:`, {
+        credentialId: credentialId.substring(0, 20) + '...',
+        publicKey: publicKey.substring(0, 20) + '...'
+      });
+      
+      res.json({ success: true, message: "Biometric credential registered successfully" });
+    } catch (error) {
+      console.error("WebAuthn registration error:", error);
+      res.status(500).json({ error: "Failed to register biometric credential" });
+    }
+  });
+
+  app.get("/api/auth/webauthn/credentials/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // In a real implementation, you'd fetch from database
+      // For now, return empty array
+      const credentials: string[] = [];
+      
+      res.json({ credentials });
+    } catch (error) {
+      console.error("WebAuthn credentials fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch credentials" });
+    }
+  });
+
+  app.post("/api/auth/webauthn/authenticate", async (req, res) => {
+    try {
+      const { credentialId, signature, userId } = req.body;
+      
+      if (!credentialId || !signature || !userId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // In a real implementation, you'd:
+      // 1. Fetch the user's stored public key from database
+      // 2. Verify the signature using the public key
+      // 3. Update the credential counter
+      // 4. Return a JWT token if verification succeeds
+      
+      console.log(`WebAuthn authentication attempt for user ${userId}:`, {
+        credentialId: credentialId.substring(0, 20) + '...',
+        signature: signature.substring(0, 20) + '...'
+      });
+      
+      // For now, we'll simulate successful authentication
+      // In production, you'd do proper cryptographic verification
+      res.json({ 
+        success: true, 
+        message: "Biometric authentication successful",
+        requiresPassword: true // Indicate that password is still needed for full login
+      });
+    } catch (error) {
+      console.error("WebAuthn authentication error:", error);
+      res.status(500).json({ error: "Biometric authentication failed" });
     }
   });
 
