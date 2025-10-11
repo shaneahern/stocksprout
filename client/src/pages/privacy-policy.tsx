@@ -1,21 +1,32 @@
 import React from 'react';
-import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PrivacyPolicy() {
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+
+  const handleBack = () => {
+    // If user is logged in, go back to profile, otherwise go to auth
+    if (user) {
+      setLocation('/profile');
+    } else {
+      setLocation('/auth');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header with back button */}
         <div className="mb-8">
-          <Link href="/auth">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Login
-            </Button>
-          </Link>
+          <Button variant="ghost" className="mb-4" onClick={handleBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {user ? 'Back to Profile' : 'Back to Login'}
+          </Button>
           <h1 className="text-3xl font-bold text-gray-900">Privacy Policy</h1>
           <p className="text-sm text-gray-600 mt-2">
             Last updated: {new Date().toLocaleDateString()}

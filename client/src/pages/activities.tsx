@@ -23,6 +23,8 @@ import {
   ArrowUpRight,
   Wallet,
   FileText,
+  Layers,
+  DollarSign,
   Flag
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,14 +60,14 @@ export default function Activities() {
     {
       id: "cash-flow",
       name: "Cash Flow",
-      icon: <Wallet className="w-4 h-4" />,
+      icon: <DollarSign className="w-4 h-4" />,
       color: "#2563EB", // Blue
       position: { x: 280, y: 150 } // Middle horizontal line on the right
     },
     {
       id: "investing",
       name: "Investing",
-      icon: <FileText className="w-4 h-4" />,
+      icon: <Layers className="w-4 h-4" />,
       color: "#8B5CF6", // Purple
       position: { x: 120, y: 50 } // Moved a little more to the right
     },
@@ -216,7 +218,7 @@ export default function Activities() {
         {/* Progress Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Progress</h1>
+            <h1 className="text-lg font-bold">Activity Center</h1>
             <ChildSelector 
               currentChildId={selectedChildId || ''} 
               onChildChange={handleChildChange}
@@ -228,33 +230,54 @@ export default function Activities() {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-base sm:text-lg font-semibold">
+                    <h3 className="text-sm sm:text-base font-semibold">
                       Level {currentChildProgress.level} - Money Explorer
                     </h3>
                     <span className="text-xs sm:text-sm font-medium">
                       {currentChildProgress.points}/2000 pts
                     </span>
                   </div>
-                  <div className="mb-3">
-                    <Progress value={(currentChildProgress.points / 2000) * 100} className="h-3" />
+                  <div className="mb-1">
+                    <div className="relative h-3 w-full overflow-hidden rounded-full">
+                      {/* Completed progress - Blue */}
+                      <div 
+                        className="h-full transition-all duration-300 ease-in-out absolute left-0 top-0"
+                        style={{ 
+                          width: `${(currentChildProgress.points / 2000) * 100}%`,
+                          backgroundColor: '#2563EB'
+                        }}
+                      />
+                      {/* Remaining progress - Yellow */}
+                      <div 
+                        className="h-full transition-all duration-300 ease-in-out absolute left-0 top-0"
+                        style={{ 
+                          width: `${100 - (currentChildProgress.points / 2000) * 100}%`,
+                          backgroundColor: '#E2B25E',
+                          left: `${(currentChildProgress.points / 2000) * 100}%`
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-2">
                   <div className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-blue-600">
+                    <div className="text-3xl sm:text-4xl font-bold text-blue-600">
                       {currentChildProgress.gamesPlayed}
                     </div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Games Played</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-green-600">
+                    <div className="text-3xl sm:text-4xl font-bold text-green-600">
                       {currentChildProgress.achievements}
                     </div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Achievements</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-amber-600">
+                    <div 
+                      className="text-3xl sm:text-4xl font-bold"
+                      style={{ color: '#E2B25E' }}
+                    >
                       {currentChildProgress.badgesEarned}
                     </div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Badges Earned</div>
@@ -266,38 +289,42 @@ export default function Activities() {
         </div>
 
         {/* Leaderboard Section */}
-        <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+        <div className="border border-gray-200 rounded-lg p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-amber-500" />
-            <h2 className="text-2xl font-bold">Leaderboard</h2>
+            <Medal 
+              className="w-5 h-5" 
+              style={{ color: '#E2B25E' }}
+            />
+            <h2 className="text-xl font-bold">Leaderboard</h2>
           </div>
           
-          <div className="space-y-2">
+          <div className="space-y-1">
             {leaderboard.map((entry) => (
               <div 
                 key={entry.rank}
-                className={`flex items-center justify-between p-2 rounded-lg ${
+                className={`flex items-center justify-between px-2 py-1 rounded ${
                   entry.isCurrentUser ? 'bg-blue-50 border-2 border-blue-200' : 'bg-gray-50'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center">
-                    <Medal className="w-4 h-4 text-white" />
+                  <div 
+                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: '#E2B25E' }}
+                  >
+                    <Medal className="w-3 h-3 text-white" />
                   </div>
-                  <span className="font-medium text-sm">{entry.name}</span>
+                  <span className="text-sm text-gray-500">{entry.name}</span>
                 </div>
-                <span className="font-bold text-sm">{entry.points} pts</span>
+                <span className="text-sm text-gray-500">{entry.points} pts</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Journey Section */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Financial Journey</h2>
-          
+        <div>
           <Card>
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-2 sm:p-3">
               <JourneyGraphic 
                 stages={journeyStages}
                 childPositions={getChildJourneyPositions()}

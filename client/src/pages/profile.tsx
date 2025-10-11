@@ -9,9 +9,11 @@ import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera } from "lucide-reac
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 export default function Profile() {
   const { user, token, logout, updateProfile } = useAuth();
+  const [, setLocation] = useLocation();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: '',
@@ -206,17 +208,17 @@ export default function Profile() {
   };
 
   const handleSecurity = () => {
-    alert("Security settings would be implemented here");
+    setLocation("/privacy-policy");
   };
 
   return (
     <MobileLayout currentTab="profile">
-      <div className="space-y-6 pb-16">
+      <div className="space-y-3 pb-16">
         {/* Profile Header */}
         <Card>
-          <CardContent className="pt-6 text-center">
+          <CardContent className="pt-3 pb-3 text-center">
             <div className="relative inline-block">
-              <Avatar className="w-32 h-32 mx-auto mb-6">
+              <Avatar className="w-32 h-32 mx-auto mb-3">
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -269,7 +271,7 @@ export default function Profile() {
                           </Button>
                           <Button 
                             onClick={capturePhoto} 
-                            className="flex-1 bg-green-600 hover:bg-green-700"
+                            className="flex-1 bg-green-700 hover:bg-green-800"
                           >
                             <Camera className="w-4 h-4 mr-2" />
                             Take Photo
@@ -305,28 +307,28 @@ export default function Profile() {
                 </DialogContent>
               </Dialog>
             </div>
-            <h2 className="text-2xl font-bold mb-2">{user?.name || 'User'}</h2>
+            <h2 className="text-2xl font-bold mb-1">{user?.name || 'User'}</h2>
             <p className="text-sm text-muted-foreground">{user?.email || 'user@email.com'}</p>
           </CardContent>
         </Card>
 
         {/* Account Overview */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle>Account Overview</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-2 pb-4">
             <div className="grid grid-cols-3 gap-6 text-center">
               <div>
-                <p className="text-3xl font-bold text-green-600">{children.length}</p>
+                <p className="text-3xl font-bold" style={{ color: '#265FDC' }}>{children.length}</p>
                 <p className="text-sm text-muted-foreground">Your Children / Sprouts</p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-green-600">{contributedChildren.length}</p>
+                <p className="text-3xl font-bold" style={{ color: '#265FDC' }}>{contributedChildren.length}</p>
                 <p className="text-sm text-muted-foreground">Children / Sprouts You've Helped</p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-green-600">1</p>
+                <p className="text-3xl font-bold" style={{ color: '#265FDC' }}>1</p>
                 <p className="text-sm text-muted-foreground">Months on StockSprout</p>
               </div>
             </div>

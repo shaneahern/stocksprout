@@ -296,7 +296,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               ) : (
                 <Button
                   onClick={startRecording}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1 bg-green-700 hover:bg-green-800"
                   data-testid="button-start-recording"
                 >
                   <Video className="w-4 h-4 mr-2" />

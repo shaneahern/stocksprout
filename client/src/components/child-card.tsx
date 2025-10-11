@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle } from "lucide-react";
+import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
@@ -273,12 +273,6 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
           <div className="flex-1">
             <h3 className="font-bold text-lg text-foreground">{child.name}</h3>
             <p className="text-muted-foreground text-sm">Age {child.age}</p>
-            <div className="flex items-center space-x-2 mt-1">
-              <div className="w-2 h-2 bg-success rounded-full"></div>
-              <span className="text-success text-sm font-medium">
-                +{portfolioStats.monthlyGrowth}% growth
-              </span>
-            </div>
           </div>
           <div className="text-right">
             <div className="flex items-center justify-end gap-2">
@@ -291,11 +285,13 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 </span>
               )}
             </div>
-            <p className="text-muted-foreground text-sm">
-              {isContributedChild ? "Your Contribution" : "Total Portfolio"}
-            </p>
+            <div className="flex items-center justify-end mt-1">
+              <span className="text-sm font-medium" style={{ color: '#328956' }}>
+                +{portfolioStats.monthlyGrowth}% growth
+              </span>
+            </div>
             {isContributedChild && child.pendingCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 mt-1">
+              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 mt-2">
                 <Clock className="w-3 h-3 mr-1" />
                 {child.pendingCount} Pending Approval
               </Badge>
@@ -303,70 +299,34 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
-          <div className="bg-muted rounded-lg p-2 sm:p-3 text-center">
-            <p className="text-xs text-muted-foreground mb-1">
-              {isContributedChild ? "Your Gifts" : "Gifts Received"}
-            </p>
-            <div className="flex items-center justify-center gap-1">
-              <p className="font-bold text-foreground text-sm sm:text-base">
-                {isContributedChild ? (child.approvedCount + child.pendingCount) : portfolioStats.giftsCount}
-              </p>
-              {isContributedChild && child.pendingCount > 0 && (
-                <span className="text-xs text-amber-600">({child.pendingCount} pending)</span>
-              )}
-            </div>
-          </div>
-          <div className="bg-muted rounded-lg p-2 sm:p-3 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Investments</p>
-            <p className="font-bold text-foreground text-sm sm:text-base">{portfolioStats.investmentsCount}</p>
-          </div>
-          <div className="bg-muted rounded-lg p-2 sm:p-3 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Total Gain</p>
-            <p className="font-bold text-success text-sm sm:text-base">+${portfolioStats.totalGain.toFixed(0)}</p>
-          </div>
-        </div>
         
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {isContributedChild ? (
+          <Button 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSendGift();
+            }}
+            className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
+            style={{ backgroundColor: '#328956' }}
+            data-testid={`button-send-gift-${child.id}`}
+          >
+            <Gift className="w-4 h-4 mr-2" />
+            <span>Send Gift</span>
+          </Button>
+          {!isContributedChild && (
             <Button 
               onClick={(e) => {
                 e.stopPropagation();
-                handleSendGift();
+                handleShareGiftLink();
               }}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm sm:text-base"
-              data-testid={`button-send-gift-${child.id}`}
+              disabled={generateLinkMutation.isPending}
+              className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
+              style={{ backgroundColor: '#8A3324' }}
+              data-testid={`button-sprout-request-${child.id}`}
             >
-              <Gift className="w-4 h-4 mr-2" />
-              Send Gift
+              <UserPlus className="w-4 h-4 mr-2" />
+              <span>{generateLinkMutation.isPending ? "Requesting..." : "Sprout Request"}</span>
             </Button>
-          ) : (
-            <>
-              <Button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSendGift();
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm sm:text-base"
-                data-testid={`button-send-gift-${child.id}`}
-              >
-                <Gift className="w-4 h-4 mr-2" />
-                Send Gift
-              </Button>
-              <Button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleShareGiftLink();
-                }}
-                disabled={generateLinkMutation.isPending}
-                className="flex-1 bg-red-800 hover:bg-red-900 text-white font-semibold text-sm sm:text-base"
-                data-testid={`button-sprout-request-${child.id}`}
-              >
-                <Share2 className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">{generateLinkMutation.isPending ? "Requesting..." : "Sprout Request"}</span>
-                <span className="sm:hidden">{generateLinkMutation.isPending ? "..." : "Request"}</span>
-              </Button>
-            </>
           )}
         </div>
       </CardContent>

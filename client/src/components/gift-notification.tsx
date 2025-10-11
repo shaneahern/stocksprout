@@ -56,9 +56,7 @@ export default function GiftNotification() {
   });
 
   // Get the most recent unviewed gift
-  const recentGift = allGifts.find((gift: any) => !gift.isViewed) || null;
-
-
+  const recentGift = allGifts.find((gift: any) => !gift.isViewed && gift.status === 'approved') || null;
 
   const handleDismiss = () => {
     setIsVisible(false);
@@ -76,12 +74,13 @@ export default function GiftNotification() {
     }
   };
 
-  if (!isVisible || !recentGift) {
+  // Don't show if not visible, no recent gift, or still loading
+  if (!isVisible || !recentGift || giftsLoading || children.length === 0) {
     return null;
   }
 
   return (
-    <Card className="gift-card celebration-animation border-0 bg-transparent">
+    <Card className="gift-card celebration-animation border-0 bg-transparent shadow-none">
       <CardContent className="p-6 bg-transparent">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">

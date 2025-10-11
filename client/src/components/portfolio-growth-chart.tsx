@@ -166,19 +166,70 @@ export default function PortfolioGrowthChart({ currentValue, ytdReturn }: Portfo
   const maxValue = Math.max(...values);
   const padding = Math.max((maxValue - minValue) * 0.1, 50); // Ensure minimum padding
 
+  // Calculate even increments for Y-axis
+  const calculateEvenIncrements = (min: number, max: number) => {
+    const range = max - min;
+    let increment: number;
+    let ticks: number[] = [];
+    
+    if (range <= 100) {
+      // For small ranges, use $10 increments
+      increment = 10;
+      const startTick = Math.floor(min / increment) * increment;
+      const endTick = Math.ceil(max / increment) * increment;
+      for (let i = startTick; i <= endTick; i += increment) {
+        ticks.push(i);
+      }
+    } else if (range <= 1000) {
+      // For medium ranges, use $100 increments
+      increment = 100;
+      const startTick = Math.floor(min / increment) * increment;
+      const endTick = Math.ceil(max / increment) * increment;
+      for (let i = startTick; i <= endTick; i += increment) {
+        ticks.push(i);
+      }
+    } else {
+      // For large ranges, use $1000 increments
+      increment = 1000;
+      const startTick = Math.floor(min / increment) * increment;
+      const endTick = Math.ceil(max / increment) * increment;
+      for (let i = startTick; i <= endTick; i += increment) {
+        ticks.push(i);
+      }
+    }
+    
+    return {
+      ticks,
+      domain: [Math.min(...ticks), Math.max(...ticks)]
+    };
+  };
+
+  const yAxisConfig = calculateEvenIncrements(minValue, maxValue);
+
   return (
-    <div className="bg-card rounded-lg border border-border">
-      <div className="p-6">
-        <div className="h-64 mb-4">
+    <div className="bg-card rounded-lg">
+      <div className="px-0 py-1">
+        <div className="h-48 mb-0">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} key={`chart-${Date.now()}`}>
+            <ComposedChart 
+              data={chartData} 
+              key={`chart-${Date.now()}`}
+              margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
+            >
               <defs>
                 <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(210, 70%, 60%)" stopOpacity={0.8}/>
                   <stop offset="95%" stopColor="hsl(210, 70%, 60%)" stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <CartesianGrid 
+                strokeDasharray="1 1" 
+                stroke="#d1d5db" 
+                horizontal={true}
+                vertical={false}
+                strokeWidth={1.5}
+                strokeOpacity={1}
+              />
               <XAxis 
                 dataKey="date" 
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
@@ -189,7 +240,8 @@ export default function PortfolioGrowthChart({ currentValue, ytdReturn }: Portfo
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
-                domain={[minValue - padding, maxValue + padding]}
+                domain={yAxisConfig.domain}
+                ticks={yAxisConfig.ticks}
                 tickFormatter={(value) => {
                   if (value >= 1000) {
                     return `$${(value / 1000).toFixed(0)}K`;
@@ -219,14 +271,14 @@ export default function PortfolioGrowthChart({ currentValue, ytdReturn }: Portfo
           </ResponsiveContainer>
         </div>
 
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-1">
           {periods.map((period) => (
             <Button
               key={period}
               variant={selectedPeriod === period ? "default" : "ghost"}
               size="sm"
               onClick={() => setSelectedPeriod(period)}
-              className={`text-xs font-medium ${
+              className={`text-xs font-medium px-2 py-1 ${
                 selectedPeriod === period 
                   ? "bg-foreground text-background" 
                   : "text-muted-foreground hover:text-foreground"

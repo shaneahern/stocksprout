@@ -126,48 +126,40 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
 
   return (
     <div className="mobile-container min-h-screen flex flex-col">
-      {/* Status Bar */}
-      <div className="bg-white px-4 py-2 flex justify-between items-center text-sm font-medium border-b border-border flex-shrink-0">
-        <span>9:41</span>
-        <div className="flex items-center space-x-1">
-          <div className="w-4 h-1 bg-foreground rounded-full"></div>
-          <div className="w-4 h-1 bg-foreground rounded-full"></div>
-          <div className="w-6 h-1 bg-foreground rounded-full"></div>
-        </div>
-      </div>
-
-      {/* App Header */}
-      <div className="bg-white px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0 flex-1 flex items-center space-x-3">
-            <img 
-              src={stockSproutLogo} 
-              alt="StockSprout logo" 
-              className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
-              data-testid="img-logo"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-tagline">
-                {currentQuote}
-              </p>
+      {/* App Header - Only show on home */}
+      {currentTab === "home" && (
+        <div className="bg-white px-4 sm:px-6 pt-4 sm:pt-6 pb-1 sm:pb-1.5 border-b border-border flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1 flex items-center space-x-3">
+              <img 
+                src={stockSproutLogo} 
+                alt="StockSprout logo" 
+                className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
+                data-testid="img-logo"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-tagline">
+                  {currentQuote}
+                </p>
+              </div>
+            </div>
+            <div className="relative">
+              <button 
+                onClick={handleNotificationClick}
+                className="w-10 h-10 bg-green-700 rounded-full flex items-center justify-center transition-colors hover:bg-green-800"
+                data-testid="button-notifications"
+              >
+                <Bell className="w-5 h-5 text-white" />
+              </button>
+              {(unreadApprovedCount > 0 || pendingCount > 0) && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">{pendingCount > 0 ? pendingCount : unreadApprovedCount}</span>
+                </div>
+              )}
             </div>
           </div>
-          <div className="relative">
-            <button 
-              onClick={handleNotificationClick}
-              className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center transition-colors hover:bg-green-700"
-              data-testid="button-notifications"
-            >
-              <Bell className="w-5 h-5 text-white" />
-            </button>
-            {(unreadApprovedCount > 0 || pendingCount > 0) && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">{pendingCount > 0 ? pendingCount : unreadApprovedCount}</span>
-              </div>
-            )}
-          </div>
         </div>
-      </div>
+      )}
 
       {/* Pending Gifts Modal */}
       <PendingGiftsModal
@@ -283,7 +275,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 pb-32">
+      <div className={`flex-1 overflow-y-auto px-4 sm:px-6 pb-32 ${currentTab === "home" ? "py-4 sm:py-6" : "pt-10 sm:pt-12 pb-4 sm:pb-6"}`}>
         {children}
       </div>
 

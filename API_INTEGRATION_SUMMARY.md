@@ -61,11 +61,19 @@ GET /api/stocks/profile/:symbol     // Get company profile information
 
 ## 🔑 Environment Variables
 
-Add to your `.env` file (optional but recommended):
+Add to your `.env` file:
 
 ```env
+# Stock API (optional but recommended)
 FINNHUB_API_KEY=your_api_key_here
+
+# Email Service (required for password reset)
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_app_password
+EMAIL_FROM=noreply@stocksprout.com
 ```
+
+### Finnhub API Setup
 
 **How to get your API key:**
 1. Visit [https://finnhub.io/register](https://finnhub.io/register)
@@ -78,6 +86,60 @@ FINNHUB_API_KEY=your_api_key_here
 - Unlimited calls per month
 - Real-time US stock data
 - No credit card required
+
+### Nodemailer (Email Service) Setup
+
+**Required for:**
+- Password reset functionality
+- Email notifications
+- User verification emails
+
+**How to set up with Gmail:**
+
+1. **Enable 2-Factor Authentication** on your Google account:
+   - Go to [Google Account Security](https://myaccount.google.com/security)
+   - Enable 2-Step Verification
+
+2. **Generate an App Password**:
+   - Go to [App Passwords](https://myaccount.google.com/apppasswords)
+   - Select "Mail" and "Other (Custom name)"
+   - Name it "StockSprout" or similar
+   - Google will generate a 16-character password
+   - Copy this password (you won't see it again)
+
+3. **Add to your `.env` file**:
+   ```env
+   EMAIL_USER=your.email@gmail.com
+   EMAIL_PASS=abcd efgh ijkl mnop  # The 16-char app password
+   EMAIL_FROM=noreply@stocksprout.com
+   ```
+
+**Alternative SMTP Providers:**
+
+If not using Gmail, update the transporter configuration in `/server/email-service.ts`:
+
+```typescript
+// For other providers (e.g., SendGrid, Mailgun, Outlook)
+const transporter = nodemailer.createTransport({
+  host: 'smtp.yourprovider.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+```
+
+**Common SMTP settings:**
+- **Gmail**: `smtp.gmail.com:587`
+- **Outlook**: `smtp-mail.outlook.com:587`
+- **SendGrid**: `smtp.sendgrid.net:587`
+- **Mailgun**: `smtp.mailgun.org:587`
+
+**Testing your email setup:**
+
+The email service includes a test function. You can verify it works by checking the server logs on startup or by testing the forgot password flow.
 
 ## 🎨 Stock Logos - How It Works
 
