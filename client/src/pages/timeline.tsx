@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import MobileLayout from "@/components/mobile-layout";
 import { VideoPlayerModal } from "@/components/video-player-modal";
+import { VideoReelModal } from "@/components/video-reel-modal";
 import { ChildSelector } from "@/components/child-selector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ export default function Timeline() {
   const { user, token } = useAuth();
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ url: string; giverName: string } | null>(null);
+  const [videoReelOpen, setVideoReelOpen] = useState(false);
 
   // Fetch custodian's children first
   const { data: userChildren = [] } = useQuery<any[]>({
@@ -162,6 +164,10 @@ export default function Timeline() {
     setVideoModalOpen(true);
   };
 
+  const handlePlayVideoReel = () => {
+    setVideoReelOpen(true);
+  };
+
   const handleSendThankYou = async (giftId: string) => {
     const message = prompt("Write a thank you message:");
     if (!message) return;
@@ -212,6 +218,19 @@ export default function Timeline() {
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
+  // Prepare videos for reel (sorted chronologically for better story flow)
+  const videoReelItems = gifts
+    .filter(gift => gift.videoMessageUrl)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .map(gift => ({
+      id: gift.id,
+      videoUrl: gift.videoMessageUrl!,
+      giverName: gift.giftGiverName,
+      message: gift.message || undefined,
+      investmentName: gift.investment?.name,
+      amount: parseFloat(gift.amount)
+    }));
+
   return (
     <MobileLayout currentTab="timeline">
       {/* Video Player Modal */}
@@ -226,6 +245,13 @@ export default function Timeline() {
           giftGiverName={currentVideo.giverName}
         />
       )}
+
+      {/* Video Reel Modal */}
+      <VideoReelModal
+        isOpen={videoReelOpen}
+        onClose={() => setVideoReelOpen(false)}
+        videos={videoReelItems}
+      />
       
       <div className="space-y-6 pb-16">
         {/* Full Video Reel Button and Child Selector */}
@@ -234,8 +260,9 @@ export default function Timeline() {
           {gifts.some(gift => gift.videoMessageUrl) && (
             <div className="relative">
               {/* Button - compact design */}
-              <div 
-                className="w-40 bg-green-100 rounded-full overflow-hidden flex items-center"
+              <button
+                onClick={handlePlayVideoReel}
+                className="w-40 bg-green-100 rounded-full overflow-hidden flex items-center hover:bg-green-200 transition-colors"
                 style={{ borderColor: '#328956', borderWidth: '1px', borderStyle: 'solid' }}
               >
                 {/* Left section - Dark green with custom video icon */}
@@ -260,7 +287,7 @@ export default function Timeline() {
                   <PlayCircle className="w-5 h-5 text-black" />
                   <span className="text-black font-medium text-xs">Full Video Reel</span>
                 </div>
-              </div>
+              </button>
               
               {/* Connecting line from button to timeline - same thickness as timeline */}
               <div className="absolute left-6 top-full w-2 h-10 bg-green-700" />
