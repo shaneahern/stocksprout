@@ -338,33 +338,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Children routes
   app.get("/api/children/:parentId", async (req, res) => {
     try {
-      const children = await storage.getChildrenByParent(req.params.parentId);
-      
-      // Enrich each child with portfolio value
-      const enrichedChildren = await Promise.all(
-        children.map(async (child) => {
-          const holdings = await storage.getPortfolioHoldingsByChild(child.id);
-          const totalValue = holdings.reduce((sum, holding) => {
-            return sum + parseFloat(holding.currentValue || "0");
-          }, 0);
-          
-          const totalCost = holdings.reduce((sum, holding) => {
-            return sum + (parseFloat(holding.shares || "0") * parseFloat(holding.averageCost || "0"));
-          }, 0);
-          
-          const totalGain = totalValue - totalCost;
-          
-          return {
-            ...child,
-            totalValue,
-            totalCost,
-            totalGain,
-          };
+      // Fixed N+1 query: Use SQL join to get children with portfolio totals in a single query
+      const { children, portfolioHoldings } = await import("@shared/schema");
+      const { sql, eq, sum } = await import("drizzle-orm");
+
+      const results = await db
+        .select({
+          id: children.id,
+          parentId: children.parentId,
+          name: children.name,
+          age: children.age,
+          profileImageUrl: children.profileImageUrl,
+          birthday: children.birthday,
+          giftLinkCode: children.giftLinkCode,
+          totalValue: sql<string>`COALESCE(SUM(${portfolioHoldings.currentValue}), 0)`,
+          totalCost: sql<string>`COALESCE(SUM(${portfolioHoldings.shares} * ${portfolioHoldings.averageCost}), 0)`,
         })
-      );
-      
+        .from(children)
+        .leftJoin(portfolioHoldings, eq(children.id, portfolioHoldings.childId))
+        .where(eq(children.parentId, req.params.parentId))
+        .groupBy(children.id);
+
+      // Calculate totalGain from the aggregated values
+      const enrichedChildren = results.map(child => ({
+        ...child,
+        totalValue: parseFloat(child.totalValue),
+        totalCost: parseFloat(child.totalCost),
+        totalGain: parseFloat(child.totalValue) - parseFloat(child.totalCost),
+      }));
+
       res.json(enrichedChildren);
     } catch (error) {
+      console.error("Failed to fetch children:", error);
       res.status(500).json({ error: "Failed to fetch children" });
     }
   });
@@ -557,59 +562,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Portfolio routes
   app.get("/api/portfolio/:childId", async (req, res) => {
     try {
-      const holdings = await storage.getPortfolioHoldingsByChild(req.params.childId);
-      const enrichedHoldings = await Promise.all(
-        holdings.map(async (holding) => {
-          const investment = await storage.getInvestment(holding.investmentId);
-          if (!investment) {
-            console.error(`[Portfolio] ERROR: Holding ${holding.id} references investmentId ${holding.investmentId} but investment not found in database!`);
-          }
-          return { ...holding, investment };
+      // Fixed N+1 query: Use SQL join to get holdings with investment data in a single query
+      const { portfolioHoldings, investments } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+
+      const results = await db
+        .select({
+          // Holding fields
+          id: portfolioHoldings.id,
+          childId: portfolioHoldings.childId,
+          investmentId: portfolioHoldings.investmentId,
+          shares: portfolioHoldings.shares,
+          averageCost: portfolioHoldings.averageCost,
+          currentValue: portfolioHoldings.currentValue,
+          // Investment fields
+          investmentSymbol: investments.symbol,
+          investmentName: investments.name,
+          investmentType: investments.type,
+          investmentCurrentPrice: investments.currentPrice,
+          investmentYtdReturn: investments.ytdReturn,
         })
-      );
+        .from(portfolioHoldings)
+        .leftJoin(investments, eq(portfolioHoldings.investmentId, investments.id))
+        .where(eq(portfolioHoldings.childId, req.params.childId));
+
+      const enrichedHoldings = results.map(row => {
+        if (!row.investmentSymbol) {
+          console.error(`[Portfolio] ERROR: Holding ${row.id} references investmentId ${row.investmentId} but investment not found in database!`);
+        }
+
+        return {
+          id: row.id,
+          childId: row.childId,
+          investmentId: row.investmentId,
+          shares: row.shares,
+          averageCost: row.averageCost,
+          currentValue: row.currentValue,
+          investment: row.investmentSymbol ? {
+            id: row.investmentId,
+            symbol: row.investmentSymbol,
+            name: row.investmentName,
+            type: row.investmentType,
+            currentPrice: row.investmentCurrentPrice,
+            ytdReturn: row.investmentYtdReturn,
+          } : null,
+        };
+      });
+
       res.json(enrichedHoldings);
     } catch (error) {
+      console.error("Failed to fetch portfolio:", error);
       res.status(500).json({ error: "Failed to fetch portfolio" });
     }
   });
 
+  // Helper function to enrich gifts with joins (fixes N+1 query)
+  async function getEnrichedGifts(childId: string, limit?: number) {
+    const { gifts, investments, contributors, users } = await import("@shared/schema");
+    const { desc, eq } = await import("drizzle-orm");
+
+    let query = db
+      .select({
+        // Gift fields
+        id: gifts.id,
+        childId: gifts.childId,
+        contributorId: gifts.contributorId,
+        giftGiverName: gifts.giftGiverName,
+        giftGiverEmail: gifts.giftGiverEmail,
+        giftGiverProfileImageUrl: gifts.giftGiverProfileImageUrl,
+        investmentId: gifts.investmentId,
+        amount: gifts.amount,
+        shares: gifts.shares,
+        message: gifts.message,
+        videoMessageUrl: gifts.videoMessageUrl,
+        createdAt: gifts.createdAt,
+        isViewed: gifts.isViewed,
+        thankYouSent: gifts.thankYouSent,
+        status: gifts.status,
+        reviewedAt: gifts.reviewedAt,
+        // Investment fields
+        investmentSymbol: investments.symbol,
+        investmentName: investments.name,
+        investmentType: investments.type,
+        investmentCurrentPrice: investments.currentPrice,
+        investmentYtdReturn: investments.ytdReturn,
+        // Contributor fields
+        contributorName: contributors.name,
+        contributorEmail: contributors.email,
+        contributorProfileImageUrl: contributors.profileImageUrl,
+        contributorIsRegistered: contributors.isRegistered,
+        contributorCreatedAt: contributors.createdAt,
+        // User fields (for parent purchases)
+        userName: users.name,
+        userEmail: users.email,
+        userProfileImageUrl: users.profileImageUrl,
+      })
+      .from(gifts)
+      .leftJoin(investments, eq(gifts.investmentId, investments.id))
+      .leftJoin(contributors, eq(gifts.contributorId, contributors.id))
+      .leftJoin(users, eq(gifts.contributorId, users.id))
+      .where(eq(gifts.childId, childId))
+      .orderBy(desc(gifts.createdAt));
+
+    if (limit) {
+      query = query.limit(limit) as any;
+    }
+
+    const results = await query;
+
+    // Transform results to match expected format
+    return results.map(row => ({
+      id: row.id,
+      childId: row.childId,
+      contributorId: row.contributorId,
+      giftGiverName: row.giftGiverName,
+      giftGiverEmail: row.giftGiverEmail,
+      giftGiverProfileImageUrl: row.giftGiverProfileImageUrl,
+      investmentId: row.investmentId,
+      amount: row.amount,
+      shares: row.shares,
+      message: row.message,
+      videoMessageUrl: row.videoMessageUrl,
+      createdAt: row.createdAt,
+      isViewed: row.isViewed,
+      thankYouSent: row.thankYouSent,
+      status: row.status,
+      reviewedAt: row.reviewedAt,
+      investment: row.investmentSymbol ? {
+        id: row.investmentId,
+        symbol: row.investmentSymbol,
+        name: row.investmentName,
+        type: row.investmentType,
+        currentPrice: row.investmentCurrentPrice,
+        ytdReturn: row.investmentYtdReturn,
+      } : null,
+      contributor: row.contributorName ? {
+        id: row.contributorId,
+        name: row.contributorName,
+        email: row.contributorEmail,
+        profileImageUrl: row.contributorProfileImageUrl,
+        phone: null,
+        password: null,
+        isRegistered: row.contributorIsRegistered,
+        createdAt: row.contributorCreatedAt,
+      } : row.userName ? {
+        // Parent purchase - user instead of contributor
+        id: row.contributorId,
+        name: row.userName,
+        email: row.userEmail,
+        profileImageUrl: row.userProfileImageUrl,
+        phone: null,
+        password: null,
+        isRegistered: true,
+        createdAt: new Date(),
+      } : null,
+    }));
+  }
+
   // Gift routes
   app.get("/api/gifts/:childId", async (req, res) => {
     try {
-      const gifts = await storage.getGiftsByChild(req.params.childId);
-      const enrichedGifts = await Promise.all(
-        gifts.map(async (gift) => {
-          const investment = await storage.getInvestment(gift.investmentId);
-          let contributor = null;
-          
-          if (gift.contributorId) {
-            // Try to get contributor first
-            contributor = await storage.getContributor(gift.contributorId);
-            
-            // If not found in contributors table, try users table (for parent purchases)
-            if (!contributor) {
-              const user = await storage.getUser(gift.contributorId);
-              if (user) {
-                // Convert user to contributor format for consistency
-                contributor = {
-                  id: user.id,
-                  name: user.name,
-                  email: user.email,
-                  profileImageUrl: user.profileImageUrl,
-                  phone: null,
-                  password: null,
-                  isRegistered: true,
-                  createdAt: new Date() // Users don't have createdAt, use current date
-                };
-              }
-            }
-          }
-          
-          return { ...gift, investment, contributor };
-        })
-      );
+      const enrichedGifts = await getEnrichedGifts(req.params.childId);
       res.json(enrichedGifts);
     } catch (error) {
+      console.error("Failed to fetch gifts:", error);
       res.status(500).json({ error: "Failed to fetch gifts" });
     }
   });
@@ -617,40 +733,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/gifts/recent/:childId", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 5;
-      const gifts = await storage.getRecentGiftsByChild(req.params.childId, limit);
-      const enrichedGifts = await Promise.all(
-        gifts.map(async (gift) => {
-          const investment = await storage.getInvestment(gift.investmentId);
-          let contributor = null;
-          
-          if (gift.contributorId) {
-            // Try to get contributor first
-            contributor = await storage.getContributor(gift.contributorId);
-            
-            // If not found in contributors table, try users table (for parent purchases)
-            if (!contributor) {
-              const user = await storage.getUser(gift.contributorId);
-              if (user) {
-                // Convert user to contributor format for consistency
-                contributor = {
-                  id: user.id,
-                  name: user.name,
-                  email: user.email,
-                  profileImageUrl: user.profileImageUrl,
-                  phone: null,
-                  password: null,
-                  isRegistered: true,
-                  createdAt: new Date() // Users don't have createdAt, use current date
-                };
-              }
-            }
-          }
-          
-          return { ...gift, investment, contributor };
-        })
-      );
+      const enrichedGifts = await getEnrichedGifts(req.params.childId, limit);
       res.json(enrichedGifts);
     } catch (error) {
+      console.error("Failed to fetch recent gifts:", error);
       res.status(500).json({ error: "Failed to fetch recent gifts" });
     }
   });
@@ -1117,15 +1203,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/recurring-contributions/child/:childId", async (req, res) => {
     try {
-      const contributions = await storage.getRecurringContributionsByChild(req.params.childId);
-      const enrichedContributions = await Promise.all(
-        contributions.map(async (contrib) => {
-          const investment = await storage.getInvestment(contrib.investmentId);
-          return { ...contrib, investment };
+      // Fixed N+1 query: Use SQL join to get contributions with investment data
+      const { recurringContributions, investments } = await import("@shared/schema");
+      const { desc, eq } = await import("drizzle-orm");
+
+      const results = await db
+        .select({
+          // Contribution fields
+          id: recurringContributions.id,
+          childId: recurringContributions.childId,
+          contributorId: recurringContributions.contributorId,
+          contributorEmail: recurringContributions.contributorEmail,
+          contributorName: recurringContributions.contributorName,
+          investmentId: recurringContributions.investmentId,
+          amount: recurringContributions.amount,
+          frequency: recurringContributions.frequency,
+          isActive: recurringContributions.isActive,
+          nextContributionDate: recurringContributions.nextContributionDate,
+          lastContributionDate: recurringContributions.lastContributionDate,
+          createdAt: recurringContributions.createdAt,
+          // Investment fields
+          investmentSymbol: investments.symbol,
+          investmentName: investments.name,
+          investmentType: investments.type,
+          investmentCurrentPrice: investments.currentPrice,
+          investmentYtdReturn: investments.ytdReturn,
         })
-      );
+        .from(recurringContributions)
+        .leftJoin(investments, eq(recurringContributions.investmentId, investments.id))
+        .where(eq(recurringContributions.childId, req.params.childId))
+        .orderBy(desc(recurringContributions.createdAt));
+
+      const enrichedContributions = results.map(row => ({
+        id: row.id,
+        childId: row.childId,
+        contributorId: row.contributorId,
+        contributorEmail: row.contributorEmail,
+        contributorName: row.contributorName,
+        investmentId: row.investmentId,
+        amount: row.amount,
+        frequency: row.frequency,
+        isActive: row.isActive,
+        nextContributionDate: row.nextContributionDate,
+        lastContributionDate: row.lastContributionDate,
+        createdAt: row.createdAt,
+        investment: row.investmentSymbol ? {
+          id: row.investmentId,
+          symbol: row.investmentSymbol,
+          name: row.investmentName,
+          type: row.investmentType,
+          currentPrice: row.investmentCurrentPrice,
+          ytdReturn: row.investmentYtdReturn,
+        } : null,
+      }));
+
       res.json(enrichedContributions);
     } catch (error) {
+      console.error("Failed to fetch recurring contributions:", error);
       res.status(500).json({ error: "Failed to fetch recurring contributions" });
     }
   });
