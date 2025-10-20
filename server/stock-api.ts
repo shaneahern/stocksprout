@@ -38,29 +38,55 @@ interface StockQuote {
   previousClose: number;
 }
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
 export class StockAPIService {
   private apiKey: string;
   private baseUrl = 'https://finnhub.io/api/v1';
+  private quoteCache: Map<string, CacheEntry<StockQuote>> = new Map();
+  private profileCache: Map<string, CacheEntry<{ name: string; ticker: string }>> = new Map();
+  private searchCache: Map<string, CacheEntry<FinnhubSymbolSearchResult[]>> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || process.env.FINNHUB_API_KEY || '';
-    
+
     if (!this.apiKey) {
       console.warn('⚠️  FINNHUB_API_KEY not set. Stock data will be mocked.');
     }
   }
 
   /**
-   * Get real-time stock quote
+   * Check if a cache entry is still valid
+   */
+  private isCacheValid<T>(entry: CacheEntry<T> | undefined): boolean {
+    if (!entry) return false;
+    return Date.now() - entry.timestamp < this.CACHE_TTL;
+  }
+
+  /**
+   * Get real-time stock quote (with 5-minute cache)
    */
   async getQuote(symbol: string): Promise<StockQuote | null> {
+    const normalizedSymbol = symbol.toUpperCase();
+
+    // Check cache first
+    const cached = this.quoteCache.get(normalizedSymbol);
+    if (this.isCacheValid(cached)) {
+      console.log(`[Stock API] Cache hit for ${normalizedSymbol}`);
+      return cached.data;
+    }
+
     if (!this.apiKey) {
       return this.getMockQuote(symbol);
     }
 
     try {
       const response = await fetch(
-        `${this.baseUrl}/quote?symbol=${symbol.toUpperCase()}&token=${this.apiKey}`
+        `${this.baseUrl}/quote?symbol=${normalizedSymbol}&token=${this.apiKey}`
       );
 
       if (!response.ok) {
@@ -76,8 +102,8 @@ export class StockAPIService {
         return null;
       }
 
-      return {
-        symbol: symbol.toUpperCase(),
+      const quote: StockQuote = {
+        symbol: normalizedSymbol,
         currentPrice: data.c,
         change: data.d,
         changePercent: data.dp,
@@ -86,6 +112,15 @@ export class StockAPIService {
         open: data.o,
         previousClose: data.pc,
       };
+
+      // Cache the result
+      this.quoteCache.set(normalizedSymbol, {
+        data: quote,
+        timestamp: Date.now(),
+      });
+
+      console.log(`[Stock API] Fetched and cached ${normalizedSymbol}`);
+      return quote;
     } catch (error) {
       console.error(`Error fetching quote for ${symbol}:`, error);
       return this.getMockQuote(symbol);
@@ -93,9 +128,18 @@ export class StockAPIService {
   }
 
   /**
-   * Search for stocks by query
+   * Search for stocks by query (with 5-minute cache)
    */
   async searchSymbols(query: string): Promise<FinnhubSymbolSearchResult[]> {
+    const normalizedQuery = query.toLowerCase().trim();
+
+    // Check cache first
+    const cached = this.searchCache.get(normalizedQuery);
+    if (this.isCacheValid(cached)) {
+      console.log(`[Stock API] Search cache hit for "${normalizedQuery}"`);
+      return cached.data;
+    }
+
     if (!this.apiKey) {
       return this.getMockSearchResults(query);
     }
@@ -113,12 +157,21 @@ export class StockAPIService {
       const data: FinnhubSearchResponse = await response.json();
 
       // Filter to only US stocks and limit results
-      return data.result
-        .filter(result => 
+      const results = data.result
+        .filter(result =>
           !result.symbol.includes('.') && // Filter out non-US stocks
           result.type === 'Common Stock'
         )
         .slice(0, 10);
+
+      // Cache the results
+      this.searchCache.set(normalizedQuery, {
+        data: results,
+        timestamp: Date.now(),
+      });
+
+      console.log(`[Stock API] Searched and cached "${normalizedQuery}"`);
+      return results;
     } catch (error) {
       console.error(`Error searching symbols:`, error);
       return this.getMockSearchResults(query);
@@ -126,16 +179,25 @@ export class StockAPIService {
   }
 
   /**
-   * Get company profile (includes company name)
+   * Get company profile (includes company name) - with 5-minute cache
    */
   async getCompanyProfile(symbol: string): Promise<{ name: string; ticker: string } | null> {
+    const normalizedSymbol = symbol.toUpperCase();
+
+    // Check cache first
+    const cached = this.profileCache.get(normalizedSymbol);
+    if (this.isCacheValid(cached)) {
+      console.log(`[Stock API] Profile cache hit for ${normalizedSymbol}`);
+      return cached.data;
+    }
+
     if (!this.apiKey) {
       return this.getMockCompanyProfile(symbol);
     }
 
     try {
       const response = await fetch(
-        `${this.baseUrl}/stock/profile2?symbol=${symbol.toUpperCase()}&token=${this.apiKey}`
+        `${this.baseUrl}/stock/profile2?symbol=${normalizedSymbol}&token=${this.apiKey}`
       );
 
       if (!response.ok) {
@@ -149,10 +211,19 @@ export class StockAPIService {
         return null;
       }
 
-      return {
+      const profile = {
         name: data.name,
-        ticker: data.ticker || symbol.toUpperCase(),
+        ticker: data.ticker || normalizedSymbol,
       };
+
+      // Cache the result
+      this.profileCache.set(normalizedSymbol, {
+        data: profile,
+        timestamp: Date.now(),
+      });
+
+      console.log(`[Stock API] Fetched and cached profile for ${normalizedSymbol}`);
+      return profile;
     } catch (error) {
       console.error(`Error fetching company profile for ${symbol}:`, error);
       return this.getMockCompanyProfile(symbol);
