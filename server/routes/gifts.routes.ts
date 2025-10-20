@@ -2,8 +2,9 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
 import { insertGiftSchema, insertThankYouMessageSchema } from "@shared/schema";
-import jwt from "jsonwebtoken";
 import { stockAPI } from "../stock-api";
+import { authenticate, getAuthUser, type AuthenticatedRequest } from "../middleware/auth.middleware";
+import { handleError, handleNotFound, handleForbidden, handleValidationError } from "../utils/error-handler";
 
 export function registerGiftRoutes(app: Express) {
   // Helper function to enrich gifts with joins (fixes N+1 query)
@@ -235,31 +236,20 @@ export function registerGiftRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/gifts/:id/approve", async (req, res) => {
+  app.patch("/api/gifts/:id/approve", authenticate, async (req: AuthenticatedRequest, res) => {
     try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-
-      let decoded;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
-      } catch (jwtError) {
-        return res.status(401).json({ error: "Invalid token" });
-      }
-
+      const { userId } = getAuthUser(req);
       const gift = await storage.getGift(req.params.id);
 
       if (!gift) {
-        return res.status(404).json({ error: "Gift not found" });
+        return handleNotFound(res, "Gift");
       }
 
       // Verify the user is the parent of the child
       const child = await storage.getChild(gift.childId);
 
-      if (!child || child.parentId !== decoded.userId) {
-        return res.status(403).json({ error: "Unauthorized" });
+      if (!child || child.parentId !== userId) {
+        return handleForbidden(res, "You can only approve gifts for your own children");
       }
 
       // Approve the gift first
@@ -268,7 +258,7 @@ export function registerGiftRoutes(app: Express) {
       // Get investment details
       const investment = await storage.getInvestment(gift.investmentId);
       if (!investment) {
-        return res.status(404).json({ error: "Investment not found" });
+        return handleNotFound(res, "Investment");
       }
 
       // Update or create portfolio holding
@@ -300,32 +290,24 @@ export function registerGiftRoutes(app: Express) {
       }
 
       res.json({ success: true, message: "Gift approved and added to portfolio" });
-    } catch (error: any) {
-      console.error("Gift approval error:", error);
-      res.status(500).json({
-        error: error.message || "Failed to approve gift"
-      });
+    } catch (error) {
+      return handleError(res, error, "Failed to approve gift");
     }
   });
 
-  app.patch("/api/gifts/:id/reject", async (req, res) => {
+  app.patch("/api/gifts/:id/reject", authenticate, async (req: AuthenticatedRequest, res) => {
     try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
+      const { userId } = getAuthUser(req);
       const gift = await storage.getGift(req.params.id);
 
       if (!gift) {
-        return res.status(404).json({ error: "Gift not found" });
+        return handleNotFound(res, "Gift");
       }
 
       // Verify the user is the parent of the child
       const child = await storage.getChild(gift.childId);
-      if (!child || child.parentId !== decoded.userId) {
-        return res.status(403).json({ error: "Unauthorized" });
+      if (!child || child.parentId !== userId) {
+        return handleForbidden(res, "You can only reject gifts for your own children");
       }
 
       // Reject the gift
@@ -333,8 +315,7 @@ export function registerGiftRoutes(app: Express) {
 
       res.json({ success: true, message: "Gift rejected" });
     } catch (error) {
-      console.error("Gift rejection error:", error);
-      res.status(500).json({ error: "Failed to reject gift" });
+      return handleError(res, error, "Failed to reject gift");
     }
   });
 
