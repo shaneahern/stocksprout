@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
 import { insertChildSchema } from "@shared/schema";
-import jwt from "jsonwebtoken";
+import { authenticate, getAuthUser, type AuthenticatedRequest } from "../middleware/auth.middleware";
+import { handleError, handleNotFound, handleForbidden, handleValidationError } from "../utils/error-handler";
 
 export function registerChildrenRoutes(app: Express) {
   // Children routes
@@ -39,8 +40,7 @@ export function registerChildrenRoutes(app: Express) {
 
       res.json(enrichedChildren);
     } catch (error) {
-      console.error("Failed to fetch children:", error);
-      res.status(500).json({ error: "Failed to fetch children" });
+      return handleError(res, error, "Failed to fetch children");
     }
   });
 
@@ -48,12 +48,11 @@ export function registerChildrenRoutes(app: Express) {
     try {
       const child = await storage.getChild(req.params.childId);
       if (!child) {
-        return res.status(404).json({ error: "Child not found" });
+        return handleNotFound(res, "Child");
       }
       res.json(child);
     } catch (error) {
-      console.error("Failed to fetch child:", error);
-      res.status(500).json({ error: "Failed to fetch child" });
+      return handleError(res, error, "Failed to fetch child");
     }
   });
 
@@ -63,41 +62,32 @@ export function registerChildrenRoutes(app: Express) {
       const child = await storage.createChild(validatedData);
       res.json(child);
     } catch (error) {
-      console.error("Failed to create child:", error);
-      res.status(400).json({ error: "Invalid child data" });
+      return handleValidationError(res, error, "Invalid child data");
     }
   });
 
   // Update child profile photo
-  app.patch("/api/children/:childId/profile-photo", async (req, res) => {
+  app.patch("/api/children/:childId/profile-photo", authenticate, async (req: AuthenticatedRequest, res) => {
     try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
-      const userId = decoded.userId;
-
+      const { userId } = getAuthUser(req);
       const { childId } = req.params;
       const { profileImageUrl } = req.body;
 
       // Verify the child belongs to the authenticated user
       const child = await storage.getChild(childId);
       if (!child) {
-        return res.status(404).json({ error: "Child not found" });
+        return handleNotFound(res, "Child");
       }
 
       if (child.parentId !== userId) {
-        return res.status(403).json({ error: "You can only update profile photos for your own children" });
+        return handleForbidden(res, "You can only update profile photos for your own children");
       }
 
       // Update the child's profile photo
       const updatedChild = await storage.updateChild(childId, { profileImageUrl });
       res.json(updatedChild);
     } catch (error) {
-      console.error("Error updating child profile photo:", error);
-      res.status(500).json({ error: "Failed to update child profile photo" });
+      return handleError(res, error, "Failed to update child profile photo");
     }
   });
 
@@ -105,12 +95,11 @@ export function registerChildrenRoutes(app: Express) {
     try {
       const child = await storage.getChildByGiftCode(req.params.giftCode);
       if (!child) {
-        return res.status(404).json({ error: "Child not found" });
+        return handleNotFound(res, "Child");
       }
       res.json(child);
     } catch (error) {
-      console.error("Failed to fetch child by gift code:", error);
-      res.status(500).json({ error: "Failed to fetch child" });
+      return handleError(res, error, "Failed to fetch child");
     }
   });
 
@@ -120,7 +109,7 @@ export function registerChildrenRoutes(app: Express) {
       const { childId } = req.body;
       const child = await storage.getChild(childId);
       if (!child) {
-        return res.status(404).json({ error: "Child not found" });
+        return handleNotFound(res, "Child");
       }
 
       const baseUrl = process.env.REPLIT_DOMAINS ?
@@ -135,8 +124,7 @@ export function registerChildrenRoutes(app: Express) {
         childName: child.name
       });
     } catch (error) {
-      console.error("Failed to generate gift link:", error);
-      res.status(500).json({ error: "Failed to generate gift link" });
+      return handleError(res, error, "Failed to generate gift link");
     }
   });
 }
