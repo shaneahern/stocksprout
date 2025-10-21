@@ -2,24 +2,20 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
 import { createSproutRequestSchema, createRecurringContributionSchema } from "@shared/schema";
-import jwt from "jsonwebtoken";
+import { authenticate, getAuthUser, type AuthenticatedRequest } from "../middleware/auth.middleware";
+import { handleError, handleNotFound, handleValidationError } from "../utils/error-handler";
 
 export function registerSproutRoutes(app: Express) {
   // Sprout Request routes
-  app.post("/api/sprout-requests", async (req, res) => {
+  app.post("/api/sprout-requests", authenticate, async (req: AuthenticatedRequest, res) => {
     try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
+      const { userId } = getAuthUser(req);
       const validatedData = createSproutRequestSchema.parse(req.body);
 
       // Create sprout request
       const sproutRequest = await storage.createSproutRequest({
         ...validatedData,
-        parentId: decoded.userId,
+        parentId: userId,
         status: "pending",
       });
 
@@ -40,8 +36,7 @@ export function registerSproutRoutes(app: Express) {
         message: "Sprout request created successfully"
       });
     } catch (error) {
-      console.error("Sprout request error:", error);
-      res.status(400).json({ error: "Failed to create sprout request" });
+      return handleValidationError(res, error, "Failed to create sprout request");
     }
   });
 
@@ -50,8 +45,7 @@ export function registerSproutRoutes(app: Express) {
       const requests = await storage.getSproutRequestsByParent(req.params.parentId);
       res.json(requests);
     } catch (error) {
-      console.error("Failed to fetch sprout requests:", error);
-      res.status(500).json({ error: "Failed to fetch sprout requests" });
+      return handleError(res, error, "Failed to fetch sprout requests");
     }
   });
 
