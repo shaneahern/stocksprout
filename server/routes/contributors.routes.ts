@@ -2,6 +2,8 @@ import type { Express} from "express";
 import { storage } from "../storage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { authenticate, getAuthUser, type AuthenticatedRequest } from "../middleware/auth.middleware";
+import { handleError, handleNotFound, handleForbidden, handleValidationError } from "../utils/error-handler";
 
 export function registerContributorRoutes(app: Express) {
   // Contributor routes
@@ -119,63 +121,38 @@ export function registerContributorRoutes(app: Express) {
   });
 
   // Get all gifts made by a contributor
-  app.get("/api/contributors/:id/gifts", async (req, res) => {
+  app.get("/api/contributors/:id/gifts", authenticate, async (req: AuthenticatedRequest, res) => {
     try {
+      const { userId } = getAuthUser(req);
       const { id } = req.params;
 
-      // Verify JWT token
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: "Authorization token required" });
-      }
-
-      const token = authHeader.substring(7);
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
-
-        // Verify the user ID matches the token
-        if (decoded.userId !== id) {
-          return res.status(403).json({ error: "Not authorized to view these gifts" });
-        }
-      } catch (jwtError) {
-        return res.status(401).json({ error: "Invalid or expired token" });
+      // Verify the user ID matches the token
+      if (userId !== id) {
+        return handleForbidden(res, "You can only view your own gifts");
       }
 
       // Get all gifts made by this user (as a contributor)
       const gifts = await storage.getGiftsByContributor(id);
       res.json(gifts);
     } catch (error) {
-      console.error("Error fetching contributor gifts:", error);
-      res.status(500).json({ error: "Failed to fetch contributor gifts" });
+      return handleError(res, error, "Failed to fetch contributor gifts");
     }
   });
 
   // Update contributor profile photo
-  app.patch("/api/contributors/:id/profile-photo", async (req, res) => {
+  app.patch("/api/contributors/:id/profile-photo", authenticate, async (req: AuthenticatedRequest, res) => {
     try {
+      const { userId } = getAuthUser(req);
       const { id } = req.params;
       const { profileImageUrl } = req.body;
 
       if (!profileImageUrl) {
-        return res.status(400).json({ error: "Profile image URL is required" });
+        return handleValidationError(res, new Error("Profile image URL is required"));
       }
 
-      // Verify JWT token
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: "Authorization token required" });
-      }
-
-      const token = authHeader.substring(7);
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
-
-        // Verify the user ID matches the token
-        if (decoded.userId !== id) {
-          return res.status(403).json({ error: "Not authorized to update this profile" });
-        }
-      } catch (jwtError) {
-        return res.status(401).json({ error: "Invalid or expired token" });
+      // Verify the user ID matches the token
+      if (userId !== id) {
+        return handleForbidden(res, "You can only update your own profile");
       }
 
       const updatedContributor = await storage.updateContributor(id, {
@@ -183,13 +160,12 @@ export function registerContributorRoutes(app: Express) {
       });
 
       if (!updatedContributor) {
-        return res.status(404).json({ error: "Contributor not found" });
+        return handleNotFound(res, "Contributor");
       }
 
       res.json(updatedContributor);
     } catch (error) {
-      console.error("Error updating contributor profile photo:", error);
-      res.status(500).json({ error: "Failed to update profile photo" });
+      return handleError(res, error, "Failed to update profile photo");
     }
   });
 }

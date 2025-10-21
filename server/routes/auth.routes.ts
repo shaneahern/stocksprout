@@ -4,6 +4,8 @@ import { signupSchema, loginSchema, updateProfileSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { sendPasswordResetEmail } from "../email-service";
+import { authenticate, getAuthUser, type AuthenticatedRequest } from "../middleware/auth.middleware";
+import { handleError, handleNotFound, handleValidationError } from "../utils/error-handler";
 
 export function registerAuthRoutes(app: Express) {
   // Authentication routes
@@ -220,23 +222,18 @@ export function registerAuthRoutes(app: Express) {
   });
 
   // Profile routes
-  app.get("/api/profile", async (req, res) => {
+  app.get("/api/profile", authenticate, async (req: AuthenticatedRequest, res) => {
     try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
+      const { userId } = getAuthUser(req);
 
       // Try to find user first (parent/custodian)
-      let user = await storage.getUser(decoded.userId);
+      let user = await storage.getUser(userId);
 
       // If not found in users, try contributors table
       if (!user) {
-        const contributor = await storage.getContributor(decoded.userId);
+        const contributor = await storage.getContributor(userId);
         if (!contributor) {
-          return res.status(404).json({ error: "User not found" });
+          return handleNotFound(res, "User");
         }
         const { password, ...contributorWithoutPassword } = contributor;
         return res.json(contributorWithoutPassword);
@@ -245,21 +242,14 @@ export function registerAuthRoutes(app: Express) {
       const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
-      console.error("Profile fetch error:", error);
-      res.status(401).json({ error: "Invalid token" });
+      return handleError(res, error, "Failed to fetch profile");
     }
   });
 
-  const updateProfileHandler = async (req: any, res: any) => {
+  const updateProfileHandler = async (req: AuthenticatedRequest, res: any) => {
     try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        console.log("No token provided");
-        return res.status(401).json({ error: "No token provided" });
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret") as any;
-      console.log("Updating profile for user:", decoded.userId);
+      const { userId } = getAuthUser(req);
+      console.log("Updating profile for user:", userId);
       console.log("Request body keys:", Object.keys(req.body));
       if (req.body.profileImageUrl) {
         console.log("Profile image URL length:", req.body.profileImageUrl.length);
@@ -268,10 +258,10 @@ export function registerAuthRoutes(app: Express) {
       const validatedData = updateProfileSchema.parse(req.body);
       console.log("Validation passed");
 
-      const updatedUser = await storage.updateUserProfile(decoded.userId, validatedData);
+      const updatedUser = await storage.updateUserProfile(userId, validatedData);
       if (!updatedUser) {
-        console.log("User not found:", decoded.userId);
-        return res.status(404).json({ error: "User not found" });
+        console.log("User not found:", userId);
+        return handleNotFound(res, "User");
       }
 
       console.log("Profile updated successfully");
@@ -283,10 +273,10 @@ export function registerAuthRoutes(app: Express) {
         console.error("Error message:", error.message);
         console.error("Error stack:", error.stack);
       }
-      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid profile data" });
+      return handleValidationError(res, error, "Invalid profile data");
     }
   };
 
-  app.patch("/api/profile", updateProfileHandler);
-  app.put("/api/profile", updateProfileHandler);
+  app.patch("/api/profile", authenticate, updateProfileHandler);
+  app.put("/api/profile", authenticate, updateProfileHandler);
 }
