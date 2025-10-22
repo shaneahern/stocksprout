@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Video, Square, Play, Upload } from "lucide-react";
+import { Video, Square, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface VideoRecorderProps {
@@ -196,16 +196,6 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
     }
   };
 
-  const playRecording = () => {
-    if (videoRef.current && recordedVideoUrl) {
-      console.log('Playing video:', recordedVideoUrl);
-      videoRef.current.load();
-      videoRef.current.play().catch(err => {
-        console.error('Error playing video:', err);
-      });
-    }
-  };
-
   return (
     <Card className="border-2 border-dashed border-border">
       <CardContent className="p-6 text-center">
@@ -221,16 +211,6 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               data-testid="video-preview"
             />
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={playRecording}
-                className="flex-1"
-                data-testid="button-play-recording"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Play
-              </Button>
               <Button
                 size="sm"
                 onClick={uploadVideo}
