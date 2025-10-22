@@ -36,7 +36,7 @@ __export(schema_exports, {
   users: () => users
 });
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 var users, children, investments, portfolioHoldings, gifts, thankYouMessages, contributors, sproutRequests, recurringContributions, insertUserSchema, signupSchema, loginSchema, updateProfileSchema, insertChildSchema, insertInvestmentSchema, insertPortfolioHoldingSchema, insertGiftSchema, insertThankYouMessageSchema, insertContributorSchema, insertSproutRequestSchema, createSproutRequestSchema, insertRecurringContributionSchema, createRecurringContributionSchema;
@@ -63,7 +63,10 @@ var init_schema = __esm({
       profileImageUrl: text("profile_image_url"),
       birthday: text("birthday"),
       giftLinkCode: text("gift_link_code").notNull().unique()
-    });
+    }, (table) => ({
+      parentIdIdx: index("children_parent_id_idx").on(table.parentId),
+      giftLinkCodeIdx: index("children_gift_link_code_idx").on(table.giftLinkCode)
+    }));
     investments = pgTable("investments", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       symbol: text("symbol").notNull(),
@@ -72,7 +75,9 @@ var init_schema = __esm({
       // 'stock', 'etf', 'crypto', 'index'
       currentPrice: decimal("current_price", { precision: 10, scale: 2 }).notNull(),
       ytdReturn: decimal("ytd_return", { precision: 5, scale: 2 }).notNull()
-    });
+    }, (table) => ({
+      symbolIdx: index("investments_symbol_idx").on(table.symbol)
+    }));
     portfolioHoldings = pgTable("portfolio_holdings", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       childId: varchar("child_id").notNull(),
@@ -80,7 +85,10 @@ var init_schema = __esm({
       shares: decimal("shares", { precision: 10, scale: 6 }).notNull(),
       averageCost: decimal("average_cost", { precision: 10, scale: 2 }).notNull(),
       currentValue: decimal("current_value", { precision: 10, scale: 2 }).notNull()
-    });
+    }, (table) => ({
+      childIdIdx: index("portfolio_holdings_child_id_idx").on(table.childId),
+      investmentIdIdx: index("portfolio_holdings_investment_id_idx").on(table.investmentId)
+    }));
     gifts = pgTable("gifts", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       childId: varchar("child_id").notNull(),
@@ -101,13 +109,19 @@ var init_schema = __esm({
       status: text("status").notNull().default("pending"),
       // pending, approved, rejected
       reviewedAt: timestamp("reviewed_at")
-    });
+    }, (table) => ({
+      childIdIdx: index("gifts_child_id_idx").on(table.childId),
+      contributorIdIdx: index("gifts_contributor_id_idx").on(table.contributorId),
+      statusIdx: index("gifts_status_idx").on(table.status)
+    }));
     thankYouMessages = pgTable("thank_you_messages", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       giftId: varchar("gift_id").notNull(),
       message: text("message").notNull(),
       createdAt: timestamp("created_at").defaultNow().notNull()
-    });
+    }, (table) => ({
+      giftIdIdx: index("thank_you_messages_gift_id_idx").on(table.giftId)
+    }));
     contributors = pgTable("contributors", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       email: text("email").notNull().unique(),
@@ -133,7 +147,11 @@ var init_schema = __esm({
       // pending, accepted, declined
       createdAt: timestamp("created_at").defaultNow().notNull(),
       respondedAt: timestamp("responded_at")
-    });
+    }, (table) => ({
+      parentIdIdx: index("sprout_requests_parent_id_idx").on(table.parentId),
+      requestCodeIdx: index("sprout_requests_request_code_idx").on(table.requestCode),
+      statusIdx: index("sprout_requests_status_idx").on(table.status)
+    }));
     recurringContributions = pgTable("recurring_contributions", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       childId: varchar("child_id").notNull(),
@@ -149,7 +167,11 @@ var init_schema = __esm({
       nextContributionDate: timestamp("next_contribution_date").notNull(),
       lastContributionDate: timestamp("last_contribution_date"),
       createdAt: timestamp("created_at").defaultNow().notNull()
-    });
+    }, (table) => ({
+      childIdIdx: index("recurring_contributions_child_id_idx").on(table.childId),
+      contributorIdIdx: index("recurring_contributions_contributor_id_idx").on(table.contributorId),
+      isActiveIdx: index("recurring_contributions_is_active_idx").on(table.isActive)
+    }));
     insertUserSchema = createInsertSchema(users).pick({
       username: true,
       email: true,
@@ -256,8 +278,7 @@ var init_schema = __esm({
 import "dotenv/config";
 import express3 from "express";
 
-// server/routes.ts
-import express from "express";
+// server/routes/index.ts
 import { createServer } from "http";
 
 // server/storage.ts
@@ -707,19 +728,534 @@ var DatabaseStorage = class {
 };
 var storage = new DatabaseStorage();
 
-// server/routes.ts
-init_schema();
+// server/routes/auth.routes.ts
 init_schema();
 import bcrypt from "bcryptjs";
+import jwt2 from "jsonwebtoken";
+
+// server/email-service.ts
+import nodemailer from "nodemailer";
+var transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER || "your-email@gmail.com",
+    pass: process.env.EMAIL_PASS || "your-app-password"
+    // Use App Password for Gmail
+  }
+});
+async function sendPasswordResetEmail(data) {
+  try {
+    const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${data.resetToken}`;
+    const mailOptions = {
+      from: `"StockSprout" <${process.env.EMAIL_USER || "noreply@stocksprout.com"}>`,
+      to: data.email,
+      subject: "Reset Your StockSprout Password",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Password Reset - StockSprout</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding: 20px;
+              background-color: #f8f9fa;
+              border-radius: 8px;
+            }
+            .logo {
+              font-size: 24px;
+              font-weight: bold;
+              color: #16a34a;
+              margin-bottom: 10px;
+            }
+            .content {
+              background-color: #ffffff;
+              padding: 30px;
+              border-radius: 8px;
+              border: 1px solid #e5e7eb;
+            }
+            .button {
+              display: inline-block;
+              background-color: #2563eb;
+              color: white;
+              padding: 12px 24px;
+              text-decoration: none;
+              border-radius: 6px;
+              font-weight: 500;
+              margin: 20px 0;
+            }
+            .button:hover {
+              background-color: #1d4ed8;
+            }
+            .footer {
+              margin-top: 30px;
+              padding-top: 20px;
+              border-top: 1px solid #e5e7eb;
+              font-size: 14px;
+              color: #6b7280;
+              text-align: center;
+            }
+            .warning {
+              background-color: #fef3c7;
+              border: 1px solid #f59e0b;
+              border-radius: 6px;
+              padding: 15px;
+              margin: 20px 0;
+              color: #92400e;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">\u{1F331} StockSprout</div>
+            <p>Growing the future our kids deserve</p>
+          </div>
+          
+          <div class="content">
+            <h2>Reset Your Password</h2>
+            
+            <p>Hello${data.userName ? ` ${data.userName}` : ""},</p>
+            
+            <p>We received a request to reset your password for your StockSprout account. If you made this request, click the button below to reset your password:</p>
+            
+            <div style="text-align: center;">
+              <a href="${resetUrl}" class="button">Reset Password</a>
+            </div>
+            
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; background-color: #f3f4f6; padding: 10px; border-radius: 4px; font-family: monospace;">
+              ${resetUrl}
+            </p>
+            
+            <div class="warning">
+              <strong>\u26A0\uFE0F Important:</strong>
+              <ul>
+                <li>This link will expire in 1 hour</li>
+                <li>If you didn't request this password reset, please ignore this email</li>
+                <li>Your password will not be changed until you create a new one</li>
+              </ul>
+            </div>
+            
+            <p>If you have any questions or need assistance, please contact our support team.</p>
+            
+            <p>Best regards,<br>
+            The StockSprout Team</p>
+          </div>
+          
+          <div class="footer">
+            <p><strong>StockSprout LLC</strong><br>
+            Member NYSE, SIPC, FCC<br>
+            700 Sprout Street, Phoenix, AZ 85235</p>
+            
+            <p>\xA92025 StockSprout LLC. All rights reserved.</p>
+            
+            <p>
+              <a href="${process.env.FRONTEND_URL || "http://localhost:5173"}/privacy-policy" style="color: #2563eb;">
+                Privacy Policy
+              </a>
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Reset Your StockSprout Password
+        
+        Hello${data.userName ? ` ${data.userName}` : ""},
+        
+        We received a request to reset your password for your StockSprout account. 
+        If you made this request, click the link below to reset your password:
+        
+        ${resetUrl}
+        
+        This link will expire in 1 hour. If you didn't request this password reset, please ignore this email.
+        
+        Best regards,
+        The StockSprout Team
+        
+        ---
+        StockSprout LLC
+        Member NYSE, SIPC, FCC
+        700 Sprout Street, Phoenix, AZ 85235
+        \xA92025 StockSprout LLC. All rights reserved.
+      `
+    };
+    await transporter.sendMail(mailOptions);
+    console.log(`\u2705 Password reset email sent to: ${data.email}`);
+    return true;
+  } catch (error) {
+    console.error("\u274C Failed to send password reset email:", error);
+    return false;
+  }
+}
+
+// server/middleware/auth.middleware.ts
 import jwt from "jsonwebtoken";
-import multer from "multer";
-import path from "path";
-import { mkdirSync } from "fs";
+function authenticate(req, res, next) {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "fallback-secret"
+    );
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error("Authentication error:", error);
+    return res.status(401).json({ error: "Invalid token" });
+  }
+}
+function getAuthUser(req) {
+  const user = req.user;
+  if (!user) {
+    throw new Error("Not authenticated");
+  }
+  return user;
+}
+
+// server/utils/error-handler.ts
+function handleError(res, error, message, statusCode = 500) {
+  console.error(`[Error] ${message}:`, error);
+  return res.status(statusCode).json({
+    error: message
+  });
+}
+function handleValidationError(res, error, customMessage) {
+  const message = customMessage || "Invalid request data";
+  console.error(`[Validation Error] ${message}:`, error);
+  return res.status(400).json({
+    error: message,
+    details: error instanceof Error ? error.message : void 0
+  });
+}
+function handleNotFound(res, resource) {
+  return res.status(404).json({
+    error: `${resource} not found`
+  });
+}
+function handleForbidden(res, message = "Forbidden") {
+  return res.status(403).json({
+    error: message
+  });
+}
+
+// server/routes/auth.routes.ts
+function registerAuthRoutes(app2) {
+  app2.post("/api/auth/signup", async (req, res) => {
+    try {
+      const validatedData = signupSchema.parse(req.body);
+      const existingUserByEmail = await storage.getUserByEmail(validatedData.email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+      if (validatedData.username) {
+        const existingUserByUsername = await storage.getUserByUsername(validatedData.username);
+        if (existingUserByUsername) {
+          return res.status(400).json({ error: "Username already exists" });
+        }
+      }
+      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+      const user = await storage.createUser({
+        username: validatedData.username || null,
+        email: validatedData.email,
+        name: validatedData.name,
+        password: hashedPassword,
+        phone: validatedData.phone || null,
+        profileImageUrl: validatedData.profileImageUrl || null,
+        bankAccountNumber: validatedData.bankAccountNumber || null
+      });
+      const token = jwt2.sign(
+        { userId: user.id, email: user.email },
+        process.env.JWT_SECRET || "fallback-secret",
+        { expiresIn: "7d" }
+      );
+      const { password, ...userWithoutPassword } = user;
+      res.status(201).json({
+        user: userWithoutPassword,
+        token
+      });
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(400).json({ error: "Invalid signup data" });
+    }
+  });
+  app2.post("/api/auth/login", async (req, res) => {
+    try {
+      const validatedData = loginSchema.parse(req.body);
+      let user = await storage.getUserByEmail(validatedData.email);
+      if (!user) {
+        user = await storage.getUserByUsername(validatedData.email);
+      }
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      console.log(`\u26A0\uFE0F  PASSWORD CHECK DISABLED - FOR TESTING ONLY`);
+      const token = jwt2.sign(
+        { userId: user.id, email: user.email },
+        process.env.JWT_SECRET || "fallback-secret",
+        { expiresIn: "7d" }
+      );
+      const { password, ...userWithoutPassword } = user;
+      res.json({
+        user: userWithoutPassword,
+        token
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(400).json({ error: "Invalid login data" });
+    }
+  });
+  app2.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      let user = await storage.getUserByEmail(email);
+      if (!user) {
+        user = await storage.getUserByUsername(email);
+      }
+      console.log(`Password reset requested for email: ${email} (user exists: ${!!user})`);
+      if (user) {
+        const resetToken = jwt2.sign(
+          { userId: user.id, email: user.email, type: "password-reset" },
+          process.env.JWT_SECRET || "fallback-secret",
+          { expiresIn: "1h" }
+        );
+        const emailSent = await sendPasswordResetEmail({
+          email: user.email,
+          resetToken,
+          userName: user.name
+        });
+        if (!emailSent) {
+          console.error(`Failed to send password reset email to: ${email}`);
+        }
+      }
+      res.json({
+        message: "If an account with that email exists, we've sent a password reset link."
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Something went wrong" });
+    }
+  });
+  app2.post("/api/auth/webauthn/register", async (req, res) => {
+    try {
+      const { userId, credentialId, publicKey } = req.body;
+      if (!userId || !credentialId || !publicKey) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      console.log(`WebAuthn registration for user ${userId}:`, {
+        credentialId: credentialId.substring(0, 20) + "...",
+        publicKey: publicKey.substring(0, 20) + "..."
+      });
+      res.json({ success: true, message: "Biometric credential registered successfully" });
+    } catch (error) {
+      console.error("WebAuthn registration error:", error);
+      res.status(500).json({ error: "Failed to register biometric credential" });
+    }
+  });
+  app2.get("/api/auth/webauthn/credentials/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const credentials = [];
+      res.json({ credentials });
+    } catch (error) {
+      console.error("WebAuthn credentials fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch credentials" });
+    }
+  });
+  app2.post("/api/auth/webauthn/authenticate", async (req, res) => {
+    try {
+      const { credentialId, signature, userId } = req.body;
+      if (!credentialId || !signature || !userId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      console.log(`WebAuthn authentication attempt for user ${userId}:`, {
+        credentialId: credentialId.substring(0, 20) + "...",
+        signature: signature.substring(0, 20) + "..."
+      });
+      res.json({
+        success: true,
+        message: "Biometric authentication successful",
+        requiresPassword: true
+        // Indicate that password is still needed for full login
+      });
+    } catch (error) {
+      console.error("WebAuthn authentication error:", error);
+      res.status(500).json({ error: "Biometric authentication failed" });
+    }
+  });
+  app2.get("/api/profile", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      let user = await storage.getUser(userId);
+      if (!user) {
+        const contributor = await storage.getContributor(userId);
+        if (!contributor) {
+          return handleNotFound(res, "User");
+        }
+        const { password: password2, ...contributorWithoutPassword } = contributor;
+        return res.json(contributorWithoutPassword);
+      }
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      return handleError(res, error, "Failed to fetch profile");
+    }
+  });
+  const updateProfileHandler = async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      console.log("Updating profile for user:", userId);
+      console.log("Request body keys:", Object.keys(req.body));
+      if (req.body.profileImageUrl) {
+        console.log("Profile image URL length:", req.body.profileImageUrl.length);
+      }
+      const validatedData = updateProfileSchema.parse(req.body);
+      console.log("Validation passed");
+      const updatedUser = await storage.updateUserProfile(userId, validatedData);
+      if (!updatedUser) {
+        console.log("User not found:", userId);
+        return handleNotFound(res, "User");
+      }
+      console.log("Profile updated successfully");
+      const { password, ...userWithoutPassword } = updatedUser;
+      return res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Profile update error:", error);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      return handleValidationError(res, error, "Invalid profile data");
+    }
+  };
+  app2.patch("/api/profile", authenticate, updateProfileHandler);
+  app2.put("/api/profile", authenticate, updateProfileHandler);
+}
+
+// server/routes/children.routes.ts
+init_schema();
+function registerChildrenRoutes(app2) {
+  app2.get("/api/children/:parentId", async (req, res) => {
+    try {
+      const { children: children2, portfolioHoldings: portfolioHoldings2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const { sql: sql2, eq: eq2 } = await import("drizzle-orm");
+      const results = await db.select({
+        id: children2.id,
+        parentId: children2.parentId,
+        name: children2.name,
+        age: children2.age,
+        profileImageUrl: children2.profileImageUrl,
+        birthday: children2.birthday,
+        giftLinkCode: children2.giftLinkCode,
+        totalValue: sql2`COALESCE(SUM(${portfolioHoldings2.currentValue}), 0)`,
+        totalCost: sql2`COALESCE(SUM(${portfolioHoldings2.shares} * ${portfolioHoldings2.averageCost}), 0)`
+      }).from(children2).leftJoin(portfolioHoldings2, eq2(children2.id, portfolioHoldings2.childId)).where(eq2(children2.parentId, req.params.parentId)).groupBy(children2.id);
+      const enrichedChildren = results.map((child) => ({
+        ...child,
+        totalValue: parseFloat(child.totalValue),
+        totalCost: parseFloat(child.totalCost),
+        totalGain: parseFloat(child.totalValue) - parseFloat(child.totalCost)
+      }));
+      res.json(enrichedChildren);
+    } catch (error) {
+      return handleError(res, error, "Failed to fetch children");
+    }
+  });
+  app2.get("/api/children/by-id/:childId", async (req, res) => {
+    try {
+      const child = await storage.getChild(req.params.childId);
+      if (!child) {
+        return handleNotFound(res, "Child");
+      }
+      res.json(child);
+    } catch (error) {
+      return handleError(res, error, "Failed to fetch child");
+    }
+  });
+  app2.post("/api/children", async (req, res) => {
+    try {
+      const validatedData = insertChildSchema.parse(req.body);
+      const child = await storage.createChild(validatedData);
+      res.json(child);
+    } catch (error) {
+      return handleValidationError(res, error, "Invalid child data");
+    }
+  });
+  app2.patch("/api/children/:childId/profile-photo", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      const { childId } = req.params;
+      const { profileImageUrl } = req.body;
+      const child = await storage.getChild(childId);
+      if (!child) {
+        return handleNotFound(res, "Child");
+      }
+      if (child.parentId !== userId) {
+        return handleForbidden(res, "You can only update profile photos for your own children");
+      }
+      const updatedChild = await storage.updateChild(childId, { profileImageUrl });
+      res.json(updatedChild);
+    } catch (error) {
+      return handleError(res, error, "Failed to update child profile photo");
+    }
+  });
+  app2.get("/api/children/by-gift-code/:giftCode", async (req, res) => {
+    try {
+      const child = await storage.getChildByGiftCode(req.params.giftCode);
+      if (!child) {
+        return handleNotFound(res, "Child");
+      }
+      res.json(child);
+    } catch (error) {
+      return handleError(res, error, "Failed to fetch child");
+    }
+  });
+  app2.post("/api/generate-gift-link", async (req, res) => {
+    try {
+      const { childId } = req.body;
+      const child = await storage.getChild(childId);
+      if (!child) {
+        return handleNotFound(res, "Child");
+      }
+      const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "http://localhost:3000";
+      const giftLink = `${baseUrl}/gift/${child.giftLinkCode}`;
+      res.json({
+        giftLink,
+        giftCode: child.giftLinkCode,
+        childName: child.name
+      });
+    } catch (error) {
+      return handleError(res, error, "Failed to generate gift link");
+    }
+  });
+}
 
 // server/stock-api.ts
 var StockAPIService = class {
   apiKey;
   baseUrl = "https://finnhub.io/api/v1";
+  quoteCache = /* @__PURE__ */ new Map();
+  profileCache = /* @__PURE__ */ new Map();
+  searchCache = /* @__PURE__ */ new Map();
+  CACHE_TTL = 5 * 60 * 1e3;
+  // 5 minutes in milliseconds
   constructor(apiKey) {
     this.apiKey = apiKey || process.env.FINNHUB_API_KEY || "";
     if (!this.apiKey) {
@@ -727,15 +1263,28 @@ var StockAPIService = class {
     }
   }
   /**
-   * Get real-time stock quote
+   * Check if a cache entry is still valid
+   */
+  isCacheValid(entry) {
+    if (!entry) return false;
+    return Date.now() - entry.timestamp < this.CACHE_TTL;
+  }
+  /**
+   * Get real-time stock quote (with 5-minute cache)
    */
   async getQuote(symbol) {
+    const normalizedSymbol = symbol.toUpperCase();
+    const cached = this.quoteCache.get(normalizedSymbol);
+    if (this.isCacheValid(cached)) {
+      console.log(`[Stock API] Cache hit for ${normalizedSymbol}`);
+      return cached.data;
+    }
     if (!this.apiKey) {
       return this.getMockQuote(symbol);
     }
     try {
       const response = await fetch(
-        `${this.baseUrl}/quote?symbol=${symbol.toUpperCase()}&token=${this.apiKey}`
+        `${this.baseUrl}/quote?symbol=${normalizedSymbol}&token=${this.apiKey}`
       );
       if (!response.ok) {
         console.error(`Finnhub API error: ${response.status}`);
@@ -746,8 +1295,8 @@ var StockAPIService = class {
         console.warn(`No data found for symbol: ${symbol}`);
         return null;
       }
-      return {
-        symbol: symbol.toUpperCase(),
+      const quote = {
+        symbol: normalizedSymbol,
         currentPrice: data.c,
         change: data.d,
         changePercent: data.dp,
@@ -756,15 +1305,27 @@ var StockAPIService = class {
         open: data.o,
         previousClose: data.pc
       };
+      this.quoteCache.set(normalizedSymbol, {
+        data: quote,
+        timestamp: Date.now()
+      });
+      console.log(`[Stock API] Fetched and cached ${normalizedSymbol}`);
+      return quote;
     } catch (error) {
       console.error(`Error fetching quote for ${symbol}:`, error);
       return this.getMockQuote(symbol);
     }
   }
   /**
-   * Search for stocks by query
+   * Search for stocks by query (with 5-minute cache)
    */
   async searchSymbols(query) {
+    const normalizedQuery = query.toLowerCase().trim();
+    const cached = this.searchCache.get(normalizedQuery);
+    if (this.isCacheValid(cached)) {
+      console.log(`[Stock API] Search cache hit for "${normalizedQuery}"`);
+      return cached.data;
+    }
     if (!this.apiKey) {
       return this.getMockSearchResults(query);
     }
@@ -777,25 +1338,37 @@ var StockAPIService = class {
         return this.getMockSearchResults(query);
       }
       const data = await response.json();
-      return data.result.filter(
+      const results = data.result.filter(
         (result) => !result.symbol.includes(".") && // Filter out non-US stocks
         result.type === "Common Stock"
       ).slice(0, 10);
+      this.searchCache.set(normalizedQuery, {
+        data: results,
+        timestamp: Date.now()
+      });
+      console.log(`[Stock API] Searched and cached "${normalizedQuery}"`);
+      return results;
     } catch (error) {
       console.error(`Error searching symbols:`, error);
       return this.getMockSearchResults(query);
     }
   }
   /**
-   * Get company profile (includes company name)
+   * Get company profile (includes company name) - with 5-minute cache
    */
   async getCompanyProfile(symbol) {
+    const normalizedSymbol = symbol.toUpperCase();
+    const cached = this.profileCache.get(normalizedSymbol);
+    if (this.isCacheValid(cached)) {
+      console.log(`[Stock API] Profile cache hit for ${normalizedSymbol}`);
+      return cached.data;
+    }
     if (!this.apiKey) {
       return this.getMockCompanyProfile(symbol);
     }
     try {
       const response = await fetch(
-        `${this.baseUrl}/stock/profile2?symbol=${symbol.toUpperCase()}&token=${this.apiKey}`
+        `${this.baseUrl}/stock/profile2?symbol=${normalizedSymbol}&token=${this.apiKey}`
       );
       if (!response.ok) {
         console.error(`Finnhub profile API error: ${response.status}`);
@@ -805,10 +1378,16 @@ var StockAPIService = class {
       if (!data.name) {
         return null;
       }
-      return {
+      const profile = {
         name: data.name,
-        ticker: data.ticker || symbol.toUpperCase()
+        ticker: data.ticker || normalizedSymbol
       };
+      this.profileCache.set(normalizedSymbol, {
+        data: profile,
+        timestamp: Date.now()
+      });
+      console.log(`[Stock API] Fetched and cached profile for ${normalizedSymbol}`);
+      return profile;
     } catch (error) {
       console.error(`Error fetching company profile for ${symbol}:`, error);
       return this.getMockCompanyProfile(symbol);
@@ -914,245 +1493,14 @@ var StockAPIService = class {
 };
 var stockAPI = new StockAPIService();
 
-// server/routes.ts
-async function registerRoutes(app2) {
-  try {
-    mkdirSync("uploads/videos", { recursive: true });
-  } catch (err) {
-  }
-  const videoStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, "uploads/videos/");
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, "video-" + uniqueSuffix + path.extname(file.originalname));
-    }
-  });
-  const uploadVideo = multer({
-    storage: videoStorage,
-    limits: {
-      fileSize: 50 * 1024 * 1024
-      // 50MB max
-    },
-    fileFilter: (req, file, cb) => {
-      const allowedTypes = /webm|mp4|mov|avi/;
-      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype);
-      if (extname && mimetype) {
-        return cb(null, true);
-      } else {
-        cb(new Error("Only video files are allowed!"));
-      }
-    }
-  });
-  app2.post("/api/auth/signup", async (req, res) => {
-    try {
-      const validatedData = signupSchema.parse(req.body);
-      const existingUserByEmail = await storage.getUserByEmail(validatedData.email);
-      if (existingUserByEmail) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-      if (validatedData.username) {
-        const existingUserByUsername = await storage.getUserByUsername(validatedData.username);
-        if (existingUserByUsername) {
-          return res.status(400).json({ error: "Username already exists" });
-        }
-      }
-      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
-      const user = await storage.createUser({
-        username: validatedData.username || null,
-        email: validatedData.email,
-        name: validatedData.name,
-        password: hashedPassword,
-        phone: validatedData.phone || null,
-        profileImageUrl: validatedData.profileImageUrl || null,
-        bankAccountNumber: validatedData.bankAccountNumber || null
-      });
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET || "fallback-secret",
-        { expiresIn: "7d" }
-      );
-      const { password, ...userWithoutPassword } = user;
-      res.status(201).json({
-        user: userWithoutPassword,
-        token
-      });
-    } catch (error) {
-      console.error("Signup error:", error);
-      res.status(400).json({ error: "Invalid signup data" });
-    }
-  });
-  app2.post("/api/auth/login", async (req, res) => {
-    try {
-      const validatedData = loginSchema.parse(req.body);
-      let user = await storage.getUserByEmail(validatedData.email);
-      if (!user) {
-        user = await storage.getUserByUsername(validatedData.email);
-      }
-      if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-      console.log(`\u26A0\uFE0F  PASSWORD CHECK DISABLED - FOR TESTING ONLY`);
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        process.env.JWT_SECRET || "fallback-secret",
-        { expiresIn: "7d" }
-      );
-      const { password, ...userWithoutPassword } = user;
-      res.json({
-        user: userWithoutPassword,
-        token
-      });
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(400).json({ error: "Invalid login data" });
-    }
-  });
-  app2.get("/api/profile", async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
-      let user = await storage.getUser(decoded.userId);
-      if (!user) {
-        const contributor = await storage.getContributor(decoded.userId);
-        if (!contributor) {
-          return res.status(404).json({ error: "User not found" });
-        }
-        const { password: password2, ...contributorWithoutPassword } = contributor;
-        return res.json(contributorWithoutPassword);
-      }
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Profile fetch error:", error);
-      res.status(401).json({ error: "Invalid token" });
-    }
-  });
-  const updateProfileHandler = async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        console.log("No token provided");
-        return res.status(401).json({ error: "No token provided" });
-      }
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
-      console.log("Updating profile for user:", decoded.userId);
-      console.log("Request body keys:", Object.keys(req.body));
-      if (req.body.profileImageUrl) {
-        console.log("Profile image URL length:", req.body.profileImageUrl.length);
-      }
-      const validatedData = updateProfileSchema.parse(req.body);
-      console.log("Validation passed");
-      const updatedUser = await storage.updateUserProfile(decoded.userId, validatedData);
-      if (!updatedUser) {
-        console.log("User not found:", decoded.userId);
-        return res.status(404).json({ error: "User not found" });
-      }
-      console.log("Profile updated successfully");
-      const { password, ...userWithoutPassword } = updatedUser;
-      return res.json(userWithoutPassword);
-    } catch (error) {
-      console.error("Profile update error:", error);
-      if (error instanceof Error) {
-        console.error("Error message:", error.message);
-        console.error("Error stack:", error.stack);
-      }
-      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid profile data" });
-    }
-  };
-  app2.patch("/api/profile", updateProfileHandler);
-  app2.put("/api/profile", updateProfileHandler);
-  app2.get("/api/children/:parentId", async (req, res) => {
-    try {
-      const children2 = await storage.getChildrenByParent(req.params.parentId);
-      const enrichedChildren = await Promise.all(
-        children2.map(async (child) => {
-          const holdings = await storage.getPortfolioHoldingsByChild(child.id);
-          const totalValue = holdings.reduce((sum, holding) => {
-            return sum + parseFloat(holding.currentValue || "0");
-          }, 0);
-          const totalCost = holdings.reduce((sum, holding) => {
-            return sum + parseFloat(holding.shares || "0") * parseFloat(holding.averageCost || "0");
-          }, 0);
-          const totalGain = totalValue - totalCost;
-          return {
-            ...child,
-            totalValue,
-            totalCost,
-            totalGain
-          };
-        })
-      );
-      res.json(enrichedChildren);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch children" });
-    }
-  });
-  app2.get("/api/children/by-id/:childId", async (req, res) => {
-    try {
-      const child = await storage.getChild(req.params.childId);
-      if (!child) {
-        return res.status(404).json({ error: "Child not found" });
-      }
-      res.json(child);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch child" });
-    }
-  });
-  app2.post("/api/children", async (req, res) => {
-    try {
-      const validatedData = insertChildSchema.parse(req.body);
-      const child = await storage.createChild(validatedData);
-      res.json(child);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid child data" });
-    }
-  });
-  app2.patch("/api/children/:childId/profile-photo", async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
-      const userId = decoded.userId;
-      const { childId } = req.params;
-      const { profileImageUrl } = req.body;
-      const child = await storage.getChild(childId);
-      if (!child) {
-        return res.status(404).json({ error: "Child not found" });
-      }
-      if (child.parentId !== userId) {
-        return res.status(403).json({ error: "You can only update profile photos for your own children" });
-      }
-      const updatedChild = await storage.updateChild(childId, { profileImageUrl });
-      res.json(updatedChild);
-    } catch (error) {
-      console.error("Error updating child profile photo:", error);
-      res.status(500).json({ error: "Failed to update child profile photo" });
-    }
-  });
-  app2.get("/api/children/by-gift-code/:giftCode", async (req, res) => {
-    try {
-      const child = await storage.getChildByGiftCode(req.params.giftCode);
-      if (!child) {
-        return res.status(404).json({ error: "Child not found" });
-      }
-      res.json(child);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch child" });
-    }
-  });
+// server/routes/portfolio.routes.ts
+function registerPortfolioRoutes(app2) {
   app2.get("/api/investments", async (req, res) => {
     try {
       const investments2 = await storage.getAllInvestments();
       res.json(investments2);
     } catch (error) {
+      console.error("Failed to fetch investments:", error);
       res.status(500).json({ error: "Failed to fetch investments" });
     }
   });
@@ -1241,293 +1589,50 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/portfolio/:childId", async (req, res) => {
     try {
-      const holdings = await storage.getPortfolioHoldingsByChild(req.params.childId);
-      const enrichedHoldings = await Promise.all(
-        holdings.map(async (holding) => {
-          const investment = await storage.getInvestment(holding.investmentId);
-          if (!investment) {
-            console.error(`[Portfolio] ERROR: Holding ${holding.id} references investmentId ${holding.investmentId} but investment not found in database!`);
-          }
-          return { ...holding, investment };
-        })
-      );
+      const { portfolioHoldings: portfolioHoldings2, investments: investments2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const { eq: eq2 } = await import("drizzle-orm");
+      const results = await db.select({
+        // Holding fields
+        id: portfolioHoldings2.id,
+        childId: portfolioHoldings2.childId,
+        investmentId: portfolioHoldings2.investmentId,
+        shares: portfolioHoldings2.shares,
+        averageCost: portfolioHoldings2.averageCost,
+        currentValue: portfolioHoldings2.currentValue,
+        // Investment fields
+        investmentSymbol: investments2.symbol,
+        investmentName: investments2.name,
+        investmentType: investments2.type,
+        investmentCurrentPrice: investments2.currentPrice,
+        investmentYtdReturn: investments2.ytdReturn
+      }).from(portfolioHoldings2).leftJoin(investments2, eq2(portfolioHoldings2.investmentId, investments2.id)).where(eq2(portfolioHoldings2.childId, req.params.childId));
+      const enrichedHoldings = results.map((row) => {
+        if (!row.investmentSymbol) {
+          console.error(`[Portfolio] ERROR: Holding ${row.id} references investmentId ${row.investmentId} but investment not found in database!`);
+        }
+        return {
+          id: row.id,
+          childId: row.childId,
+          investmentId: row.investmentId,
+          shares: row.shares,
+          averageCost: row.averageCost,
+          currentValue: row.currentValue,
+          investment: row.investmentSymbol ? {
+            id: row.investmentId,
+            symbol: row.investmentSymbol,
+            name: row.investmentName,
+            type: row.investmentType,
+            currentPrice: row.investmentCurrentPrice,
+            ytdReturn: row.investmentYtdReturn
+          } : null
+        };
+      });
       res.json(enrichedHoldings);
     } catch (error) {
+      console.error("Failed to fetch portfolio:", error);
       res.status(500).json({ error: "Failed to fetch portfolio" });
     }
   });
-  app2.get("/api/gifts/:childId", async (req, res) => {
-    try {
-      const gifts2 = await storage.getGiftsByChild(req.params.childId);
-      const enrichedGifts = await Promise.all(
-        gifts2.map(async (gift) => {
-          const investment = await storage.getInvestment(gift.investmentId);
-          let contributor = null;
-          if (gift.contributorId) {
-            contributor = await storage.getContributor(gift.contributorId);
-            if (!contributor) {
-              const user = await storage.getUser(gift.contributorId);
-              if (user) {
-                contributor = {
-                  id: user.id,
-                  name: user.name,
-                  email: user.email,
-                  profileImageUrl: user.profileImageUrl,
-                  phone: null,
-                  password: null,
-                  isRegistered: true,
-                  createdAt: /* @__PURE__ */ new Date()
-                  // Users don't have createdAt, use current date
-                };
-              }
-            }
-          }
-          return { ...gift, investment, contributor };
-        })
-      );
-      res.json(enrichedGifts);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch gifts" });
-    }
-  });
-  app2.get("/api/gifts/recent/:childId", async (req, res) => {
-    try {
-      const limit = parseInt(req.query.limit) || 5;
-      const gifts2 = await storage.getRecentGiftsByChild(req.params.childId, limit);
-      const enrichedGifts = await Promise.all(
-        gifts2.map(async (gift) => {
-          const investment = await storage.getInvestment(gift.investmentId);
-          let contributor = null;
-          if (gift.contributorId) {
-            contributor = await storage.getContributor(gift.contributorId);
-            if (!contributor) {
-              const user = await storage.getUser(gift.contributorId);
-              if (user) {
-                contributor = {
-                  id: user.id,
-                  name: user.name,
-                  email: user.email,
-                  profileImageUrl: user.profileImageUrl,
-                  phone: null,
-                  password: null,
-                  isRegistered: true,
-                  createdAt: /* @__PURE__ */ new Date()
-                  // Users don't have createdAt, use current date
-                };
-              }
-            }
-          }
-          return { ...gift, investment, contributor };
-        })
-      );
-      res.json(enrichedGifts);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch recent gifts" });
-    }
-  });
-  app2.post("/api/gifts", async (req, res) => {
-    try {
-      const validatedData = insertGiftSchema.parse(req.body);
-      let investmentId = validatedData.investmentId;
-      let investment = await storage.getInvestment(investmentId);
-      if (!investment && investmentId.startsWith("temp-")) {
-        const symbol = investmentId.replace("temp-", "");
-        const quote = await stockAPI.getQuote(symbol);
-        const profile = await stockAPI.getCompanyProfile(symbol);
-        if (!quote || !profile) {
-          return res.status(404).json({ error: "Could not fetch investment data" });
-        }
-        let investmentType = "stock";
-        if (symbol.match(/^(SPY|VOO|VTI|QQQ|IWM|EEM|VIG|AGG|BND|GLD|SLV|XL[A-Z])/)) {
-          investmentType = "etf";
-        } else if (symbol.match(/^(BTC|ETH|DOGE|SOL|ADA)/)) {
-          investmentType = "crypto";
-        }
-        investment = await storage.createInvestment({
-          symbol,
-          name: profile.name,
-          type: investmentType,
-          currentPrice: quote.currentPrice.toFixed(2),
-          ytdReturn: quote.changePercent.toFixed(2)
-        });
-        investmentId = investment.id;
-      }
-      if (!investment) {
-        return res.status(404).json({ error: "Investment not found" });
-      }
-      const shares = parseFloat(validatedData.amount) / parseFloat(investment.currentPrice);
-      const giftData = { ...validatedData, investmentId, shares: shares.toFixed(6) };
-      const child = await storage.getChild(validatedData.childId);
-      const isParentPurchase = child && validatedData.contributorId && child.parentId === validatedData.contributorId;
-      const gift = await storage.createGift(giftData);
-      if (isParentPurchase) {
-        await storage.approveGift(gift.id);
-        const existingHolding = await storage.getPortfolioHoldingByInvestment(
-          validatedData.childId,
-          investmentId
-          // Use the updated investmentId, not validatedData.investmentId
-        );
-        if (existingHolding) {
-          const newShares = parseFloat(existingHolding.shares) + shares;
-          const newValue = newShares * parseFloat(investment.currentPrice);
-          const totalCost = parseFloat(existingHolding.shares) * parseFloat(existingHolding.averageCost) + parseFloat(validatedData.amount);
-          const newAverageCost = totalCost / newShares;
-          await storage.updatePortfolioHolding(existingHolding.id, {
-            shares: newShares.toFixed(6),
-            averageCost: newAverageCost.toFixed(2),
-            currentValue: newValue.toFixed(2)
-          });
-        } else {
-          await storage.createPortfolioHolding({
-            childId: validatedData.childId,
-            investmentId,
-            // Use the updated investmentId, not validatedData.investmentId
-            shares: shares.toFixed(6),
-            averageCost: investment.currentPrice,
-            currentValue: validatedData.amount
-          });
-        }
-      }
-      res.json(gift);
-    } catch (error) {
-      console.error("Gift creation error:", error);
-      res.status(400).json({ error: "Invalid gift data" });
-    }
-  });
-  app2.patch("/api/gifts/:id/viewed", async (req, res) => {
-    try {
-      await storage.markGiftAsViewed(req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to mark gift as viewed" });
-    }
-  });
-  app2.patch("/api/gifts/:id/approve", async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-      let decoded;
-      try {
-        decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
-      } catch (jwtError) {
-        return res.status(401).json({ error: "Invalid token" });
-      }
-      const gift = await storage.getGift(req.params.id);
-      if (!gift) {
-        return res.status(404).json({ error: "Gift not found" });
-      }
-      const child = await storage.getChild(gift.childId);
-      if (!child || child.parentId !== decoded.userId) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
-      await storage.approveGift(req.params.id);
-      const investment = await storage.getInvestment(gift.investmentId);
-      if (!investment) {
-        return res.status(404).json({ error: "Investment not found" });
-      }
-      const existingHoldings = await storage.getPortfolioHoldingsByChild(gift.childId);
-      const existingHolding = existingHoldings.find((h) => h.investmentId === gift.investmentId);
-      const giftShares = parseFloat(gift.shares);
-      const giftAmount = parseFloat(gift.amount);
-      if (existingHolding) {
-        const newShares = parseFloat(existingHolding.shares) + giftShares;
-        const newTotalCost = parseFloat(existingHolding.averageCost) * parseFloat(existingHolding.shares) + giftAmount;
-        const newAverageCost = newTotalCost / newShares;
-        const newCurrentValue = newShares * parseFloat(investment.currentPrice);
-        await storage.updatePortfolioHolding(existingHolding.id, {
-          shares: newShares.toFixed(6),
-          averageCost: newAverageCost.toFixed(2),
-          currentValue: newCurrentValue.toFixed(2)
-        });
-      } else {
-        await storage.createPortfolioHolding({
-          childId: gift.childId,
-          investmentId: gift.investmentId,
-          shares: gift.shares,
-          averageCost: investment.currentPrice,
-          currentValue: gift.amount
-        });
-      }
-      res.json({ success: true, message: "Gift approved and added to portfolio" });
-    } catch (error) {
-      console.error("Gift approval error:", error);
-      res.status(500).json({
-        error: error.message || "Failed to approve gift"
-      });
-    }
-  });
-  app2.patch("/api/gifts/:id/reject", async (req, res) => {
-    try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-      }
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
-      const gift = await storage.getGift(req.params.id);
-      if (!gift) {
-        return res.status(404).json({ error: "Gift not found" });
-      }
-      const child = await storage.getChild(gift.childId);
-      if (!child || child.parentId !== decoded.userId) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
-      await storage.rejectGift(req.params.id);
-      res.json({ success: true, message: "Gift rejected" });
-    } catch (error) {
-      console.error("Gift rejection error:", error);
-      res.status(500).json({ error: "Failed to reject gift" });
-    }
-  });
-  app2.post("/api/thank-you", async (req, res) => {
-    try {
-      const validatedData = insertThankYouMessageSchema.parse(req.body);
-      const message = await storage.createThankYouMessage(validatedData);
-      res.json(message);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid thank you message data" });
-    }
-  });
-  app2.get("/api/thank-you/:giftId", async (req, res) => {
-    try {
-      const messages = await storage.getThankYouMessagesByGift(req.params.giftId);
-      res.json(messages);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch thank you messages" });
-    }
-  });
-  app2.post("/api/generate-gift-link", async (req, res) => {
-    try {
-      const { childId } = req.body;
-      const child = await storage.getChild(childId);
-      if (!child) {
-        return res.status(404).json({ error: "Child not found" });
-      }
-      const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "http://localhost:3000";
-      const giftLink = `${baseUrl}/gift/${child.giftLinkCode}`;
-      res.json({
-        giftLink,
-        giftCode: child.giftLinkCode,
-        childName: child.name
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to generate gift link" });
-    }
-  });
-  app2.post("/api/upload-video", uploadVideo.single("video"), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No video file provided" });
-      }
-      const videoUrl = `/uploads/videos/${req.file.filename}`;
-      res.json({ videoUrl });
-    } catch (error) {
-      console.error("Video upload error:", error);
-      res.status(500).json({ error: "Failed to upload video" });
-    }
-  });
-  app2.use("/uploads", express.static("uploads"));
   app2.get("/api/logo/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
@@ -1642,17 +1747,411 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to fetch logo" });
     }
   });
-  app2.post("/api/sprout-requests", async (req, res) => {
+}
+
+// server/routes/gifts.routes.ts
+init_schema();
+function registerGiftRoutes(app2) {
+  async function getEnrichedGifts(childId, limit) {
+    const { gifts: gifts2, investments: investments2, contributors: contributors2, users: users2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+    const { desc: desc2, eq: eq2 } = await import("drizzle-orm");
+    let query = db.select({
+      // Gift fields
+      id: gifts2.id,
+      childId: gifts2.childId,
+      contributorId: gifts2.contributorId,
+      giftGiverName: gifts2.giftGiverName,
+      giftGiverEmail: gifts2.giftGiverEmail,
+      giftGiverProfileImageUrl: gifts2.giftGiverProfileImageUrl,
+      investmentId: gifts2.investmentId,
+      amount: gifts2.amount,
+      shares: gifts2.shares,
+      message: gifts2.message,
+      videoMessageUrl: gifts2.videoMessageUrl,
+      createdAt: gifts2.createdAt,
+      isViewed: gifts2.isViewed,
+      thankYouSent: gifts2.thankYouSent,
+      status: gifts2.status,
+      reviewedAt: gifts2.reviewedAt,
+      // Investment fields
+      investmentSymbol: investments2.symbol,
+      investmentName: investments2.name,
+      investmentType: investments2.type,
+      investmentCurrentPrice: investments2.currentPrice,
+      investmentYtdReturn: investments2.ytdReturn,
+      // Contributor fields
+      contributorName: contributors2.name,
+      contributorEmail: contributors2.email,
+      contributorProfileImageUrl: contributors2.profileImageUrl,
+      contributorIsRegistered: contributors2.isRegistered,
+      contributorCreatedAt: contributors2.createdAt,
+      // User fields (for parent purchases)
+      userName: users2.name,
+      userEmail: users2.email,
+      userProfileImageUrl: users2.profileImageUrl
+    }).from(gifts2).leftJoin(investments2, eq2(gifts2.investmentId, investments2.id)).leftJoin(contributors2, eq2(gifts2.contributorId, contributors2.id)).leftJoin(users2, eq2(gifts2.contributorId, users2.id)).where(eq2(gifts2.childId, childId)).orderBy(desc2(gifts2.createdAt));
+    if (limit) {
+      query = query.limit(limit);
+    }
+    const results = await query;
+    return results.map((row) => ({
+      id: row.id,
+      childId: row.childId,
+      contributorId: row.contributorId,
+      giftGiverName: row.giftGiverName,
+      giftGiverEmail: row.giftGiverEmail,
+      giftGiverProfileImageUrl: row.giftGiverProfileImageUrl,
+      investmentId: row.investmentId,
+      amount: row.amount,
+      shares: row.shares,
+      message: row.message,
+      videoMessageUrl: row.videoMessageUrl,
+      createdAt: row.createdAt,
+      isViewed: row.isViewed,
+      thankYouSent: row.thankYouSent,
+      status: row.status,
+      reviewedAt: row.reviewedAt,
+      investment: row.investmentSymbol ? {
+        id: row.investmentId,
+        symbol: row.investmentSymbol,
+        name: row.investmentName,
+        type: row.investmentType,
+        currentPrice: row.investmentCurrentPrice,
+        ytdReturn: row.investmentYtdReturn
+      } : null,
+      contributor: row.contributorName ? {
+        id: row.contributorId,
+        name: row.contributorName,
+        email: row.contributorEmail,
+        profileImageUrl: row.contributorProfileImageUrl,
+        phone: null,
+        password: null,
+        isRegistered: row.contributorIsRegistered,
+        createdAt: row.contributorCreatedAt
+      } : row.userName ? {
+        // Parent purchase - user instead of contributor
+        id: row.contributorId,
+        name: row.userName,
+        email: row.userEmail,
+        profileImageUrl: row.userProfileImageUrl,
+        phone: null,
+        password: null,
+        isRegistered: true,
+        createdAt: /* @__PURE__ */ new Date()
+      } : null
+    }));
+  }
+  app2.get("/api/gifts/:childId", async (req, res) => {
     try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) {
-        return res.status(401).json({ error: "No token provided" });
+      const enrichedGifts = await getEnrichedGifts(req.params.childId);
+      res.json(enrichedGifts);
+    } catch (error) {
+      console.error("Failed to fetch gifts:", error);
+      res.status(500).json({ error: "Failed to fetch gifts" });
+    }
+  });
+  app2.get("/api/gifts/recent/:childId", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit) || 5;
+      const enrichedGifts = await getEnrichedGifts(req.params.childId, limit);
+      res.json(enrichedGifts);
+    } catch (error) {
+      console.error("Failed to fetch recent gifts:", error);
+      res.status(500).json({ error: "Failed to fetch recent gifts" });
+    }
+  });
+  app2.post("/api/gifts", async (req, res) => {
+    try {
+      const validatedData = insertGiftSchema.parse(req.body);
+      let investmentId = validatedData.investmentId;
+      let investment = await storage.getInvestment(investmentId);
+      if (!investment && investmentId.startsWith("temp-")) {
+        const symbol = investmentId.replace("temp-", "");
+        const quote = await stockAPI.getQuote(symbol);
+        const profile = await stockAPI.getCompanyProfile(symbol);
+        if (!quote || !profile) {
+          return res.status(404).json({ error: "Could not fetch investment data" });
+        }
+        let investmentType = "stock";
+        if (symbol.match(/^(SPY|VOO|VTI|QQQ|IWM|EEM|VIG|AGG|BND|GLD|SLV|XL[A-Z])/)) {
+          investmentType = "etf";
+        } else if (symbol.match(/^(BTC|ETH|DOGE|SOL|ADA)/)) {
+          investmentType = "crypto";
+        }
+        investment = await storage.createInvestment({
+          symbol,
+          name: profile.name,
+          type: investmentType,
+          currentPrice: quote.currentPrice.toFixed(2),
+          ytdReturn: quote.changePercent.toFixed(2)
+        });
+        investmentId = investment.id;
       }
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
+      if (!investment) {
+        return res.status(404).json({ error: "Investment not found" });
+      }
+      const shares = parseFloat(validatedData.amount) / parseFloat(investment.currentPrice);
+      const giftData = { ...validatedData, investmentId, shares: shares.toFixed(6) };
+      const child = await storage.getChild(validatedData.childId);
+      const isParentPurchase = child && validatedData.contributorId && child.parentId === validatedData.contributorId;
+      const gift = await storage.createGift(giftData);
+      if (isParentPurchase) {
+        await storage.approveGift(gift.id);
+        const existingHolding = await storage.getPortfolioHoldingByInvestment(
+          validatedData.childId,
+          investmentId
+          // Use the updated investmentId, not validatedData.investmentId
+        );
+        if (existingHolding) {
+          const newShares = parseFloat(existingHolding.shares) + shares;
+          const newValue = newShares * parseFloat(investment.currentPrice);
+          const totalCost = parseFloat(existingHolding.shares) * parseFloat(existingHolding.averageCost) + parseFloat(validatedData.amount);
+          const newAverageCost = totalCost / newShares;
+          await storage.updatePortfolioHolding(existingHolding.id, {
+            shares: newShares.toFixed(6),
+            averageCost: newAverageCost.toFixed(2),
+            currentValue: newValue.toFixed(2)
+          });
+        } else {
+          await storage.createPortfolioHolding({
+            childId: validatedData.childId,
+            investmentId,
+            // Use the updated investmentId, not validatedData.investmentId
+            shares: shares.toFixed(6),
+            averageCost: investment.currentPrice,
+            currentValue: validatedData.amount
+          });
+        }
+      }
+      res.json(gift);
+    } catch (error) {
+      console.error("Gift creation error:", error);
+      res.status(400).json({ error: "Invalid gift data" });
+    }
+  });
+  app2.patch("/api/gifts/:id/viewed", async (req, res) => {
+    try {
+      await storage.markGiftAsViewed(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to mark gift as viewed:", error);
+      res.status(500).json({ error: "Failed to mark gift as viewed" });
+    }
+  });
+  app2.patch("/api/gifts/:id/approve", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      const gift = await storage.getGift(req.params.id);
+      if (!gift) {
+        return handleNotFound(res, "Gift");
+      }
+      const child = await storage.getChild(gift.childId);
+      if (!child || child.parentId !== userId) {
+        return handleForbidden(res, "You can only approve gifts for your own children");
+      }
+      await storage.approveGift(req.params.id);
+      const investment = await storage.getInvestment(gift.investmentId);
+      if (!investment) {
+        return handleNotFound(res, "Investment");
+      }
+      const existingHoldings = await storage.getPortfolioHoldingsByChild(gift.childId);
+      const existingHolding = existingHoldings.find((h) => h.investmentId === gift.investmentId);
+      const giftShares = parseFloat(gift.shares);
+      const giftAmount = parseFloat(gift.amount);
+      if (existingHolding) {
+        const newShares = parseFloat(existingHolding.shares) + giftShares;
+        const newTotalCost = parseFloat(existingHolding.averageCost) * parseFloat(existingHolding.shares) + giftAmount;
+        const newAverageCost = newTotalCost / newShares;
+        const newCurrentValue = newShares * parseFloat(investment.currentPrice);
+        await storage.updatePortfolioHolding(existingHolding.id, {
+          shares: newShares.toFixed(6),
+          averageCost: newAverageCost.toFixed(2),
+          currentValue: newCurrentValue.toFixed(2)
+        });
+      } else {
+        await storage.createPortfolioHolding({
+          childId: gift.childId,
+          investmentId: gift.investmentId,
+          shares: gift.shares,
+          averageCost: investment.currentPrice,
+          currentValue: gift.amount
+        });
+      }
+      res.json({ success: true, message: "Gift approved and added to portfolio" });
+    } catch (error) {
+      return handleError(res, error, "Failed to approve gift");
+    }
+  });
+  app2.patch("/api/gifts/:id/reject", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      const gift = await storage.getGift(req.params.id);
+      if (!gift) {
+        return handleNotFound(res, "Gift");
+      }
+      const child = await storage.getChild(gift.childId);
+      if (!child || child.parentId !== userId) {
+        return handleForbidden(res, "You can only reject gifts for your own children");
+      }
+      await storage.rejectGift(req.params.id);
+      res.json({ success: true, message: "Gift rejected" });
+    } catch (error) {
+      return handleError(res, error, "Failed to reject gift");
+    }
+  });
+  app2.post("/api/thank-you", async (req, res) => {
+    try {
+      const validatedData = insertThankYouMessageSchema.parse(req.body);
+      const message = await storage.createThankYouMessage(validatedData);
+      res.json(message);
+    } catch (error) {
+      console.error("Failed to create thank you message:", error);
+      res.status(400).json({ error: "Invalid thank you message data" });
+    }
+  });
+  app2.get("/api/thank-you/:giftId", async (req, res) => {
+    try {
+      const messages = await storage.getThankYouMessagesByGift(req.params.giftId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Failed to fetch thank you messages:", error);
+      res.status(500).json({ error: "Failed to fetch thank you messages" });
+    }
+  });
+}
+
+// server/routes/contributors.routes.ts
+import bcrypt2 from "bcryptjs";
+import jwt3 from "jsonwebtoken";
+function registerContributorRoutes(app2) {
+  app2.post("/api/contributors/signup", async (req, res) => {
+    try {
+      const { email, name, password, phone, profileImageUrl, sproutRequestCode } = req.body;
+      const existingContributor = await storage.getContributorByEmail(email);
+      if (existingContributor && existingContributor.isRegistered) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+      const hashedPassword = await bcrypt2.hash(password, 10);
+      let contributor;
+      if (existingContributor) {
+        contributor = await storage.updateContributor(existingContributor.id, {
+          password: hashedPassword,
+          isRegistered: true,
+          name: name || existingContributor.name,
+          profileImageUrl: profileImageUrl || existingContributor.profileImageUrl
+        });
+      } else {
+        contributor = await storage.createContributor({
+          email,
+          name,
+          password: hashedPassword,
+          phone: phone || null,
+          profileImageUrl: profileImageUrl || null,
+          isRegistered: true
+        });
+      }
+      if (contributor) {
+        await storage.linkGiftsToContributor(email, contributor.id);
+      }
+      if (sproutRequestCode) {
+        const sproutRequest = await storage.getSproutRequestByCode(sproutRequestCode);
+        if (sproutRequest) {
+          await storage.updateSproutRequestStatus(sproutRequest.id, "accepted");
+        }
+      }
+      const token = jwt3.sign(
+        { userId: contributor?.id, email: contributor?.email },
+        process.env.JWT_SECRET || "fallback-secret",
+        { expiresIn: "7d" }
+      );
+      const { password: _, ...contributorWithoutPassword } = contributor || {};
+      res.status(201).json({
+        contributor: contributorWithoutPassword,
+        user: contributorWithoutPassword,
+        // Also return as 'user' for compatibility
+        token
+      });
+    } catch (error) {
+      console.error("Contributor signup error:", error);
+      res.status(400).json({ error: "Failed to sign up contributor" });
+    }
+  });
+  app2.post("/api/contributors/signin", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+      const contributor = await storage.getContributorByEmail(email);
+      if (!contributor) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      console.log("\u26A0\uFE0F  PASSWORD AND REGISTRATION CHECKS DISABLED - FOR TESTING ONLY");
+      await storage.linkGiftsToContributor(email, contributor.id);
+      const token = jwt3.sign(
+        { userId: contributor.id, email: contributor.email },
+        process.env.JWT_SECRET || "fallback-secret",
+        { expiresIn: "7d" }
+      );
+      const { password: _, ...contributorWithoutPassword } = contributor;
+      res.json({
+        contributor: contributorWithoutPassword,
+        user: contributorWithoutPassword,
+        // Also return as 'user' for compatibility
+        token
+      });
+    } catch (error) {
+      console.error("Contributor signin error:", error);
+      res.status(500).json({ error: "Failed to sign in" });
+    }
+  });
+  app2.get("/api/contributors/:id/gifts", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      const { id } = req.params;
+      if (userId !== id) {
+        return handleForbidden(res, "You can only view your own gifts");
+      }
+      const gifts2 = await storage.getGiftsByContributor(id);
+      res.json(gifts2);
+    } catch (error) {
+      return handleError(res, error, "Failed to fetch contributor gifts");
+    }
+  });
+  app2.patch("/api/contributors/:id/profile-photo", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      const { id } = req.params;
+      const { profileImageUrl } = req.body;
+      if (!profileImageUrl) {
+        return handleValidationError(res, new Error("Profile image URL is required"));
+      }
+      if (userId !== id) {
+        return handleForbidden(res, "You can only update your own profile");
+      }
+      const updatedContributor = await storage.updateContributor(id, {
+        profileImageUrl
+      });
+      if (!updatedContributor) {
+        return handleNotFound(res, "Contributor");
+      }
+      res.json(updatedContributor);
+    } catch (error) {
+      return handleError(res, error, "Failed to update profile photo");
+    }
+  });
+}
+
+// server/routes/sprout.routes.ts
+init_schema();
+function registerSproutRoutes(app2) {
+  app2.post("/api/sprout-requests", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
       const validatedData = createSproutRequestSchema.parse(req.body);
       const sproutRequest = await storage.createSproutRequest({
         ...validatedData,
-        parentId: decoded.userId,
+        parentId: userId,
         status: "pending"
       });
       const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "http://localhost:3000";
@@ -1665,8 +2164,7 @@ async function registerRoutes(app2) {
         message: "Sprout request created successfully"
       });
     } catch (error) {
-      console.error("Sprout request error:", error);
-      res.status(400).json({ error: "Failed to create sprout request" });
+      return handleValidationError(res, error, "Failed to create sprout request");
     }
   });
   app2.get("/api/sprout-requests/parent/:parentId", async (req, res) => {
@@ -1674,7 +2172,7 @@ async function registerRoutes(app2) {
       const requests = await storage.getSproutRequestsByParent(req.params.parentId);
       res.json(requests);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch sprout requests" });
+      return handleError(res, error, "Failed to fetch sprout requests");
     }
   });
   app2.get("/api/sprout-requests/code/:code", async (req, res) => {
@@ -1689,6 +2187,7 @@ async function registerRoutes(app2) {
         child
       });
     } catch (error) {
+      console.error("Failed to fetch sprout request:", error);
       res.status(500).json({ error: "Failed to fetch sprout request" });
     }
   });
@@ -1698,6 +2197,7 @@ async function registerRoutes(app2) {
       await storage.updateSproutRequestStatus(req.params.id, status);
       res.json({ success: true });
     } catch (error) {
+      console.error("Failed to update sprout request:", error);
       res.status(500).json({ error: "Failed to update sprout request" });
     }
   });
@@ -1729,15 +2229,54 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/recurring-contributions/child/:childId", async (req, res) => {
     try {
-      const contributions = await storage.getRecurringContributionsByChild(req.params.childId);
-      const enrichedContributions = await Promise.all(
-        contributions.map(async (contrib) => {
-          const investment = await storage.getInvestment(contrib.investmentId);
-          return { ...contrib, investment };
-        })
-      );
+      const { recurringContributions: recurringContributions2, investments: investments2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const { desc: desc2, eq: eq2 } = await import("drizzle-orm");
+      const results = await db.select({
+        // Contribution fields
+        id: recurringContributions2.id,
+        childId: recurringContributions2.childId,
+        contributorId: recurringContributions2.contributorId,
+        contributorEmail: recurringContributions2.contributorEmail,
+        contributorName: recurringContributions2.contributorName,
+        investmentId: recurringContributions2.investmentId,
+        amount: recurringContributions2.amount,
+        frequency: recurringContributions2.frequency,
+        isActive: recurringContributions2.isActive,
+        nextContributionDate: recurringContributions2.nextContributionDate,
+        lastContributionDate: recurringContributions2.lastContributionDate,
+        createdAt: recurringContributions2.createdAt,
+        // Investment fields
+        investmentSymbol: investments2.symbol,
+        investmentName: investments2.name,
+        investmentType: investments2.type,
+        investmentCurrentPrice: investments2.currentPrice,
+        investmentYtdReturn: investments2.ytdReturn
+      }).from(recurringContributions2).leftJoin(investments2, eq2(recurringContributions2.investmentId, investments2.id)).where(eq2(recurringContributions2.childId, req.params.childId)).orderBy(desc2(recurringContributions2.createdAt));
+      const enrichedContributions = results.map((row) => ({
+        id: row.id,
+        childId: row.childId,
+        contributorId: row.contributorId,
+        contributorEmail: row.contributorEmail,
+        contributorName: row.contributorName,
+        investmentId: row.investmentId,
+        amount: row.amount,
+        frequency: row.frequency,
+        isActive: row.isActive,
+        nextContributionDate: row.nextContributionDate,
+        lastContributionDate: row.lastContributionDate,
+        createdAt: row.createdAt,
+        investment: row.investmentSymbol ? {
+          id: row.investmentId,
+          symbol: row.investmentSymbol,
+          name: row.investmentName,
+          type: row.investmentType,
+          currentPrice: row.investmentCurrentPrice,
+          ytdReturn: row.investmentYtdReturn
+        } : null
+      }));
       res.json(enrichedContributions);
     } catch (error) {
+      console.error("Failed to fetch recurring contributions:", error);
       res.status(500).json({ error: "Failed to fetch recurring contributions" });
     }
   });
@@ -1746,9 +2285,61 @@ async function registerRoutes(app2) {
       await storage.cancelRecurringContribution(req.params.id);
       res.json({ success: true, message: "Recurring contribution cancelled" });
     } catch (error) {
+      console.error("Failed to cancel recurring contribution:", error);
       res.status(500).json({ error: "Failed to cancel recurring contribution" });
     }
   });
+}
+
+// server/routes/misc.routes.ts
+import express from "express";
+import multer from "multer";
+import path from "path";
+import { mkdirSync } from "fs";
+function registerMiscRoutes(app2) {
+  try {
+    mkdirSync("uploads/videos", { recursive: true });
+  } catch (err) {
+  }
+  const videoStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, "uploads/videos/");
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, "video-" + uniqueSuffix + path.extname(file.originalname));
+    }
+  });
+  const uploadVideo = multer({
+    storage: videoStorage,
+    limits: {
+      fileSize: 50 * 1024 * 1024
+      // 50MB max
+    },
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = /webm|mp4|mov|avi/;
+      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+      const mimetype = allowedTypes.test(file.mimetype);
+      if (extname && mimetype) {
+        return cb(null, true);
+      } else {
+        cb(new Error("Only video files are allowed!"));
+      }
+    }
+  });
+  app2.post("/api/upload-video", uploadVideo.single("video"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No video file provided" });
+      }
+      const videoUrl = `/uploads/videos/${req.file.filename}`;
+      res.json({ videoUrl });
+    } catch (error) {
+      console.error("Video upload error:", error);
+      res.status(500).json({ error: "Failed to upload video" });
+    }
+  });
+  app2.use("/uploads", express.static("uploads"));
   app2.post("/api/test/cleanup-broken-holdings/:childId", async (req, res) => {
     try {
       const { childId } = req.params;
@@ -1775,7 +2366,8 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/test/contributors", async (req, res) => {
     try {
-      const allContributors = await db.select().from(contributors);
+      const { contributors: contributors2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const allContributors = await db.select().from(contributors2);
       res.json({
         count: allContributors.length,
         contributors: allContributors.map((c) => ({
@@ -1820,142 +2412,17 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "Failed to create test contributor" });
     }
   });
-  app2.post("/api/contributors/signup", async (req, res) => {
-    try {
-      const { email, name, password, phone, profileImageUrl, sproutRequestCode } = req.body;
-      const existingContributor = await storage.getContributorByEmail(email);
-      if (existingContributor && existingContributor.isRegistered) {
-        return res.status(400).json({ error: "Email already registered" });
-      }
-      const hashedPassword = await bcrypt.hash(password, 10);
-      let contributor;
-      if (existingContributor) {
-        contributor = await storage.updateContributor(existingContributor.id, {
-          password: hashedPassword,
-          isRegistered: true,
-          name: name || existingContributor.name,
-          profileImageUrl: profileImageUrl || existingContributor.profileImageUrl
-        });
-      } else {
-        contributor = await storage.createContributor({
-          email,
-          name,
-          password: hashedPassword,
-          phone: phone || null,
-          profileImageUrl: profileImageUrl || null,
-          isRegistered: true
-        });
-      }
-      if (contributor) {
-        await storage.linkGiftsToContributor(email, contributor.id);
-      }
-      if (sproutRequestCode) {
-        const sproutRequest = await storage.getSproutRequestByCode(sproutRequestCode);
-        if (sproutRequest) {
-          await storage.updateSproutRequestStatus(sproutRequest.id, "accepted");
-        }
-      }
-      const token = jwt.sign(
-        { userId: contributor?.id, email: contributor?.email },
-        process.env.JWT_SECRET || "fallback-secret",
-        { expiresIn: "7d" }
-      );
-      const { password: _, ...contributorWithoutPassword } = contributor || {};
-      res.status(201).json({
-        contributor: contributorWithoutPassword,
-        user: contributorWithoutPassword,
-        // Also return as 'user' for compatibility
-        token
-      });
-    } catch (error) {
-      console.error("Contributor signup error:", error);
-      res.status(400).json({ error: "Failed to sign up contributor" });
-    }
-  });
-  app2.post("/api/contributors/signin", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ error: "Email and password are required" });
-      }
-      const contributor = await storage.getContributorByEmail(email);
-      if (!contributor) {
-        return res.status(401).json({ error: "Invalid email or password" });
-      }
-      console.log("\u26A0\uFE0F  PASSWORD AND REGISTRATION CHECKS DISABLED - FOR TESTING ONLY");
-      await storage.linkGiftsToContributor(email, contributor.id);
-      const token = jwt.sign(
-        { userId: contributor.id, email: contributor.email },
-        process.env.JWT_SECRET || "fallback-secret",
-        { expiresIn: "7d" }
-      );
-      const { password: _, ...contributorWithoutPassword } = contributor;
-      res.json({
-        contributor: contributorWithoutPassword,
-        user: contributorWithoutPassword,
-        // Also return as 'user' for compatibility
-        token
-      });
-    } catch (error) {
-      console.error("Contributor signin error:", error);
-      res.status(500).json({ error: "Failed to sign in" });
-    }
-  });
-  app2.get("/api/contributors/:id/gifts", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ error: "Authorization token required" });
-      }
-      const token = authHeader.substring(7);
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
-        if (decoded.userId !== id) {
-          return res.status(403).json({ error: "Not authorized to view these gifts" });
-        }
-      } catch (jwtError) {
-        return res.status(401).json({ error: "Invalid or expired token" });
-      }
-      const gifts2 = await storage.getGiftsByContributor(id);
-      res.json(gifts2);
-    } catch (error) {
-      console.error("Error fetching contributor gifts:", error);
-      res.status(500).json({ error: "Failed to fetch contributor gifts" });
-    }
-  });
-  app2.patch("/api/contributors/:id/profile-photo", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { profileImageUrl } = req.body;
-      if (!profileImageUrl) {
-        return res.status(400).json({ error: "Profile image URL is required" });
-      }
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ error: "Authorization token required" });
-      }
-      const token = authHeader.substring(7);
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback-secret");
-        if (decoded.userId !== id) {
-          return res.status(403).json({ error: "Not authorized to update this profile" });
-        }
-      } catch (jwtError) {
-        return res.status(401).json({ error: "Invalid or expired token" });
-      }
-      const updatedContributor = await storage.updateContributor(id, {
-        profileImageUrl
-      });
-      if (!updatedContributor) {
-        return res.status(404).json({ error: "Contributor not found" });
-      }
-      res.json(updatedContributor);
-    } catch (error) {
-      console.error("Error updating contributor profile photo:", error);
-      res.status(500).json({ error: "Failed to update profile photo" });
-    }
-  });
+}
+
+// server/routes/index.ts
+async function registerRoutes(app2) {
+  registerAuthRoutes(app2);
+  registerChildrenRoutes(app2);
+  registerPortfolioRoutes(app2);
+  registerGiftRoutes(app2);
+  registerContributorRoutes(app2);
+  registerSproutRoutes(app2);
+  registerMiscRoutes(app2);
   const httpServer = createServer(app2);
   return httpServer;
 }
