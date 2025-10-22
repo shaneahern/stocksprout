@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +9,8 @@ import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus }
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import TakePhotoModal from "@/components/take-photo-modal";
 
 interface ChildCardProps {
   child: any;
@@ -22,11 +22,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   const { toast } = useToast();
   const { user, token } = useAuth();
 
-  // Camera states
+  // Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   const generateLinkMutation = useMutation({
     mutationFn: async () => {
@@ -64,99 +61,32 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
     },
   });
 
-  // Update child profile photo mutation
-  const updatePhotoMutation = useMutation({
-    mutationFn: async (profileImageUrl: string) => {
+  // Handle photo taken from camera modal
+  const handlePhotoTaken = async (imageDataUrl: string) => {
+    try {
       const response = await fetch(`/api/children/${child.id}/profile-photo`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ profileImageUrl }),
+        body: JSON.stringify({ profileImageUrl: imageDataUrl }),
       });
       if (!response.ok) throw new Error("Failed to update photo");
-      return response.json();
-    },
-    onSuccess: () => {
+
       queryClient.invalidateQueries({ queryKey: ["/api/children"] });
       toast({
         title: "Photo Updated!",
         description: `Profile photo for ${child.name} has been updated.`,
       });
-      setIsCameraOpen(false);
-      setCapturedImage(null);
-    },
-    onError: () => {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to update profile photo.",
         variant: "destructive",
       });
-    },
-  });
-
-  // Camera methods
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' }
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (error) {
-      toast({
-        title: "Camera Error",
-        description: "Could not access camera. Please check permissions.",
-        variant: "destructive",
-      });
     }
   };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0);
-        const imageData = canvas.toDataURL('image/jpeg', 0.8);
-        setCapturedImage(imageData);
-        stopCamera();
-      }
-    }
-  };
-
-  const savePhoto = () => {
-    if (capturedImage) {
-      updatePhotoMutation.mutate(capturedImage);
-    }
-  };
-
-  const retakePhoto = () => {
-    setCapturedImage(null);
-    startCamera();
-  };
-
-  // Start camera when dialog opens
-  useEffect(() => {
-    if (isCameraOpen && !capturedImage) {
-      startCamera();
-    }
-    return () => {
-      stopCamera();
-    };
-  }, [isCameraOpen]);
 
   const handleViewPortfolio = () => {
     setLocation(`/portfolio/${child.id}`);
@@ -332,77 +262,13 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
       </CardContent>
     </Card>
 
-      {/* Camera Dialog */}
-      <Dialog open={isCameraOpen} onOpenChange={(open) => {
-        setIsCameraOpen(open);
-        if (!open) {
-          stopCamera();
-          setCapturedImage(null);
-        }
-      }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Profile Photo for {child.name}</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {!capturedImage ? (
-              <>
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={capturePhoto}
-                    className="flex-1"
-                  >
-                    Take Photo
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCameraOpen(false)}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                  <img
-                    src={capturedImage}
-                    alt="Captured"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={retakePhoto}
-                    className="flex-1"
-                  >
-                    Retake
-                  </Button>
-                  <Button
-                    onClick={savePhoto}
-                    disabled={updatePhotoMutation.isPending}
-                    className="flex-1 bg-green-700 hover:bg-green-800"
-                  >
-                    {updatePhotoMutation.isPending ? "Saving..." : "Use This Photo"}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Take Photo Modal */}
+      <TakePhotoModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onPhotoTaken={handlePhotoTaken}
+        title={`Add Profile Photo for ${child.name}`}
+      />
     </>
   );
 }
