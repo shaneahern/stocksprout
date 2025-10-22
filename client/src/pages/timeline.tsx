@@ -5,6 +5,7 @@ import MobileLayout from "@/components/mobile-layout";
 import { VideoPlayerModal } from "@/components/video-player-modal";
 import { VideoReelModal } from "@/components/video-reel-modal";
 import { ChildSelector } from "@/components/child-selector";
+import { ThankYouModal } from "@/components/thank-you-modal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,8 @@ export default function Timeline() {
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [currentVideo, setCurrentVideo] = useState<{ url: string; giverName: string } | null>(null);
   const [videoReelOpen, setVideoReelOpen] = useState(false);
+  const [thankYouModalOpen, setThankYouModalOpen] = useState(false);
+  const [currentGift, setCurrentGift] = useState<{ id: string; giverName: string } | null>(null);
 
   // Fetch custodian's children first
   const { data: userChildren = [] } = useQuery<any[]>({
@@ -168,20 +171,24 @@ export default function Timeline() {
     setVideoReelOpen(true);
   };
 
-  const handleSendThankYou = async (giftId: string) => {
-    const message = prompt("Write a thank you message:");
-    if (!message) return;
-    
+  const handleSendThankYou = (giftId: string, giverName: string) => {
+    setCurrentGift({ id: giftId, giverName });
+    setThankYouModalOpen(true);
+  };
+
+  const handleSendThankYouMessage = async (message: string) => {
+    if (!currentGift) return;
+
     try {
       const response = await apiRequest("POST", "/api/thank-you", {
-        giftId,
+        giftId: currentGift.id,
         message
       });
-      
+
       if (response.ok) {
         // Invalidate gifts query to refresh the data
         queryClient.invalidateQueries({ queryKey: ["/api/gifts", childId] });
-        
+
         toast({
           title: "Thank You Sent!",
           description: "Your thank you message has been sent successfully.",
@@ -252,7 +259,18 @@ export default function Timeline() {
         onClose={() => setVideoReelOpen(false)}
         videos={videoReelItems}
       />
-      
+
+      {/* Thank You Modal */}
+      <ThankYouModal
+        isOpen={thankYouModalOpen}
+        onClose={() => {
+          setThankYouModalOpen(false);
+          setCurrentGift(null);
+        }}
+        onSend={handleSendThankYouMessage}
+        giftGiverName={currentGift?.giverName}
+      />
+
       <div className="space-y-6 pb-16">
         {/* Full Video Reel Button and Child Selector */}
         <div className="flex items-center justify-between gap-2">
@@ -478,7 +496,7 @@ export default function Timeline() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleSendThankYou(gift.id)}
+                          onClick={() => handleSendThankYou(gift.id, gift.giftGiverName)}
                           className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 flex items-center justify-center gap-2"
                           data-testid={`button-thank-you-${gift.id}`}
                         >
