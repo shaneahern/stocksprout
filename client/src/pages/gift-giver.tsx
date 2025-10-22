@@ -13,7 +13,7 @@ import VideoRecorder from "@/components/video-recorder";
 import MockPaymentForm from "@/components/mock-payment-form";
 import { RecurringContributionSetup } from "@/components/recurring-contribution-setup";
 import { GiftGiverAuthModal } from "@/components/gift-giver-auth-modal";
-import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, Upload, X, Image } from "lucide-react";
+import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,10 +46,8 @@ export default function GiftGiver() {
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [cameraMode, setCameraMode] = useState<'url' | 'camera' | 'gallery'>('url');
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const { data: child, isLoading } = useQuery({
@@ -85,18 +83,17 @@ export default function GiftGiver() {
   // Camera functionality handlers
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'user',
           width: { ideal: 640 },
           height: { ideal: 480 }
-        } 
+        }
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-      setCameraMode('camera');
     } catch (error) {
       console.error('Error accessing camera:', error);
       toast({
@@ -104,8 +101,16 @@ export default function GiftGiver() {
         description: "Unable to access camera. Please check permissions.",
         variant: "destructive",
       });
+      setIsCameraOpen(false);
     }
   };
+
+  // Auto-start camera when dialog opens
+  useEffect(() => {
+    if (isCameraOpen && !capturedImage) {
+      startCamera();
+    }
+  }, [isCameraOpen]);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -119,12 +124,12 @@ export default function GiftGiver() {
       const canvas = canvasRef.current;
       const video = videoRef.current;
       const context = canvas.getContext('2d');
-      
+
       if (context) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
-        
+
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setCapturedImage(imageDataUrl);
         setProfileImageUrl(imageDataUrl);
@@ -139,33 +144,6 @@ export default function GiftGiver() {
     startCamera();
   };
 
-  const handleGallerySelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCapturedImage(result);
-        setProfileImageUrl(result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const switchToUrlMode = () => {
-    stopCamera();
-    setCameraMode('url');
-  };
-
-  const switchToGalleryMode = () => {
-    stopCamera();
-    setCameraMode('gallery');
-  };
-
   const updateProfilePhoto = async () => {
     try {
       // If user is authenticated and has a contributor ID, save to database
@@ -178,7 +156,7 @@ export default function GiftGiver() {
           },
           body: JSON.stringify({ profileImageUrl }),
         });
-        
+
         if (response.ok) {
           const updatedContributor = await response.json();
           // Note: The AuthContext will handle updating the contributor state
@@ -204,10 +182,9 @@ export default function GiftGiver() {
         variant: "destructive",
       });
     }
-    
+
     setIsCameraOpen(false);
     setCapturedImage(null);
-    setCameraMode('url');
   };
 
   // Auto-authenticate if contributor is already logged in
@@ -473,7 +450,13 @@ export default function GiftGiver() {
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+                <Dialog open={isCameraOpen} onOpenChange={(open) => {
+                  setIsCameraOpen(open);
+                  if (!open) {
+                    stopCamera();
+                    setCapturedImage(null);
+                  }
+                }}>
                   <DialogTrigger asChild>
                     <Button
                       size="sm"
@@ -486,86 +469,11 @@ export default function GiftGiver() {
                   </DialogTrigger>
                   <DialogContent className="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Add Profile Photo</DialogTitle>
+                      <DialogTitle>Update Profile Picture</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                      {/* Mode Selection */}
-                      {!capturedImage && cameraMode === 'url' && (
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => setCameraMode('url')}
-                            className="flex-1"
-                          >
-                            <Upload className="w-4 h-4 mr-1" />
-                            URL
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGallerySelect}
-                            className="flex-1"
-                          >
-                            <Image className="w-4 h-4 mr-1" />
-                            Gallery
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={startCamera}
-                            className="flex-1"
-                          >
-                            <Camera className="w-4 h-4 mr-1" />
-                            Camera
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* URL Input Mode */}
-                      {cameraMode === 'url' && !capturedImage && (
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-2">Image URL</label>
-                            <Input
-                              value={profileImageUrl}
-                              onChange={(e) => setProfileImageUrl(e.target.value)}
-                              placeholder="Enter image URL"
-                            />
-                          </div>
-                          <Button onClick={updateProfilePhoto} className="w-full">
-                            Use This Photo
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Gallery Mode */}
-                      {cameraMode === 'gallery' && !capturedImage && (
-                        <div className="space-y-4 text-center">
-                          <div className="p-8 border-2 border-dashed border-muted-foreground/25 rounded-lg">
-                            <Image className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                            <p className="text-sm text-muted-foreground mb-4">
-                              Select a photo from your device
-                            </p>
-                            <Button onClick={handleGallerySelect} variant="outline">
-                              Choose Photo
-                            </Button>
-                          </div>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                          />
-                          <Button variant="outline" onClick={switchToUrlMode} className="w-full">
-                            Back to URL
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Camera Mode */}
-                      {cameraMode === 'camera' && !capturedImage && (
+                      {/* Camera View */}
+                      {!capturedImage && (
                         <div className="space-y-4">
                           <div className="relative">
                             <video
@@ -575,22 +483,21 @@ export default function GiftGiver() {
                               muted
                               className="w-full h-64 object-cover rounded-lg bg-gray-100"
                             />
+                          </div>
+                          <div className="flex gap-2">
                             <Button
                               variant="outline"
-                              size="sm"
-                              onClick={switchToUrlMode}
-                              className="absolute top-2 right-2"
+                              onClick={() => setIsCameraOpen(false)}
+                              className="flex-1"
                             >
-                              <X className="w-4 h-4" />
+                              Cancel
                             </Button>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button onClick={capturePhoto} className="flex-1">
+                            <Button
+                              onClick={capturePhoto}
+                              className="flex-1 bg-green-700 hover:bg-green-800"
+                            >
                               <Camera className="w-4 h-4 mr-2" />
                               Take Photo
-                            </Button>
-                            <Button variant="outline" onClick={switchToUrlMode} className="flex-1">
-                              Cancel
                             </Button>
                           </div>
                         </div>
