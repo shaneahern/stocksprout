@@ -156,12 +156,9 @@ export default function Portfolio() {
           <CardContent className="p-8 text-center">
             <User className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No Children Added Yet</h3>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-muted-foreground">
               Add your first child to start building their investment portfolio.
             </p>
-            <Button onClick={() => setLocation("/add-child")}>
-              Add Your First Child
-            </Button>
           </CardContent>
         </Card>
       </MobileLayout>
