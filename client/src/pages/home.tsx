@@ -135,13 +135,9 @@ export default function Home() {
                       <Plus className="w-8 h-8 text-primary" />
                     </div>
                     <h3 className="text-lg font-semibold mb-2">No Sprouts Added Yet</h3>
-                    <p className="text-muted-foreground mb-4 text-sm">
-                      Start building your child's investment portfolio by adding them to StockSprout.
+                    <p className="text-muted-foreground text-sm">
+                      Start building your child's investment portfolio by adding them to StockSprout. Click "Add Child" above to get started.
                     </p>
-                    <Button onClick={handleAddChild} data-testid="button-add-first-child">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Your First Child
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
