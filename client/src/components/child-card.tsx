@@ -362,7 +362,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                     onClick={capturePhoto}
                     className="flex-1"
                   >
-                    Capture Photo
+                    Take Photo
                   </Button>
                   <Button
                     variant="outline"
