@@ -806,7 +806,7 @@ export default function GiftGiver() {
         {/* Send Gift */}
         <Card className="bg-muted">
           <CardContent className="p-8">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col space-y-6">
               <div>
                 <h3 className="text-xl font-bold text-foreground">Gift Summary</h3>
                 <p className="text-muted-foreground">
@@ -821,21 +821,21 @@ export default function GiftGiver() {
               <Button
                 onClick={handleSendGift}
                 disabled={!selectedInvestment || !giftGiverName || sendGiftMutation.isPending || giftSent}
-                className={`px-8 py-4 h-auto text-lg font-bold ${
-                  giftSent 
-                    ? "bg-success text-success-foreground" 
+                className={`w-full px-8 py-4 h-auto text-lg font-bold ${
+                  giftSent
+                    ? "bg-success text-success-foreground"
                     : "bg-gradient-to-r from-primary to-accent text-white"
                 }`}
                 data-testid="button-send-gift"
               >
                 <Gift className="w-5 h-5 mr-2" />
-                {sendGiftMutation.isPending 
-                  ? "Sending..." 
-                  : giftSent 
-                    ? "Gift Sent Successfully!" 
-                    : paymentId 
-                      ? "Complete Gift" 
-                      : "Review & Pay"}
+                {sendGiftMutation.isPending
+                  ? "Sending..."
+                  : giftSent
+                    ? "Gift Sent Successfully!"
+                    : paymentId
+                      ? "Complete Gift"
+                      : "Continue to Payment"}
               </Button>
             </div>
           </CardContent>
