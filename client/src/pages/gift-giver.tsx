@@ -6,18 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import InvestmentSelector from "@/components/investment-selector";
 import VideoRecorder from "@/components/video-recorder";
 import MockPaymentForm from "@/components/mock-payment-form";
 import { RecurringContributionSetup } from "@/components/recurring-contribution-setup";
 import { GiftGiverAuthModal } from "@/components/gift-giver-auth-modal";
-import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, Upload, X, Image } from "lucide-react";
+import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
+import TakePhotoModal from "@/components/take-photo-modal";
 
 export default function GiftGiver() {
   const [, params] = useRoute("/gift/:giftCode");
@@ -45,12 +45,6 @@ export default function GiftGiver() {
   // Profile photo state
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [cameraMode, setCameraMode] = useState<'url' | 'camera' | 'gallery'>('url');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   const { data: child, isLoading } = useQuery({
     queryKey: ["/api/children/by-gift-code", giftCode],
@@ -82,107 +76,23 @@ export default function GiftGiver() {
     }
   };
 
-  // Camera functionality handlers
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraMode('camera');
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      toast({
-        title: "Camera Access Error",
-        description: "Unable to access camera. Please check permissions.",
-        variant: "destructive",
-      });
-    }
-  };
+  // Handle photo taken from camera modal
+  const handlePhotoTaken = async (imageDataUrl: string) => {
+    setProfileImageUrl(imageDataUrl);
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      const context = canvas.getContext('2d');
-      
-      if (context) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
-        
-        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setCapturedImage(imageDataUrl);
-        setProfileImageUrl(imageDataUrl);
-        stopCamera();
-      }
-    }
-  };
-
-  const retakePhoto = () => {
-    setCapturedImage(null);
-    setProfileImageUrl('');
-    startCamera();
-  };
-
-  const handleGallerySelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCapturedImage(result);
-        setProfileImageUrl(result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const switchToUrlMode = () => {
-    stopCamera();
-    setCameraMode('url');
-  };
-
-  const switchToGalleryMode = () => {
-    stopCamera();
-    setCameraMode('gallery');
-  };
-
-  const updateProfilePhoto = async () => {
     try {
       // If user is authenticated and has a contributor ID, save to database
-      if (authContributor?.id && profileImageUrl && contributorToken) {
+      if (authContributor?.id && contributorToken) {
         const response = await fetch(`/api/contributors/${authContributor.id}/profile-photo`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${contributorToken}`,
           },
-          body: JSON.stringify({ profileImageUrl }),
+          body: JSON.stringify({ profileImageUrl: imageDataUrl }),
         });
-        
+
         if (response.ok) {
-          const updatedContributor = await response.json();
-          // Note: The AuthContext will handle updating the contributor state
-          // We don't need to update local state anymore
           toast({
             title: "Profile Photo Updated",
             description: "Your profile photo has been saved to your account.",
@@ -204,10 +114,6 @@ export default function GiftGiver() {
         variant: "destructive",
       });
     }
-    
-    setIsCameraOpen(false);
-    setCapturedImage(null);
-    setCameraMode('url');
   };
 
   // Auto-authenticate if contributor is already logged in
@@ -219,13 +125,6 @@ export default function GiftGiver() {
       setProfileImageUrl(authContributor.profileImageUrl || '');
     }
   }, [authContributor, contributorToken, authLoading]);
-
-  // Cleanup camera stream on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
 
   const sendGiftMutation = useMutation({
     mutationFn: async (giftData: any) => {
@@ -473,155 +372,14 @@ export default function GiftGiver() {
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0"
-                      variant="secondary"
-                      onClick={() => setIsCameraOpen(true)}
-                    >
-                      <Camera className="w-3 h-3" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add Profile Photo</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      {/* Mode Selection */}
-                      {!capturedImage && cameraMode === 'url' && (
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => setCameraMode('url')}
-                            className="flex-1"
-                          >
-                            <Upload className="w-4 h-4 mr-1" />
-                            URL
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGallerySelect}
-                            className="flex-1"
-                          >
-                            <Image className="w-4 h-4 mr-1" />
-                            Gallery
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={startCamera}
-                            className="flex-1"
-                          >
-                            <Camera className="w-4 h-4 mr-1" />
-                            Camera
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* URL Input Mode */}
-                      {cameraMode === 'url' && !capturedImage && (
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-2">Image URL</label>
-                            <Input
-                              value={profileImageUrl}
-                              onChange={(e) => setProfileImageUrl(e.target.value)}
-                              placeholder="Enter image URL"
-                            />
-                          </div>
-                          <Button onClick={updateProfilePhoto} className="w-full">
-                            Use This Photo
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Gallery Mode */}
-                      {cameraMode === 'gallery' && !capturedImage && (
-                        <div className="space-y-4 text-center">
-                          <div className="p-8 border-2 border-dashed border-muted-foreground/25 rounded-lg">
-                            <Image className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                            <p className="text-sm text-muted-foreground mb-4">
-                              Select a photo from your device
-                            </p>
-                            <Button onClick={handleGallerySelect} variant="outline">
-                              Choose Photo
-                            </Button>
-                          </div>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                          />
-                          <Button variant="outline" onClick={switchToUrlMode} className="w-full">
-                            Back to URL
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Camera Mode */}
-                      {cameraMode === 'camera' && !capturedImage && (
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <video
-                              ref={videoRef}
-                              autoPlay
-                              playsInline
-                              muted
-                              className="w-full h-64 object-cover rounded-lg bg-gray-100"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={switchToUrlMode}
-                              className="absolute top-2 right-2"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button onClick={capturePhoto} className="flex-1">
-                              <Camera className="w-4 h-4 mr-2" />
-                              Take Photo
-                            </Button>
-                            <Button variant="outline" onClick={switchToUrlMode} className="flex-1">
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Captured Image Preview */}
-                      {capturedImage && (
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <img
-                              src={capturedImage}
-                              alt="Captured"
-                              className="w-full h-64 object-cover rounded-lg"
-                            />
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" onClick={retakePhoto} className="flex-1">
-                              Retake
-                            </Button>
-                            <Button onClick={updateProfilePhoto} className="flex-1 bg-green-700 hover:bg-green-800">
-                              Use This Photo
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Hidden canvas for image capture */}
-                      <canvas ref={canvasRef} className="hidden" />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button
+                  size="sm"
+                  className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0"
+                  variant="secondary"
+                  onClick={() => setIsCameraOpen(true)}
+                >
+                  <Camera className="w-3 h-3" />
+                </Button>
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-semibold text-foreground">Profile Photo</h3>
@@ -630,6 +388,14 @@ export default function GiftGiver() {
                 </p>
               </div>
             </div>
+
+            {/* Take Photo Modal */}
+            <TakePhotoModal
+              isOpen={isCameraOpen}
+              onClose={() => setIsCameraOpen(false)}
+              onPhotoTaken={handlePhotoTaken}
+              title="Add Profile Photo"
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
