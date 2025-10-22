@@ -384,18 +384,18 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    onClick={savePhoto}
-                    disabled={updatePhotoMutation.isPending}
-                    className="flex-1"
-                  >
-                    {updatePhotoMutation.isPending ? "Saving..." : "Use This Photo"}
-                  </Button>
-                  <Button
                     variant="outline"
                     onClick={retakePhoto}
                     className="flex-1"
                   >
                     Retake
+                  </Button>
+                  <Button
+                    onClick={savePhoto}
+                    disabled={updatePhotoMutation.isPending}
+                    className="flex-1 bg-green-700 hover:bg-green-800"
+                  >
+                    {updatePhotoMutation.isPending ? "Saving..." : "Use This Photo"}
                   </Button>
                 </div>
               </>
