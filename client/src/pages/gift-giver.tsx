@@ -607,11 +607,11 @@ export default function GiftGiver() {
                             />
                           </div>
                           <div className="flex space-x-2">
-                            <Button onClick={updateProfilePhoto} className="flex-1">
-                              Use This Photo
-                            </Button>
                             <Button variant="outline" onClick={retakePhoto} className="flex-1">
                               Retake
+                            </Button>
+                            <Button onClick={updateProfilePhoto} className="flex-1 bg-green-700 hover:bg-green-800">
+                              Use This Photo
                             </Button>
                           </div>
                         </div>

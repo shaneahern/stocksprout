@@ -291,11 +291,11 @@ export default function Profile() {
                           />
                         </div>
                         <div className="flex space-x-2">
-                          <Button onClick={handleEditSubmit} disabled={isLoading} className="flex-1">
-                            {isLoading ? 'Updating...' : 'Use This Photo'}
-                          </Button>
                           <Button variant="outline" onClick={retakePhoto} className="flex-1">
                             Retake
+                          </Button>
+                          <Button onClick={handleEditSubmit} disabled={isLoading} className="flex-1 bg-green-700 hover:bg-green-800">
+                            {isLoading ? 'Updating...' : 'Use This Photo'}
                           </Button>
                         </div>
                       </div>
