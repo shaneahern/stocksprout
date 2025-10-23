@@ -491,18 +491,18 @@ export default function GiftGiver() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Mode Switcher */}
-            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-muted rounded-lg">
               <div className="flex-1">
                 <h4 className="font-semibold text-foreground mb-1">Gift Method</h4>
                 <p className="text-sm text-muted-foreground">
                   Choose how you want to gift shares
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Button
                   variant={giftMode === "buy" ? "default" : "outline"}
                   onClick={() => handleModeChange("buy")}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   data-testid="button-mode-buy"
                 >
                   <ShoppingCart className="w-4 h-4" />
@@ -511,7 +511,7 @@ export default function GiftGiver() {
                 <Button
                   variant={giftMode === "transfer" ? "default" : "outline"}
                   onClick={() => handleModeChange("transfer")}
-                  className="flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   data-testid="button-mode-transfer"
                 >
                   <ArrowLeftRight className="w-4 h-4" />
