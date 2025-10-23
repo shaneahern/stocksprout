@@ -8,11 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import InvestmentSelector from "@/components/investment-selector";
+import BrokerageTransferSelector from "@/components/brokerage-transfer-selector";
 import VideoRecorder from "@/components/video-recorder";
 import MockPaymentForm from "@/components/mock-payment-form";
 import { RecurringContributionSetup } from "@/components/recurring-contribution-setup";
 import { GiftGiverAuthModal } from "@/components/gift-giver-auth-modal";
-import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera } from "lucide-react";
+import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, ArrowLeftRight, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +27,7 @@ export default function GiftGiver() {
   const { toast } = useToast();
   const { user: authContributor, token: contributorToken, isLoading: authLoading } = useAuth();
   
+  const [giftMode, setGiftMode] = useState<"buy" | "transfer">("buy");
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const [amount, setAmount] = useState("150");
   const [shares, setShares] = useState("");
@@ -205,6 +207,15 @@ export default function GiftGiver() {
     });
   };
 
+  // Handle mode switching
+  const handleModeChange = (newMode: "buy" | "transfer") => {
+    setGiftMode(newMode);
+    // Reset selection when switching modes
+    setSelectedInvestment(null);
+    setAmount("150");
+    setShares("");
+  };
+
   // Bidirectional amount/shares handlers - MUST BE BEFORE CONDITIONAL RETURNS
   const handleAmountChange = (newAmount: string) => {
     setAmount(newAmount);
@@ -240,6 +251,49 @@ export default function GiftGiver() {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // For transfer mode, validate shares
+    if (giftMode === "transfer") {
+      if (!shares || parseFloat(shares) <= 0) {
+        toast({
+          title: "Invalid Shares",
+          description: "Please enter a valid number of shares to transfer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Skip payment for transfers and send gift directly
+      const transferAmount = (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2);
+      const giftData = {
+        childId: typedChild.id,
+        giftGiverName,
+        giftGiverEmail,
+        contributorId: authContributor?.id || null,
+        giftGiverProfileImageUrl: profileImageUrl || authContributor?.profileImageUrl || null,
+        investmentId: selectedInvestment.id,
+        amount: transferAmount,
+        shares: shares,
+        message,
+        videoMessageUrl: videoUrl || undefined,
+        transferMode: true, // Flag for backend to handle as transfer
+        paymentId: `transfer-${Date.now()}`, // Generate transfer ID
+      };
+
+      sendGiftMutation.mutate(giftData);
+      return;
+    }
+
+    // For buy mode, validate amount
+    const amountNum = Number(amount);
+    if (amountNum <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid amount greater than $0.",
         variant: "destructive",
       });
       return;
@@ -428,70 +482,114 @@ export default function GiftGiver() {
         {/* Investment Selection */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <DollarSign className="w-6 h-6" />
-              <span>Choose an Investment</span>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="w-6 h-6" />
+                <span>Choose an Investment</span>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <InvestmentSelector
-              selectedInvestment={selectedInvestment}
-              onSelectInvestment={setSelectedInvestment}
-            />
+          <CardContent className="space-y-6">
+            {/* Mode Switcher */}
+            <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
+              <div className="flex-1">
+                <h4 className="font-semibold text-foreground mb-1">Gift Method</h4>
+                <p className="text-sm text-muted-foreground">
+                  Choose how you want to gift shares
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={giftMode === "buy" ? "default" : "outline"}
+                  onClick={() => handleModeChange("buy")}
+                  className="flex items-center gap-2"
+                  data-testid="button-mode-buy"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Buy Shares
+                </Button>
+                <Button
+                  variant={giftMode === "transfer" ? "default" : "outline"}
+                  onClick={() => handleModeChange("transfer")}
+                  className="flex items-center gap-2"
+                  data-testid="button-mode-transfer"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  Transfer from Brokerage
+                </Button>
+              </div>
+            </div>
+
+            {/* Conditional Selector */}
+            {giftMode === "buy" ? (
+              <InvestmentSelector
+                selectedInvestment={selectedInvestment}
+                onSelectInvestment={setSelectedInvestment}
+              />
+            ) : (
+              <BrokerageTransferSelector
+                selectedInvestment={selectedInvestment}
+                selectedShares={shares}
+                onSelectInvestment={setSelectedInvestment}
+                onSharesChange={setShares}
+              />
+            )}
           </CardContent>
         </Card>
 
-        {/* Gift Amount */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Gift Amount</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Dollar Amount
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xl">
-                    $
-                  </span>
-                  <Input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                    className="pl-8 text-2xl font-bold h-12"
-                    min="0.01"
-                    step="0.01"
-                    data-testid="input-gift-amount"
-                  />
+        {/* Gift Amount - Only show in "buy" mode */}
+        {giftMode === "buy" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gift Amount</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">
+                    Dollar Amount
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xl">
+                      $
+                    </span>
+                    <Input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      className="pl-8 text-2xl font-bold h-12"
+                      min="0.01"
+                      step="0.01"
+                      data-testid="input-gift-amount"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">
+                    Number of Shares
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={shares}
+                      onChange={(e) => handleSharesChange(e.target.value)}
+                      className="text-2xl font-bold h-12"
+                      min="0.0001"
+                      step="0.0001"
+                      placeholder="0.0000"
+                      data-testid="input-gift-shares"
+                    />
+                  </div>
+                  {selectedInvestment && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      shares of {selectedInvestment.name}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Number of Shares
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={shares}
-                    onChange={(e) => handleSharesChange(e.target.value)}
-                    className="text-2xl font-bold h-12"
-                    min="0.0001"
-                    step="0.0001"
-                    placeholder="0.0000"
-                    data-testid="input-gift-shares"
-                  />
-                </div>
-                {selectedInvestment && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    shares of {selectedInvestment.name}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Message */}
         <Card>
@@ -536,8 +634,8 @@ export default function GiftGiver() {
           </CardContent>
         </Card>
 
-        {/* Recurring Contribution Setup */}
-        {!giftSent && selectedInvestment && giftGiverName && (
+        {/* Recurring Contribution Setup - Only show in "buy" mode */}
+        {giftMode === "buy" && !giftSent && selectedInvestment && giftGiverName && (
           <RecurringContributionSetup
             childId={typedChild.id}
             childName={typedChild.name}
@@ -548,8 +646,8 @@ export default function GiftGiver() {
           />
         )}
 
-        {/* Payment */}
-        {showPayment && (
+        {/* Payment - Only show in "buy" mode */}
+        {giftMode === "buy" && showPayment && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -575,13 +673,29 @@ export default function GiftGiver() {
             <div className="flex flex-col space-y-6">
               <div>
                 <h3 className="text-xl font-bold text-foreground">Gift Summary</h3>
-                <p className="text-muted-foreground">
-                  ${amount} → {estimatedShares} shares of{" "}
-                  {selectedInvestment?.name || "Select an investment"}
-                </p>
+                {giftMode === "transfer" ? (
+                  <>
+                    <p className="text-muted-foreground">
+                      Transfer {shares || "0"} shares of{" "}
+                      {selectedInvestment?.name || "Select an investment"}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Estimated value: ${shares && selectedInvestment
+                        ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
+                        : "0.00"}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">
+                    ${amount} → {estimatedShares} shares of{" "}
+                    {selectedInvestment?.name || "Select an investment"}
+                  </p>
+                )}
                 <p className="text-muted-foreground">To: {typedChild.name}</p>
                 {paymentId && (
-                  <p className="text-success text-sm mt-2">✓ Payment confirmed: {paymentId}</p>
+                  <p className="text-success text-sm mt-2">
+                    ✓ {giftMode === "transfer" ? "Transfer ready" : "Payment confirmed"}: {paymentId}
+                  </p>
                 )}
               </div>
               <Button
@@ -596,12 +710,14 @@ export default function GiftGiver() {
               >
                 <Gift className="w-5 h-5 mr-2" />
                 {sendGiftMutation.isPending
-                  ? "Sending..."
+                  ? giftMode === "transfer" ? "Transferring..." : "Sending..."
                   : giftSent
                     ? "Gift Sent Successfully!"
-                    : paymentId
-                      ? "Complete Gift"
-                      : "Continue to Payment"}
+                    : giftMode === "transfer"
+                      ? "Transfer Shares"
+                      : paymentId
+                        ? "Complete Gift"
+                        : "Continue to Payment"}
               </Button>
             </div>
           </CardContent>
