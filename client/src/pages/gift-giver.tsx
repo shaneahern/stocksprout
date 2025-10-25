@@ -145,12 +145,7 @@ export default function GiftGiver() {
         description: "Your investment gift has been sent to the child's portfolio.",
       });
 
-      // Reset form but keep payment confirmation
-      setSelectedInvestment(null);
-      setAmount("150");
-      setMessage("");
-      setVideoUrl("");
-      // Note: Keep paymentId and giftGiverName for confirmation display
+      setLocation("/");
     },
     onError: () => {
       // Clear payment state on error

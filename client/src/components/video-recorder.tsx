@@ -97,12 +97,14 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
 
       mediaRecorderRef.current.onstop = () => {
         console.log('Recording stopped, chunks count:', chunksRef.current.length);
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        // Use the actual type from the chunks for better compatibility
+        const finalType = chunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || '';
+        const blob = new Blob(chunksRef.current, { type: finalType });
         console.log('Blob created, size:', blob.size, 'type:', blob.type);
         const url = URL.createObjectURL(blob);
         console.log('Video URL created:', url);
         setRecordedVideoUrl(url);
-        setRecordedVideoType(mimeType);
+        setRecordedVideoType(finalType);
 
         // Stop all tracks and clean up
         stream.getTracks().forEach(track => track.stop());
@@ -166,7 +168,9 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
       video.addEventListener('canplay', handleCanPlay);
       video.addEventListener('error', handleError);
 
-      // Trigger load
+      // Ensure we're not pointing to a stream and trigger load
+      video.pause();
+      video.srcObject = null;
       video.load();
 
       // Cleanup
@@ -242,15 +246,12 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               className="w-full h-48 sm:h-64 bg-black rounded-lg"
               controls
               playsInline
-              preload="auto"
+              preload="metadata"
+              src={recordedVideoUrl}
               data-testid="video-preview"
-            >
-              <source src={recordedVideoUrl} type={recordedVideoType} />
-              Your browser does not support the video tag.
-            </video>
-            <div className="flex flex-col sm:flex-row gap-2">
+            />
+            <div className="flex gap-2 items-stretch">
               <Button
-                size="sm"
                 variant="secondary"
                 onClick={() => {
                   if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
@@ -259,19 +260,18 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                   setIsPreviewing(false);
                   setIsRecording(false);
                 }}
-                className="flex-1 bg-white hover:bg-gray-100 text-gray-900 border border-gray-300"
+                className="flex-1 h-12 bg-white hover:bg-gray-100 text-gray-900 border border-gray-300"
                 data-testid="button-record-again"
               >
                 Record Again
               </Button>
               <Button
-                size="sm"
                 onClick={uploadVideo}
                 disabled={isUploading}
-                className="flex-1 bg-green-700 hover:bg-green-800 text-white"
+                className="flex-1 h-12 bg-green-700 hover:bg-green-800 text-white"
                 data-testid="button-upload-video"
               >
-                <Upload className="w-4 h-4 mr-2" />
+                <Upload className="w-5 h-5 mr-2" />
                 {isUploading ? "Uploading..." : "Use This Video"}
               </Button>
             </div>
