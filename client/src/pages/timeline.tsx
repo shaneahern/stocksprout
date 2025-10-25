@@ -352,7 +352,7 @@ export default function Timeline() {
             {/* Timeline Items */}
             <div className="space-y-6">
               {sortedGiftsWithCumulative.map((gift: EnrichedGift, index: number) => (
-                <div key={gift.id} className="relative flex items-start gap-1 max-w-full">
+                <div key={gift.id} className="relative flex items-start gap-0 max-w-full">
                   {/* Timeline Node with Leaf - positioned to the right of line */}
                   <div className="relative z-10 flex-shrink-0 ml-4">
                     {/* Leaf icon positioned to the right of timeline line */}
