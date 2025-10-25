@@ -251,7 +251,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => {
                   if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
                   setRecordedVideoUrl(null);
@@ -259,7 +259,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                   setIsPreviewing(false);
                   setIsRecording(false);
                 }}
-                className="flex-1"
+                className="flex-1 bg-white hover:bg-gray-100 text-gray-900 border border-gray-300"
                 data-testid="button-record-again"
               >
                 Record Again
@@ -268,7 +268,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                 size="sm"
                 onClick={uploadVideo}
                 disabled={isUploading}
-                className="flex-1 bg-green-700 hover:bg-green-800"
+                className="flex-1 bg-green-700 hover:bg-green-800 text-white"
                 data-testid="button-upload-video"
               >
                 <Upload className="w-4 h-4 mr-2" />
