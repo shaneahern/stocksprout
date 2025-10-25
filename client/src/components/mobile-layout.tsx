@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PendingGiftsModal } from "@/components/pending-gifts-modal";
 import { Home, TrendingUp, History, User, Bell, X, Gift, AlertCircle, Gamepad2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import stockSproutLogo from "@assets/image_1759012993458.png";
+import stockSproutLogo from "@assets/StockSproutLogo_Patriotic3.png";
 
 interface MobileLayoutProps {
   children: ReactNode;
