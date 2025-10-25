@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Video, Square, Upload } from "lucide-react";
@@ -12,6 +12,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
   const [isPreviewing, setIsPreviewing] = useState(false); // Camera preview active
   const [isRecording, setIsRecording] = useState(false); // Actually recording
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+  const [recordedVideoType, setRecordedVideoType] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -101,19 +102,12 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         const url = URL.createObjectURL(blob);
         console.log('Video URL created:', url);
         setRecordedVideoUrl(url);
-        
+        setRecordedVideoType(mimeType);
+
         // Stop all tracks and clean up
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
         setIsPreviewing(false);
-        
-        // Auto-load the video
-        setTimeout(() => {
-          if (videoRef.current) {
-            console.log('Loading recorded video');
-            videoRef.current.load();
-          }
-        }, 100);
       };
 
       mediaRecorderRef.current.start(100); // Collect data every 100ms
@@ -144,6 +138,47 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
       });
     }
   };
+
+  // Load and prepare video for playback when recording is done
+  useEffect(() => {
+    if (recordedVideoUrl && videoRef.current) {
+      console.log('Video URL changed, loading video');
+
+      // Set up event listeners for debugging
+      const video = videoRef.current;
+
+      const handleLoadStart = () => console.log('Video load started');
+      const handleLoadedMetadata = () => console.log('Video metadata loaded');
+      const handleLoadedData = () => console.log('Video data loaded');
+      const handleCanPlay = () => console.log('Video can play');
+      const handleError = (e: Event) => {
+        console.error('Video error:', e);
+        const videoElement = e.target as HTMLVideoElement;
+        if (videoElement.error) {
+          console.error('Video error code:', videoElement.error.code);
+          console.error('Video error message:', videoElement.error.message);
+        }
+      };
+
+      video.addEventListener('loadstart', handleLoadStart);
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('error', handleError);
+
+      // Trigger load
+      video.load();
+
+      // Cleanup
+      return () => {
+        video.removeEventListener('loadstart', handleLoadStart);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('error', handleError);
+      };
+    }
+  }, [recordedVideoUrl]);
 
   const uploadVideo = async () => {
     if (!recordedVideoUrl) return;
@@ -204,19 +239,23 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
           <div className="space-y-4">
             <video
               ref={videoRef}
-              src={recordedVideoUrl}
               className="w-full h-48 sm:h-64 bg-black rounded-lg"
               controls
               playsInline
+              preload="auto"
               data-testid="video-preview"
-            />
+            >
+              <source src={recordedVideoUrl} type={recordedVideoType} />
+              Your browser does not support the video tag.
+            </video>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  setRecordedVideoUrl(null);
                   if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+                  setRecordedVideoUrl(null);
+                  setRecordedVideoType("");
                   setIsPreviewing(false);
                   setIsRecording(false);
                 }}
