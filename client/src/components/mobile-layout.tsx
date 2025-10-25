@@ -129,16 +129,16 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       {/* App Header - Only show on home */}
       {currentTab === "home" && (
         <div className="bg-white px-4 sm:px-6 pt-4 sm:pt-6 pb-1 sm:pb-1.5 border-b border-border flex-shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1 flex items-center space-x-3">
-              <img 
-                src={stockSproutLogo} 
-                alt="StockSprout logo" 
-                className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
+              <img
+                src={stockSproutLogo}
+                alt="StockSprout logo"
+                className="w-20 h-20 sm:w-24 sm:h-24 object-contain flex-shrink-0"
                 data-testid="img-logo"
               />
               <div className="min-w-0 flex-1">
-                <p className="text-sm sm:text-base text-muted-foreground" data-testid="text-tagline">
+                <p className="text-sm sm:text-base text-muted-foreground line-clamp-2" data-testid="text-tagline">
                   {currentQuote}
                 </p>
               </div>
