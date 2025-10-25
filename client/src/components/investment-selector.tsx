@@ -163,6 +163,12 @@ export default function InvestmentSelector({
                         <p className="text-sm text-success">+{investment.ytdReturn}%</p>
                       </div>
                     </div>
+                    {selectedInvestment?.id === investment.id && (
+                      <div className="mt-3 flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-primary rounded-full"></div>
+                        <span className="text-primary text-sm font-medium">Selected</span>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
