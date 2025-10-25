@@ -100,11 +100,11 @@ const JourneyGraphic: React.FC<JourneyGraphicProps> = ({
             <foreignObject
               x={child.position.x - 14}
               y={child.position.y - 14}
-              width="28"
-              height="28"
+              width={28}
+              height={28}
             >
-              <Avatar className="w-7 h-7">
-                <AvatarImage src={child.avatarUrl} />
+              <Avatar className="w-full h-full">
+                <AvatarImage src={child.avatarUrl} className="w-full h-full object-cover" />
                 <AvatarFallback className="text-sm">
                   {child.childName.charAt(0)}
                 </AvatarFallback>
