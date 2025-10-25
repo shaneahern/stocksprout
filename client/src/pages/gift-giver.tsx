@@ -644,6 +644,9 @@ export default function GiftGiver() {
               <MockPaymentForm
                 amount={parseFloat(amount)}
                 giftGiverName={giftGiverName}
+                investmentName={selectedInvestment?.name || ""}
+                shares={shares}
+                childName={typedChild.name}
                 onPaymentSuccess={handlePaymentSuccess}
                 onPaymentError={handlePaymentError}
                 disabled={sendGiftMutation.isPending}
@@ -652,61 +655,63 @@ export default function GiftGiver() {
           </Card>
         )}
 
-        {/* Send Gift */}
-        <Card className="bg-muted">
-          <CardContent className="p-8">
-            <div className="flex flex-col space-y-6">
-              <div>
-                <h3 className="text-xl font-bold text-foreground">Gift Summary</h3>
-                {giftMode === "transfer" ? (
-                  <>
+        {/* Send Gift - Hide when payment form is showing */}
+        {!showPayment && (
+          <Card className="bg-muted">
+            <CardContent className="p-8">
+              <div className="flex flex-col space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Gift Summary</h3>
+                  {giftMode === "transfer" ? (
+                    <>
+                      <p className="text-muted-foreground">
+                        Transfer {shares || "0"} shares of{" "}
+                        {selectedInvestment?.name || "Select an investment"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Estimated value: ${shares && selectedInvestment
+                          ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </>
+                  ) : (
                     <p className="text-muted-foreground">
-                      Transfer {shares || "0"} shares of{" "}
+                      ${amount} → {estimatedShares} shares of{" "}
                       {selectedInvestment?.name || "Select an investment"}
                     </p>
-                    <p className="text-muted-foreground">
-                      Estimated value: ${shares && selectedInvestment
-                        ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
-                        : "0.00"}
+                  )}
+                  <p className="text-muted-foreground">To: {typedChild.name}</p>
+                  {paymentId && (
+                    <p className="text-success text-sm mt-2">
+                      ✓ {giftMode === "transfer" ? "Transfer ready" : "Payment confirmed"}: {paymentId}
                     </p>
-                  </>
-                ) : (
-                  <p className="text-muted-foreground">
-                    ${amount} → {estimatedShares} shares of{" "}
-                    {selectedInvestment?.name || "Select an investment"}
-                  </p>
-                )}
-                <p className="text-muted-foreground">To: {typedChild.name}</p>
-                {paymentId && (
-                  <p className="text-success text-sm mt-2">
-                    ✓ {giftMode === "transfer" ? "Transfer ready" : "Payment confirmed"}: {paymentId}
-                  </p>
-                )}
+                  )}
+                </div>
+                <Button
+                  onClick={handleSendGift}
+                  disabled={!selectedInvestment || !giftGiverName || sendGiftMutation.isPending || giftSent}
+                  className={`w-full px-8 py-4 h-auto text-lg font-bold ${
+                    giftSent
+                      ? "bg-success text-success-foreground"
+                      : "bg-gradient-to-r from-primary to-accent text-white"
+                  }`}
+                  data-testid="button-send-gift"
+                >
+                  <Gift className="w-5 h-5 mr-2" />
+                  {sendGiftMutation.isPending
+                    ? giftMode === "transfer" ? "Transferring..." : "Sending..."
+                    : giftSent
+                      ? "Gift Sent Successfully!"
+                      : giftMode === "transfer"
+                        ? "Transfer Shares"
+                        : paymentId
+                          ? "Complete Gift"
+                          : "Continue to Payment"}
+                </Button>
               </div>
-              <Button
-                onClick={handleSendGift}
-                disabled={!selectedInvestment || !giftGiverName || sendGiftMutation.isPending || giftSent}
-                className={`w-full px-8 py-4 h-auto text-lg font-bold ${
-                  giftSent
-                    ? "bg-success text-success-foreground"
-                    : "bg-gradient-to-r from-primary to-accent text-white"
-                }`}
-                data-testid="button-send-gift"
-              >
-                <Gift className="w-5 h-5 mr-2" />
-                {sendGiftMutation.isPending
-                  ? giftMode === "transfer" ? "Transferring..." : "Sending..."
-                  : giftSent
-                    ? "Gift Sent Successfully!"
-                    : giftMode === "transfer"
-                      ? "Transfer Shares"
-                      : paymentId
-                        ? "Complete Gift"
-                        : "Continue to Payment"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

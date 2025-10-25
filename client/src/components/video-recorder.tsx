@@ -116,7 +116,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         }, 100);
       };
 
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
       setIsRecording(true);
       
       toast({
@@ -213,16 +213,6 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 size="sm"
-                onClick={uploadVideo}
-                disabled={isUploading}
-                className="flex-1"
-                data-testid="button-upload-video"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {isUploading ? "Uploading..." : "Use This Video"}
-              </Button>
-              <Button
-                size="sm"
                 variant="outline"
                 onClick={() => {
                   setRecordedVideoUrl(null);
@@ -234,6 +224,16 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                 data-testid="button-record-again"
               >
                 Record Again
+              </Button>
+              <Button
+                size="sm"
+                onClick={uploadVideo}
+                disabled={isUploading}
+                className="flex-1 bg-green-700 hover:bg-green-800"
+                data-testid="button-upload-video"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {isUploading ? "Uploading..." : "Use This Video"}
               </Button>
             </div>
           </div>
