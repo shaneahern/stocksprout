@@ -406,7 +406,7 @@ export default function Portfolio() {
                           <div className="flex-1 min-w-0">
                             <div className="font-bold text-lg">{holding.investment.symbol}</div>
                             <div className="text-sm text-muted-foreground">
-                              {parseFloat(holding.shares).toFixed(0)} shares
+                              {parseFloat(holding.shares).toFixed(2)} shares
                             </div>
                           </div>
                         </>
