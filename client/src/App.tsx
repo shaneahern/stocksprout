@@ -60,9 +60,19 @@ function Router() {
           <Home />
         </ProtectedRoute>
       </Route>
+      <Route path="/portfolio">
+        <ProtectedRoute>
+          <Portfolio />
+        </ProtectedRoute>
+      </Route>
       <Route path="/portfolio/:childId">
         <ProtectedRoute>
           <Portfolio />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/timeline">
+        <ProtectedRoute>
+          <Timeline />
         </ProtectedRoute>
       </Route>
       <Route path="/timeline/:childId">
