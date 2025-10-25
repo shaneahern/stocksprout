@@ -146,7 +146,7 @@ export default function Home() {
         {user && (
           <div>
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-foreground">Sprouts, you've helped</h2>
+              <h2 className="text-lg font-bold text-foreground">Sprouts You've Helped</h2>
               <p className="text-sm text-muted-foreground">
                 {contributedChildren.length > 0 
                   ? "View and send more gifts to these children" 
