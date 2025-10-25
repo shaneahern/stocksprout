@@ -109,10 +109,69 @@ export class DatabaseStorage implements IStorage {
     this.seedInvestments();
   }
 
+  private async updateExistingInvestments() {
+    const updatedInvestments = [
+      { symbol: "SPY", ytdReturn: "45.2" },
+      { symbol: "VTI", ytdReturn: "48.7" },
+      { symbol: "AAPL", ytdReturn: "38.7" },
+      { symbol: "MSFT", ytdReturn: "42.1" },
+      { symbol: "GOOGL", ytdReturn: "55.8" },
+      { symbol: "TSLA", ytdReturn: "62.3" },
+      { symbol: "QQQ", ytdReturn: "52.4" },
+      { symbol: "BTC", ytdReturn: "78.5" },
+      { symbol: "ETH", ytdReturn: "68.9" }
+    ];
+
+    for (const update of updatedInvestments) {
+      try {
+        await db.update(investments)
+          .set({ ytdReturn: update.ytdReturn })
+          .where(eq(investments.symbol, update.symbol));
+        console.log(`Updated ${update.symbol} YTD return to ${update.ytdReturn}%`);
+      } catch (error) {
+        console.error(`Failed to update ${update.symbol}:`, error);
+      }
+    }
+
+    // Update all portfolio holdings to reflect the new investment performance
+    await this.updatePortfolioHoldings();
+  }
+
+  private async updatePortfolioHoldings() {
+    try {
+      console.log("Updating portfolio holdings with new investment performance...");
+      
+      // Get all portfolio holdings
+      const holdings = await db.select().from(portfolioHoldings);
+      
+      for (const holding of holdings) {
+        const investment = await this.getInvestment(holding.investmentId);
+        if (investment) {
+          // Calculate new current value based on YTD return
+          const growthFactor = 1 + (parseFloat(investment.ytdReturn) / 100);
+          const originalCost = parseFloat(holding.shares) * parseFloat(holding.averageCost);
+          const newCurrentValue = originalCost * growthFactor;
+          
+          await db.update(portfolioHoldings)
+            .set({ currentValue: newCurrentValue.toFixed(2) })
+            .where(eq(portfolioHoldings.id, holding.id));
+          
+          console.log(`Updated holding ${holding.id}: ${originalCost.toFixed(2)} -> ${newCurrentValue.toFixed(2)} (${investment.ytdReturn}% growth)`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update portfolio holdings:", error);
+    }
+  }
+
   private async seedInvestments() {
     // Check if investments already exist
     const existingInvestments = await db.select().from(investments).limit(1);
-    if (existingInvestments.length > 0) return;
+    if (existingInvestments.length > 0) {
+      // For development: update existing investments with new YTD returns
+      console.log("Updating existing investments with new YTD returns...");
+      return this.updateExistingInvestments();
+    }
     
     console.log("Seeding investment options...");
     
@@ -125,7 +184,7 @@ export class DatabaseStorage implements IStorage {
         name: "S&P 500 ETF",
         type: "etf",
         currentPrice: "445.20",
-        ytdReturn: "11.2"
+        ytdReturn: "45.2"
       },
       {
         id: "inv-2",
@@ -133,7 +192,7 @@ export class DatabaseStorage implements IStorage {
         name: "Total Stock Market ETF",
         type: "etf",
         currentPrice: "242.18",
-        ytdReturn: "12.8"
+        ytdReturn: "48.7"
       },
       {
         id: "inv-3",
@@ -141,7 +200,7 @@ export class DatabaseStorage implements IStorage {
         name: "Apple Inc",
         type: "stock",
         currentPrice: "189.95",
-        ytdReturn: "14.8"
+        ytdReturn: "38.7"
       },
       {
         id: "inv-4",
@@ -149,7 +208,7 @@ export class DatabaseStorage implements IStorage {
         name: "Microsoft Corporation",
         type: "stock",
         currentPrice: "378.85",
-        ytdReturn: "16.2"
+        ytdReturn: "42.1"
       },
       {
         id: "inv-5",
@@ -157,7 +216,7 @@ export class DatabaseStorage implements IStorage {
         name: "Alphabet Inc",
         type: "stock",
         currentPrice: "142.65",
-        ytdReturn: "22.1"
+        ytdReturn: "55.8"
       },
       {
         id: "inv-6",
@@ -165,7 +224,7 @@ export class DatabaseStorage implements IStorage {
         name: "Tesla Inc",
         type: "stock",
         currentPrice: "241.50",
-        ytdReturn: "18.3"
+        ytdReturn: "62.3"
       },
       {
         id: "inv-7",
@@ -173,7 +232,7 @@ export class DatabaseStorage implements IStorage {
         name: "Nasdaq 100 ETF",
         type: "etf",
         currentPrice: "405.67",
-        ytdReturn: "19.4"
+        ytdReturn: "52.4"
       },
       {
         id: "inv-8",
@@ -181,7 +240,7 @@ export class DatabaseStorage implements IStorage {
         name: "Bitcoin",
         type: "crypto",
         currentPrice: "43250.00",
-        ytdReturn: "24.7"
+        ytdReturn: "78.5"
       },
       {
         id: "inv-9",
@@ -189,7 +248,7 @@ export class DatabaseStorage implements IStorage {
         name: "Ethereum",
         type: "crypto",
         currentPrice: "2650.80",
-        ytdReturn: "31.2"
+        ytdReturn: "68.9"
       },
       {
         id: "inv-10",

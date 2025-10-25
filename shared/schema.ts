@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, json } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean, json, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -23,7 +23,10 @@ export const children = pgTable("children", {
   profileImageUrl: text("profile_image_url"),
   birthday: text("birthday"),
   giftLinkCode: text("gift_link_code").notNull().unique(),
-});
+}, (table) => ({
+  parentIdIdx: index("children_parent_id_idx").on(table.parentId),
+  giftLinkCodeIdx: index("children_gift_link_code_idx").on(table.giftLinkCode),
+}));
 
 export const investments = pgTable("investments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -32,7 +35,9 @@ export const investments = pgTable("investments", {
   type: text("type").notNull(), // 'stock', 'etf', 'crypto', 'index'
   currentPrice: decimal("current_price", { precision: 10, scale: 2 }).notNull(),
   ytdReturn: decimal("ytd_return", { precision: 5, scale: 2 }).notNull(),
-});
+}, (table) => ({
+  symbolIdx: index("investments_symbol_idx").on(table.symbol),
+}));
 
 export const portfolioHoldings = pgTable("portfolio_holdings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -41,7 +46,10 @@ export const portfolioHoldings = pgTable("portfolio_holdings", {
   shares: decimal("shares", { precision: 10, scale: 6 }).notNull(),
   averageCost: decimal("average_cost", { precision: 10, scale: 2 }).notNull(),
   currentValue: decimal("current_value", { precision: 10, scale: 2 }).notNull(),
-});
+}, (table) => ({
+  childIdIdx: index("portfolio_holdings_child_id_idx").on(table.childId),
+  investmentIdIdx: index("portfolio_holdings_investment_id_idx").on(table.investmentId),
+}));
 
 export const gifts = pgTable("gifts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -60,14 +68,20 @@ export const gifts = pgTable("gifts", {
   thankYouSent: boolean("thank_you_sent").default(false),
   status: text("status").notNull().default("pending"), // pending, approved, rejected
   reviewedAt: timestamp("reviewed_at"),
-});
+}, (table) => ({
+  childIdIdx: index("gifts_child_id_idx").on(table.childId),
+  contributorIdIdx: index("gifts_contributor_id_idx").on(table.contributorId),
+  statusIdx: index("gifts_status_idx").on(table.status),
+}));
 
 export const thankYouMessages = pgTable("thank_you_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   giftId: varchar("gift_id").notNull(),
   message: text("message").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  giftIdIdx: index("thank_you_messages_gift_id_idx").on(table.giftId),
+}));
 
 export const contributors = pgTable("contributors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -92,7 +106,11 @@ export const sproutRequests = pgTable("sprout_requests", {
   status: text("status").notNull().default("pending"), // pending, accepted, declined
   createdAt: timestamp("created_at").defaultNow().notNull(),
   respondedAt: timestamp("responded_at"),
-});
+}, (table) => ({
+  parentIdIdx: index("sprout_requests_parent_id_idx").on(table.parentId),
+  requestCodeIdx: index("sprout_requests_request_code_idx").on(table.requestCode),
+  statusIdx: index("sprout_requests_status_idx").on(table.status),
+}));
 
 export const recurringContributions = pgTable("recurring_contributions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -107,7 +125,11 @@ export const recurringContributions = pgTable("recurring_contributions", {
   nextContributionDate: timestamp("next_contribution_date").notNull(),
   lastContributionDate: timestamp("last_contribution_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  childIdIdx: index("recurring_contributions_child_id_idx").on(table.childId),
+  contributorIdIdx: index("recurring_contributions_contributor_id_idx").on(table.contributorId),
+  isActiveIdx: index("recurring_contributions_is_active_idx").on(table.isActive),
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
