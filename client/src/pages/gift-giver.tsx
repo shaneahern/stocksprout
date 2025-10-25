@@ -36,7 +36,6 @@ export default function GiftGiver() {
   const [giftGiverName, setGiftGiverName] = useState("");
   const [giftGiverEmail, setGiftGiverEmail] = useState("");
   const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
   const [giftSent, setGiftSent] = useState(false);
   const [guestCompleted, setGuestCompleted] = useState(false);
   
@@ -138,27 +137,25 @@ export default function GiftGiver() {
       queryClient.invalidateQueries({ queryKey: ["/api/children"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio", typedChild.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/gifts", typedChild.id] });
-      
+
       setGiftSent(true);
-      
+
       toast({
         title: "Gift Sent Successfully!",
         description: "Your investment gift has been sent to the child's portfolio.",
       });
-      
+
       // Reset form but keep payment confirmation
       setSelectedInvestment(null);
       setAmount("150");
       setMessage("");
       setVideoUrl("");
-      setShowPayment(false);
       // Note: Keep paymentId and giftGiverName for confirmation display
     },
     onError: () => {
       // Clear payment state on error
       setPaymentId(null);
-      setShowPayment(false);
-      
+
       toast({
         title: "Error Sending Gift",
         description: "Please try again later.",
@@ -169,8 +166,7 @@ export default function GiftGiver() {
 
   const handlePaymentSuccess = (paymentId: string) => {
     setPaymentId(paymentId);
-    setShowPayment(false);
-    
+
     // Validate amount
     const amountNum = Number(amount);
     if (amountNum <= 0) {
@@ -181,7 +177,7 @@ export default function GiftGiver() {
       });
       return;
     }
-    
+
     // Proceed with gift creation after successful payment
     const giftData = {
       childId: typedChild.id,
@@ -299,18 +295,13 @@ export default function GiftGiver() {
       return;
     }
 
-    // If payment is already completed, don't allow re-processing
-    if (paymentId && !sendGiftMutation.isPending) {
-      toast({
-        title: "Gift Already Sent",
-        description: "This gift has already been processed successfully.",
-      });
-      return;
-    }
-
-    // Show payment form if payment not completed
+    // For buy mode, payment is handled by the payment form
+    // Just show a message to complete payment
     if (!paymentId) {
-      setShowPayment(true);
+      toast({
+        title: "Complete Payment",
+        description: "Please complete the payment below to send your gift.",
+      });
     }
   };
 
@@ -641,7 +632,7 @@ export default function GiftGiver() {
         )}
 
         {/* Payment - Only show in "buy" mode */}
-        {giftMode === "buy" && showPayment && (
+        {giftMode === "buy" && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
