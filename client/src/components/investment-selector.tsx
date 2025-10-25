@@ -44,6 +44,11 @@ export default function InvestmentSelector({
     }
   };
 
+  const handleSelectInvestment = (investment: Investment) => {
+    onSelectInvestment(investment);
+    setSearchQuery("");
+  };
+
   return (
     <div className="space-y-6">
       {/* Popular Choices */}
@@ -58,7 +63,7 @@ export default function InvestmentSelector({
                   ? 'border-primary bg-primary/5'
                   : 'border-border hover:border-primary/50'
               }`}
-              onClick={() => onSelectInvestment(investment)}
+              onClick={() => handleSelectInvestment(investment)}
               data-testid={`card-investment-${investment.symbol}`}
             >
               <CardContent className="p-4">
@@ -134,7 +139,7 @@ export default function InvestmentSelector({
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50'
                   }`}
-                  onClick={() => onSelectInvestment(investment)}
+                  onClick={() => handleSelectInvestment(investment)}
                   data-testid={`search-result-${investment.symbol}`}
                 >
                   <CardContent className="p-3">
