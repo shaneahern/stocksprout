@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Video, Square, Play, Upload } from "lucide-react";
+import { Video, Square, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface VideoRecorderProps {
@@ -12,6 +12,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
   const [isPreviewing, setIsPreviewing] = useState(false); // Camera preview active
   const [isRecording, setIsRecording] = useState(false); // Actually recording
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+  const [recordedVideoType, setRecordedVideoType] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -96,27 +97,22 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
 
       mediaRecorderRef.current.onstop = () => {
         console.log('Recording stopped, chunks count:', chunksRef.current.length);
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        // Use the actual type from the chunks for better compatibility
+        const finalType = chunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || '';
+        const blob = new Blob(chunksRef.current, { type: finalType });
         console.log('Blob created, size:', blob.size, 'type:', blob.type);
         const url = URL.createObjectURL(blob);
         console.log('Video URL created:', url);
         setRecordedVideoUrl(url);
-        
+        setRecordedVideoType(finalType);
+
         // Stop all tracks and clean up
         stream.getTracks().forEach(track => track.stop());
         setStream(null);
         setIsPreviewing(false);
-        
-        // Auto-load the video
-        setTimeout(() => {
-          if (videoRef.current) {
-            console.log('Loading recorded video');
-            videoRef.current.load();
-          }
-        }, 100);
       };
 
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
       setIsRecording(true);
       
       toast({
@@ -144,6 +140,49 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
       });
     }
   };
+
+  // Load and prepare video for playback when recording is done
+  useEffect(() => {
+    if (recordedVideoUrl && videoRef.current) {
+      console.log('Video URL changed, loading video');
+
+      // Set up event listeners for debugging
+      const video = videoRef.current;
+
+      const handleLoadStart = () => console.log('Video load started');
+      const handleLoadedMetadata = () => console.log('Video metadata loaded');
+      const handleLoadedData = () => console.log('Video data loaded');
+      const handleCanPlay = () => console.log('Video can play');
+      const handleError = (e: Event) => {
+        console.error('Video error:', e);
+        const videoElement = e.target as HTMLVideoElement;
+        if (videoElement.error) {
+          console.error('Video error code:', videoElement.error.code);
+          console.error('Video error message:', videoElement.error.message);
+        }
+      };
+
+      video.addEventListener('loadstart', handleLoadStart);
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('error', handleError);
+
+      // Ensure we're not pointing to a stream and trigger load
+      video.pause();
+      video.srcObject = null;
+      video.load();
+
+      // Cleanup
+      return () => {
+        video.removeEventListener('loadstart', handleLoadStart);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('error', handleError);
+      };
+    }
+  }, [recordedVideoUrl]);
 
   const uploadVideo = async () => {
     if (!recordedVideoUrl) return;
@@ -196,16 +235,6 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
     }
   };
 
-  const playRecording = () => {
-    if (videoRef.current && recordedVideoUrl) {
-      console.log('Playing video:', recordedVideoUrl);
-      videoRef.current.load();
-      videoRef.current.play().catch(err => {
-        console.error('Error playing video:', err);
-      });
-    }
-  };
-
   return (
     <Card className="border-2 border-dashed border-border">
       <CardContent className="p-6 text-center">
@@ -214,46 +243,36 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
           <div className="space-y-4">
             <video
               ref={videoRef}
-              src={recordedVideoUrl}
               className="w-full h-48 sm:h-64 bg-black rounded-lg"
               controls
               playsInline
+              preload="metadata"
+              src={recordedVideoUrl}
               data-testid="video-preview"
             />
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex gap-2 items-stretch">
               <Button
-                size="sm"
-                variant="outline"
-                onClick={playRecording}
-                className="flex-1"
-                data-testid="button-play-recording"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Play
-              </Button>
-              <Button
-                size="sm"
-                onClick={uploadVideo}
-                disabled={isUploading}
-                className="flex-1"
-                data-testid="button-upload-video"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {isUploading ? "Uploading..." : "Use This Video"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => {
-                  setRecordedVideoUrl(null);
                   if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+                  setRecordedVideoUrl(null);
+                  setRecordedVideoType("");
                   setIsPreviewing(false);
                   setIsRecording(false);
                 }}
-                className="flex-1"
+                className="flex-1 h-12 bg-white hover:bg-gray-100 text-gray-900 border border-gray-300"
                 data-testid="button-record-again"
               >
                 Record Again
+              </Button>
+              <Button
+                onClick={uploadVideo}
+                disabled={isUploading}
+                className="flex-1 h-12 bg-green-700 hover:bg-green-800 text-white"
+                data-testid="button-upload-video"
+              >
+                <Upload className="w-5 h-5 mr-2" />
+                {isUploading ? "Uploading..." : "Use This Video"}
               </Button>
             </div>
           </div>
@@ -296,7 +315,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               ) : (
                 <Button
                   onClick={startRecording}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1 bg-green-700 hover:bg-green-800"
                   data-testid="button-start-recording"
                 >
                   <Video className="w-4 h-4 mr-2" />

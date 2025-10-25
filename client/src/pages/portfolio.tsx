@@ -1,17 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import MobileLayout from "@/components/mobile-layout";
-import PortfolioChart from "@/components/portfolio-chart";
-import { SproutRequestForm } from "@/components/sprout-request-form";
-import { PurchaseForChild } from "@/components/purchase-for-child";
+import PortfolioGrowthChart from "@/components/portfolio-growth-chart";
 import { ChildSelector } from "@/components/child-selector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpIcon, ArrowDownIcon, User, Gift, Clock, AlertCircle } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, User, Gift, Clock, AlertCircle, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { PortfolioHolding, Investment, Child } from "@shared/schema";
 import { useEffect } from "react";
+import { getStockLogoUrl, getFallbackLogoUrl } from "@/lib/stock-logo";
 
 type EnrichedHolding = PortfolioHolding & { investment: Investment };
 
@@ -80,6 +79,7 @@ export default function Portfolio() {
     queryKey: ["/api/portfolio", childId],
     enabled: !!childId,
   });
+
 
   // Fetch gifts for this child to determine which investments are from this user
   const { data: childGifts = [] } = useQuery<any[]>({
@@ -199,41 +199,60 @@ export default function Portfolio() {
   const totalGain = totalValue - totalCost;
   const totalGainPercent = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, symbol: string) => {
+    const target = e.currentTarget;
+    // Prevent infinite loop if fallback also fails
+    if (!target.src.startsWith('data:')) {
+      target.src = getFallbackLogoUrl(symbol);
+    }
+  };
+
   return (
     <MobileLayout currentTab="portfolio">
       <div className="space-y-6 pb-16">
-        {/* Child Selector */}
         {childId && (
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Portfolio</h2>
+            <div className="flex-1">
+              <div className="text-lg font-bold mb-1" data-testid="text-portfolio-value">
+                ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div className="flex items-center gap-2">
+                <span 
+                  className="text-sm font-semibold"
+                  style={{ color: '#AAAAAA' }}
+                  data-testid="text-portfolio-gain"
+                >
+                  {totalGain >= 0 ? '+' : ''}${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Gain
+                </span>
+              </div>
+            </div>
             <ChildSelector currentChildId={childId} redirectPath="portfolio" />
           </div>
         )}
-
-        {/* Portfolio Header */}
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl" data-testid="text-portfolio-value">
-              ${totalValue.toFixed(2)}
-            </CardTitle>
-            <div className="flex items-center justify-center space-x-2">
-              {totalGain >= 0 ? (
-                <ArrowUpIcon className="w-4 h-4 text-success" />
-              ) : (
-                <ArrowDownIcon className="w-4 h-4 text-destructive" />
-              )}
-              <span 
-                className={`font-semibold ${totalGain >= 0 ? 'text-success' : 'text-destructive'}`}
-                data-testid="text-portfolio-gain"
-              >
-                ${Math.abs(totalGain).toFixed(2)} ({Math.abs(totalGainPercent).toFixed(1)}%)
-              </span>
+        {!childId && (
+          <div>
+            <div className="text-center mb-6">
+              <div className="text-lg font-bold mb-2" data-testid="text-portfolio-value">
+                ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <span 
+                  className="text-sm font-semibold"
+                  style={{ color: '#AAAAAA' }}
+                  data-testid="text-portfolio-gain"
+                >
+                  {totalGain >= 0 ? '+' : ''}${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Gain
+                </span>
+              </div>
             </div>
-          </CardHeader>
-        </Card>
+          </div>
+        )}
 
-        {/* Portfolio Chart */}
-        <PortfolioChart holdings={holdings} />
+
+        <PortfolioGrowthChart 
+          currentValue={totalValue} 
+          ytdReturn={totalGainPercent}
+        />
         
         {/* Pending Gifts Alert - Different messages for custodians vs contributors */}
         {userPendingGifts.length > 0 && (
@@ -295,18 +314,64 @@ export default function Portfolio() {
 
         {/* Action Buttons - Only for parents/custodians */}
         {user && childId && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <PurchaseForChild childId={childId} childName={child?.name || "Child"} />
-            <SproutRequestForm childId={childId} childName={child?.name || "Child"} />
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 -mt-2 mb-2">
+            <Button 
+              onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
+              className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
+              style={{ backgroundColor: '#328956' }}
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              Send Gift
+            </Button>
+            <Button 
+              onClick={() => {
+                // Generate sprout request link
+                const generateLink = async () => {
+                  try {
+                    const response = await fetch('/api/generate-gift-link', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ childId }),
+                    });
+                    const data = await response.json();
+                    
+                    // Use the same SMS sharing logic as the child card
+                    const smsMessage = `🎁 You're invited to send a gift to ${child?.name}! Give the gift of investment: ${data.giftLink}`;
+                    try {
+                      await navigator.share({
+                        title: `Send a gift to ${child?.name}`,
+                        text: smsMessage,
+                        url: data.giftLink
+                      });
+                    } catch (error) {
+                      // Fallback - copy to clipboard
+                      await navigator.clipboard.writeText(smsMessage);
+                    }
+                  } catch (error) {
+                    console.error('Failed to generate gift link:', error);
+                  }
+                };
+                generateLink();
+              }}
+              className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
+              style={{ backgroundColor: '#8A3324' }}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Sprout Request
+            </Button>
           </div>
         )}
         
         {/* Send Gift Button - when viewing a child you've contributed to (not your own child) */}
         {childId && contributedChildren.some((c: any) => c.id === childId) && !userChildren.some((c: any) => c.id === childId) && (
-          <div className="grid grid-cols-1 gap-4 pt-2">
+          <div className="flex flex-col gap-2 -mt-2 mb-2">
             <Button 
               onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
+              className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
+              style={{ backgroundColor: '#328956' }}
             >
               <Gift className="w-4 h-4 mr-2" />
               Send Another Gift to {child?.name}
@@ -314,9 +379,8 @@ export default function Portfolio() {
           </div>
         )}
 
-        {/* Holdings List */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Holdings</h2>
+        <div className="space-y-2">
+          <h2 className="text-lg font-bold">Holdings</h2>
           {holdings.map((holding: EnrichedHolding) => {
             const currentValue = parseFloat(holding.currentValue || "0");
             const cost = parseFloat(holding.shares || "0") * parseFloat(holding.averageCost || "0");
@@ -324,38 +388,57 @@ export default function Portfolio() {
             const gainPercent = cost > 0 ? (gain / cost) * 100 : 0;
 
             return (
-              <Card key={holding.id} data-testid={`card-holding-${holding.id}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h3 className="font-bold text-lg">{holding.investment?.symbol}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {holding.investment?.name}
-                      </p>
+              <Card key={holding.id} data-testid={`card-holding-${holding.id}`} className="border-0 shadow-none">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between py-3 px-2">
+                    <div className="flex items-center gap-4 flex-1">
+                      {holding.investment?.symbol ? (
+                        <>
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            <img 
+                              src={getStockLogoUrl(holding.investment.symbol, holding.investment.name)}
+                              alt={`${holding.investment.symbol} logo`}
+                              className="w-full h-full object-contain p-1"
+                              onError={(e) => handleImageError(e, holding.investment.symbol)}
+                            />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-lg">{holding.investment.symbol}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {parseFloat(holding.shares).toFixed(0)} shares
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 text-xl font-bold text-muted-foreground">
+                            ?
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-bold text-lg">Unknown</div>
+                            <div className="text-sm text-muted-foreground">No data</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <Badge variant="secondary" className="capitalize">
-                      {holding.investment?.type}
-                    </Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Shares</p>
-                      <p className="font-semibold">{parseFloat(holding.shares).toFixed(4)}</p>
+
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <div className="font-bold text-lg">
+                        ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        +${gain.toFixed(2)}
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Avg Cost</p>
-                      <p className="font-semibold">${parseFloat(holding.averageCost).toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Current Value</p>
-                      <p className="font-semibold">${currentValue.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Gain/Loss</p>
-                      <p className={`font-semibold ${gain >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        ${gain.toFixed(2)} ({gainPercent.toFixed(1)}%)
-                      </p>
+
+                    <div 
+                      className="ml-4 px-4 py-2 rounded-lg font-bold text-lg text-white"
+                      style={{ 
+                        backgroundColor: gain >= 0 ? '#34A853' : '#EF5252'
+                      }}
+                    >
+                      {gainPercent >= 0 ? '+' : ''}{gainPercent.toFixed(2)}%
                     </div>
                   </div>
                 </CardContent>

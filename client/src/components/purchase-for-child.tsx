@@ -300,6 +300,9 @@ export function PurchaseForChild({ childId, childName }: PurchaseForChildProps) 
                 <MockPaymentForm
                   amount={parseFloat(amount)}
                   giftGiverName={user?.name || 'Parent'}
+                  investmentName={selectedInvestment?.name || ''}
+                  shares={shares}
+                  childName={childName}
                   onPaymentSuccess={handlePaymentSuccess}
                   onPaymentError={handlePaymentError}
                   disabled={purchaseMutation.isPending}

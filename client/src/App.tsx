@@ -13,11 +13,13 @@ import GiftGiver from "@/pages/gift-giver";
 import AddChild from "@/pages/add-child";
 import AuthPage from "@/pages/auth";
 import SproutRequestPage from "@/pages/sprout-request";
+import PrivacyPolicy from "@/pages/privacy-policy";
+import ForgotPassword from "@/pages/forgot-password";
 // Contributor dashboard now uses standard home page
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, contributor, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   
   if (isLoading) {
     return (
@@ -30,8 +32,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
   
-  // Allow access if either user (parent/custodian) or contributor is logged in
-  if (!user && !contributor) {
+  // Allow access if user is logged in
+  if (!user) {
     return <AuthPage />;
   }
   
@@ -42,6 +44,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/gift/:giftCode" component={GiftGiver} />
       <Route path="/sprout/:requestCode" component={SproutRequestPage} />
       {/* Redirect contributor dashboard to home */}
@@ -56,9 +60,19 @@ function Router() {
           <Home />
         </ProtectedRoute>
       </Route>
+      <Route path="/portfolio">
+        <ProtectedRoute>
+          <Portfolio />
+        </ProtectedRoute>
+      </Route>
       <Route path="/portfolio/:childId">
         <ProtectedRoute>
           <Portfolio />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/timeline">
+        <ProtectedRoute>
+          <Timeline />
         </ProtectedRoute>
       </Route>
       <Route path="/timeline/:childId">

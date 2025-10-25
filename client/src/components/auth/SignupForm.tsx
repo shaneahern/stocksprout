@@ -14,12 +14,11 @@ interface SignupFormProps {
 export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   const { signup } = useAuth();
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     username: '',
-    email: '',
     password: '',
     confirmPassword: '',
-    name: '',
-    bankAccountNumber: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -47,10 +46,10 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     try {
       await signup({
         username: formData.username,
-        email: formData.email,
+        email: `${formData.username}@example.com`, // Generate email from username for now
         password: formData.password,
-        name: formData.name,
-        bankAccountNumber: formData.bankAccountNumber || undefined,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        bankAccountNumber: undefined,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
@@ -67,33 +66,48 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl text-center">Create Account</CardTitle>
+    <Card className="w-full max-w-md mx-auto shadow-lg border-0 rounded-2xl">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-2xl text-center text-gray-800 font-semibold">Create Account</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-6 pb-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="firstName" className="text-gray-700 font-medium">First Name</Label>
             <Input
-              id="name"
-              name="name"
+              id="firstName"
+              name="firstName"
               type="text"
-              value={formData.name}
+              value={formData.firstName}
               onChange={handleChange}
               required
-              placeholder="Enter your full name"
+              placeholder="Enter your first name"
+              className="bg-gray-50 border-gray-200 rounded-lg h-11"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="lastName" className="text-gray-700 font-medium">Last Name</Label>
+            <Input
+              id="lastName"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={handleChange}
+              required
+              placeholder="Enter your last name"
+              className="bg-gray-50 border-gray-200 rounded-lg h-11"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="username" className="text-gray-700 font-medium">Username</Label>
             <Input
               id="username"
               name="username"
@@ -101,37 +115,13 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
               value={formData.username}
               onChange={handleChange}
               required
-              placeholder="Choose a username"
+              placeholder="Enter your username"
+              className="bg-gray-50 border-gray-200 rounded-lg h-11"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="Enter your email"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bankAccountNumber">Bank Account Number (Optional)</Label>
-            <Input
-              id="bankAccountNumber"
-              name="bankAccountNumber"
-              type="text"
-              value={formData.bankAccountNumber}
-              onChange={handleChange}
-              placeholder="Enter your bank account number"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -140,13 +130,14 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                placeholder="Create a password"
+                placeholder="Create your password"
+                className="bg-gray-50 border-gray-200 rounded-lg h-11 pr-12"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
@@ -159,7 +150,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
             <div className="relative">
               <Input
                 id="confirmPassword"
@@ -169,12 +160,13 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
                 onChange={handleChange}
                 required
                 placeholder="Confirm your password"
+                className="bg-gray-50 border-gray-200 rounded-lg h-11 pr-12"
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               >
                 {showConfirmPassword ? (
@@ -186,23 +178,9 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg h-11 font-medium" disabled={isLoading}>
             {isLoading ? 'Creating Account...' : 'Create Account'}
           </Button>
-
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Button
-                type="button"
-                variant="link"
-                className="p-0 h-auto"
-                onClick={onSwitchToLogin}
-              >
-                Sign in
-              </Button>
-            </p>
-          </div>
         </form>
       </CardContent>
     </Card>

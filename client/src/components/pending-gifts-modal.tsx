@@ -203,7 +203,7 @@ export function PendingGiftsModal({ isOpen, onClose }: PendingGiftsModalProps) {
                           size="sm"
                           onClick={() => approveMutation.mutate(gift.id)}
                           disabled={approveMutation.isPending || rejectMutation.isPending}
-                          className="bg-green-600 hover:bg-green-700"
+                          className="bg-green-700 hover:bg-green-800"
                         >
                           <Check className="w-4 h-4 mr-1" />
                           Approve
