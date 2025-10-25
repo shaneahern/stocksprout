@@ -1,5 +1,4 @@
 import React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export interface JourneyStage {
   id: string;
@@ -36,6 +35,15 @@ const JourneyGraphic: React.FC<JourneyGraphicProps> = ({
         viewBox="0 0 400 320"
         preserveAspectRatio="xMidYMid meet"
       >
+        {/* Clip paths for child avatars */}
+        <defs>
+          {childPositions.map((c) => (
+            <clipPath id={`avatar-clip-${c.childId}`} key={c.childId}>
+              <circle cx={Math.round(c.position.x)} cy={Math.round(c.position.y)} r="14" />
+            </clipPath>
+          ))}
+        </defs>
+        
         {/* True S-shaped path with adjusted horizontal lines */}
         <path
           d="M 80 250 L 280 250 Q 350 250 350 200 Q 350 150 280 150 L 120 150 Q 50 150 50 100 Q 50 50 120 50 L 320 50"
@@ -84,34 +92,68 @@ const JourneyGraphic: React.FC<JourneyGraphicProps> = ({
         ))}
         
         {/* Child Avatars */}
-        {childPositions.map((child) => (
-          <g key={child.childId}>
-            {/* Child Avatar Circle */}
-            <circle
-              cx={child.position.x}
-              cy={child.position.y}
-              r="16"
-              fill="white"
-              stroke="#3B82F6"
-              strokeWidth="2"
-            />
-            
-            {/* Child Avatar */}
-            <foreignObject
-              x={child.position.x - 14}
-              y={child.position.y - 14}
-              width={28}
-              height={28}
-            >
-              <Avatar className="w-full h-full">
-                <AvatarImage src={child.avatarUrl} className="w-full h-full object-cover" />
-                <AvatarFallback className="text-sm">
-                  {child.childName.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-            </foreignObject>
-          </g>
-        ))}
+        {childPositions.map((child) => {
+          const x = Math.round(child.position.x);
+          const y = Math.round(child.position.y);
+          
+          return (
+            <g key={child.childId}>
+              {child.avatarUrl ? (
+                <>
+                  {/* Avatar image clipped to a circle */}
+                  <image
+                    x={x - 14}
+                    y={y - 14}
+                    width={28}
+                    height={28}
+                    href={child.avatarUrl}
+                    preserveAspectRatio="xMidYMid slice"
+                    clipPath={`url(#avatar-clip-${child.childId})`}
+                  />
+                  {/* Blue ring on top */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="16"
+                    fill="none"
+                    stroke="#3B82F6"
+                    strokeWidth="2"
+                  />
+                </>
+              ) : (
+                <>
+                  {/* Fallback circle with initial */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="14"
+                    fill="#E5E7EB"
+                    clipPath={`url(#avatar-clip-${child.childId})`}
+                  />
+                  <text
+                    x={x}
+                    y={y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="text-sm font-medium fill-gray-600"
+                    fontSize="12"
+                  >
+                    {child.childName.charAt(0)}
+                  </text>
+                  {/* Blue ring on top */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="16"
+                    fill="none"
+                    stroke="#3B82F6"
+                    strokeWidth="2"
+                  />
+                </>
+              )}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
