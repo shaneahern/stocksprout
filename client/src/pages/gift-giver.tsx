@@ -357,22 +357,16 @@ export default function GiftGiver() {
               <h1 className="text-2xl sm:text-3xl font-bold">StockSprout</h1>
               <p className="text-white/90 text-sm sm:text-base">Send an investment gift to {typedChild.name}</p>
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              {authContributor && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLocation("/")}
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                >
-                  Go to Dashboard
-                </Button>
-              )}
-              <div className="text-left sm:text-right">
-                <p className="text-xs sm:text-sm text-white/80">Gift Link Code</p>
-                <p className="font-mono text-base sm:text-lg font-bold">{giftCode}</p>
-              </div>
-            </div>
+            {authContributor && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/")}
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              >
+                Go to Dashboard
+              </Button>
+            )}
           </div>
         </div>
       </div>
