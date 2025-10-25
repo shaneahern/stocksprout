@@ -13,12 +13,11 @@ interface InvestmentSelectorProps {
   onSelectInvestment: (investment: Investment) => void;
 }
 
-export default function InvestmentSelector({ 
-  selectedInvestment, 
-  onSelectInvestment 
+export default function InvestmentSelector({
+  selectedInvestment,
+  onSelectInvestment
 }: InvestmentSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
 
   const { data: investments = [] } = useQuery<Investment[]>({
     queryKey: ["/api/investments"],
@@ -109,79 +108,68 @@ export default function InvestmentSelector({
 
       {/* Search Section */}
       <div className="border-t border-border pt-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <h3 className="text-lg font-semibold">Search for Specific Investment</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSearch(!showSearch)}
-            data-testid="button-toggle-search"
-          >
-            <Search className="w-4 h-4 mr-2" />
-            {showSearch ? "Hide Search" : "Show Search"}
-          </Button>
         </div>
-        
-        {showSearch && (
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search stocks, ETFs, or funds..."
-                className="pl-10"
-                data-testid="input-investment-search"
-              />
-            </div>
-            
-            {searchQuery.length > 2 && (
-              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
-                {searchResults.map((investment) => (
-                  <Card
-                    key={investment.id}
-                    className={`cursor-pointer transition-all ${
-                      selectedInvestment?.id === investment.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => onSelectInvestment(investment)}
-                    data-testid={`search-result-${investment.symbol}`}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden bg-muted flex-shrink-0">
-                            <img 
-                              src={getStockLogoUrl(investment.symbol, investment.name)}
-                              alt={`${investment.symbol} logo`}
-                              className="w-full h-full object-contain"
-                              onError={(e) => handleImageError(e, investment.symbol)}
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">{investment.symbol}</h4>
-                            <p className="text-sm text-muted-foreground">{investment.name}</p>
-                          </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search stocks, ETFs, or funds..."
+              className="pl-10"
+              data-testid="input-investment-search"
+            />
+          </div>
+
+          {searchQuery.length > 2 && (
+            <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+              {searchResults.map((investment) => (
+                <Card
+                  key={investment.id}
+                  className={`cursor-pointer transition-all ${
+                    selectedInvestment?.id === investment.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => onSelectInvestment(investment)}
+                  data-testid={`search-result-${investment.symbol}`}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden bg-muted flex-shrink-0">
+                          <img
+                            src={getStockLogoUrl(investment.symbol, investment.name)}
+                            alt={`${investment.symbol} logo`}
+                            className="w-full h-full object-contain"
+                            onError={(e) => handleImageError(e, investment.symbol)}
+                          />
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold">${parseFloat(investment.currentPrice).toFixed(2)}</p>
-                          <p className="text-sm text-success">+{investment.ytdReturn}%</p>
+                        <div>
+                          <h4 className="font-semibold">{investment.symbol}</h4>
+                          <p className="text-sm text-muted-foreground">{investment.name}</p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                {searchResults.length === 0 && (
-                  <p className="text-center text-muted-foreground py-4">
-                    No investments found for "{searchQuery}"
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                      <div className="text-right">
+                        <p className="font-semibold">${parseFloat(investment.currentPrice).toFixed(2)}</p>
+                        <p className="text-sm text-success">+{investment.ytdReturn}%</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {searchResults.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">
+                  No investments found for "{searchQuery}"
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
