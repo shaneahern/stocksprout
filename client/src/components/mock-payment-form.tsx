@@ -26,7 +26,6 @@ export default function MockPaymentForm({
   const [cvc, setCvc] = useState("123");
   const [name, setName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showForm, setShowForm] = useState(false);
 
   const formatCardNumber = (value: string) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
@@ -89,28 +88,6 @@ export default function MockPaymentForm({
       setIsProcessing(false);
     }
   };
-
-  if (!showForm) {
-    return (
-      <Card className="border-2 border-dashed border-primary/20">
-        <CardContent className="p-6 text-center">
-          <CreditCard className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Payment Required</h3>
-          <p className="text-muted-foreground mb-4">
-            Complete payment to send this ${amount} investment gift
-          </p>
-          <Button 
-            onClick={() => setShowForm(true)}
-            className="bg-primary text-primary-foreground"
-            data-testid="button-show-payment-form"
-          >
-            <Lock className="w-4 h-4 mr-2" />
-            Enter Payment Details
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card>
@@ -187,18 +164,9 @@ export default function MockPaymentForm({
           
           <div className="flex space-x-3">
             <Button
-              variant="outline"
-              onClick={() => setShowForm(false)}
-              disabled={isProcessing}
-              className="flex-1"
-              data-testid="button-cancel-payment"
-            >
-              Cancel
-            </Button>
-            <Button
               onClick={handlePayment}
               disabled={disabled || isProcessing}
-              className="flex-1 bg-success text-success-foreground"
+              className="w-full bg-success text-success-foreground"
               data-testid="button-process-payment"
             >
               {isProcessing ? (

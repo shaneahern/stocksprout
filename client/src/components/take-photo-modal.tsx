@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface TakePhotoModalProps {
@@ -118,17 +119,18 @@ export default function TakePhotoModal({
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={capturePhoto}
-                  className="flex-1"
-                >
-                  Take Photo
-                </Button>
-                <Button
                   variant="outline"
                   onClick={handleClose}
                   className="flex-1"
                 >
                   Cancel
+                </Button>
+                <Button
+                  onClick={capturePhoto}
+                  className="flex-1 bg-green-700 hover:bg-green-800"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Take Photo
                 </Button>
               </div>
             </>

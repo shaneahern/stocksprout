@@ -13,12 +13,11 @@ interface InvestmentSelectorProps {
   onSelectInvestment: (investment: Investment) => void;
 }
 
-export default function InvestmentSelector({ 
-  selectedInvestment, 
-  onSelectInvestment 
+export default function InvestmentSelector({
+  selectedInvestment,
+  onSelectInvestment
 }: InvestmentSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
 
   const { data: investments = [] } = useQuery<Investment[]>({
     queryKey: ["/api/investments"],
@@ -109,21 +108,11 @@ export default function InvestmentSelector({
 
       {/* Search Section */}
       <div className="border-t border-border pt-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <h3 className="text-lg font-semibold">Search for Specific Investment</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSearch(!showSearch)}
-            data-testid="button-toggle-search"
-          >
-            <Search className="w-4 h-4 mr-2" />
-            {showSearch ? "Hide Search" : "Show Search"}
-          </Button>
         </div>
-        
-        {showSearch && (
-          <div className="space-y-4">
+
+        <div className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -181,7 +170,6 @@ export default function InvestmentSelector({
               </div>
             )}
           </div>
-        )}
       </div>
     </div>
   );
