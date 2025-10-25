@@ -49,7 +49,7 @@ export default function InvestmentSelector({
       {/* Popular Choices */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Popular Choices</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {popularInvestments.map((investment) => (
             <Card
               key={investment.id}
