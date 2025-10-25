@@ -259,6 +259,12 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
     setIsModalOpen(false);
   };
 
+  useEffect(() => {
+    if (isModalOpen && !isPreviewing && !recordedVideoUrl) {
+      startPreview();
+    }
+  }, [isModalOpen]);
+
   const handleRemoveVideo = () => {
     onVideoRecorded('');
   };
@@ -348,7 +354,7 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
                   </Button>
                 </div>
               </div>
-            ) : isPreviewing ? (
+            ) : (
               <div className="space-y-4">
                 <video
                   ref={liveVideoRef}
@@ -394,29 +400,6 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
                     </Button>
                   )}
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4 py-8">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Video className="w-10 h-10 text-primary" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-foreground mb-2">Ready to record?</p>
-                    <p className="text-sm text-muted-foreground">
-                      Share a personal message that will be cherished for years to come
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  onClick={startPreview}
-                  className="w-full"
-                  size="lg"
-                  data-testid="button-record-video-message"
-                >
-                  <Video className="w-5 h-5 mr-2" />
-                  Start Recording
-                </Button>
               </div>
             )}
           </div>
