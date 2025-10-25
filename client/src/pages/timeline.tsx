@@ -220,10 +220,8 @@ export default function Timeline() {
     ? Math.max(...giftsWithCumulative.map(g => g.cumulativeAmount))
     : 0;
 
-  // Sort for display (most recent first)
-  const sortedGifts = [...gifts].sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  // Sort for display (most recent first at the top)
+  const sortedGiftsWithCumulative = [...giftsWithCumulative].reverse();
 
   // Prepare videos for reel (sorted chronologically for better story flow)
   const videoReelItems = gifts
@@ -308,7 +306,7 @@ export default function Timeline() {
               </button>
 
               {/* Connecting line from button to timeline - same thickness as timeline */}
-              <div className="absolute left-4 top-full w-1.5 h-10 bg-green-700" />
+              <div className="absolute left-3 top-full w-1.5 h-10 bg-green-700" />
             </div>
           )}
 
@@ -353,7 +351,7 @@ export default function Timeline() {
 
             {/* Timeline Items */}
             <div className="space-y-6">
-              {giftsWithCumulative.map((gift: EnrichedGift, index: number) => (
+              {sortedGiftsWithCumulative.map((gift: EnrichedGift, index: number) => (
                 <div key={gift.id} className="relative flex items-start gap-1 max-w-full">
                   {/* Timeline Node with Leaf - positioned to the right of line */}
                   <div className="relative z-10 flex-shrink-0 ml-4">
