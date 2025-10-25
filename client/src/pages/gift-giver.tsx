@@ -655,35 +655,26 @@ export default function GiftGiver() {
           </Card>
         )}
 
-        {/* Send Gift - Hide when payment form is showing */}
-        {!showPayment && (
+        {/* Send Gift Button - Only show for transfer mode (buy mode uses payment form button) */}
+        {giftMode === "transfer" && (
           <Card className="bg-muted">
             <CardContent className="p-8">
               <div className="flex flex-col space-y-6">
                 <div>
                   <h3 className="text-xl font-bold text-foreground">Gift Summary</h3>
-                  {giftMode === "transfer" ? (
-                    <>
-                      <p className="text-muted-foreground">
-                        Transfer {shares || "0"} shares of{" "}
-                        {selectedInvestment?.name || "Select an investment"}
-                      </p>
-                      <p className="text-muted-foreground">
-                        Estimated value: ${shares && selectedInvestment
-                          ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
-                          : "0.00"}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      ${amount} → {estimatedShares} shares of{" "}
-                      {selectedInvestment?.name || "Select an investment"}
-                    </p>
-                  )}
+                  <p className="text-muted-foreground">
+                    Transfer {shares || "0"} shares of{" "}
+                    {selectedInvestment?.name || "Select an investment"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Estimated value: ${shares && selectedInvestment
+                      ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
+                      : "0.00"}
+                  </p>
                   <p className="text-muted-foreground">To: {typedChild.name}</p>
                   {paymentId && (
                     <p className="text-success text-sm mt-2">
-                      ✓ {giftMode === "transfer" ? "Transfer ready" : "Payment confirmed"}: {paymentId}
+                      ✓ Transfer ready: {paymentId}
                     </p>
                   )}
                 </div>
@@ -699,14 +690,10 @@ export default function GiftGiver() {
                 >
                   <Gift className="w-5 h-5 mr-2" />
                   {sendGiftMutation.isPending
-                    ? giftMode === "transfer" ? "Transferring..." : "Sending..."
+                    ? "Transferring..."
                     : giftSent
                       ? "Gift Sent Successfully!"
-                      : giftMode === "transfer"
-                        ? "Transfer Shares"
-                        : paymentId
-                          ? "Complete Gift"
-                          : "Continue to Payment"}
+                      : "Transfer Shares"}
                 </Button>
               </div>
             </CardContent>
