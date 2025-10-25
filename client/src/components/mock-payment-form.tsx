@@ -9,17 +9,23 @@ import { processMockPayment } from "@/lib/mock-stripe";
 interface MockPaymentFormProps {
   amount: number;
   giftGiverName: string;
+  investmentName: string;
+  shares: string;
+  childName: string;
   onPaymentSuccess: (paymentId: string) => void;
   onPaymentError: (error: string) => void;
   disabled?: boolean;
 }
 
-export default function MockPaymentForm({ 
-  amount, 
-  giftGiverName, 
-  onPaymentSuccess, 
+export default function MockPaymentForm({
+  amount,
+  giftGiverName,
+  investmentName,
+  shares,
+  childName,
+  onPaymentSuccess,
   onPaymentError,
-  disabled = false 
+  disabled = false
 }: MockPaymentFormProps) {
   const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
   const [expiry, setExpiry] = useState("12/28");
@@ -180,11 +186,19 @@ export default function MockPaymentForm({
         </div>
 
         <div className="border-t pt-4">
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-foreground mb-2">Gift Summary</h3>
+            <p className="text-muted-foreground">
+              ${amount.toFixed(2)} → {shares} {parseFloat(shares) === 1 ? 'share' : 'shares'} of {investmentName}
+            </p>
+            <p className="text-muted-foreground">To: {childName}</p>
+          </div>
+
           <div className="flex justify-between items-center mb-4">
             <span className="text-sm text-muted-foreground">Amount to charge:</span>
-            <span className="text-xl font-bold">${amount}</span>
+            <span className="text-xl font-bold">${amount.toFixed(2)}</span>
           </div>
-          
+
           <div className="flex space-x-3">
             <Button
               variant="outline"
@@ -209,7 +223,7 @@ export default function MockPaymentForm({
               ) : (
                 <>
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Pay ${amount}
+                  Pay ${amount.toFixed(2)}
                 </>
               )}
             </Button>
