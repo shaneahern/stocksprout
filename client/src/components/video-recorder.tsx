@@ -116,7 +116,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         }, 100);
       };
 
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
       setIsRecording(true);
       
       toast({
