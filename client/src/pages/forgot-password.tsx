@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Mail } from 'lucide-react';
-import stockSproutLogo from '@assets/StockSproutLogo_Patriotic3.png';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -145,7 +144,7 @@ export default function ForgotPassword() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img 
-              src={stockSproutLogo} 
+              src="/stocksprout-logo.png" 
               alt="StockSprout Logo" 
               className="h-24 w-auto"
             />
