@@ -593,9 +593,9 @@ export default function GiftGiver() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-2">
-                  Video Message (Optional)
+                  Video Message
                 </label>
-                <VideoRecorder onVideoRecorded={setVideoUrl} />
+                <VideoRecorder onVideoRecorded={setVideoUrl} videoUrl={videoUrl} />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-2">
