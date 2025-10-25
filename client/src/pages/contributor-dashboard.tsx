@@ -93,14 +93,15 @@ export default function ContributorDashboard() {
     );
   }
 
-  // Calculate statistics
-  const totalContributed = allGifts.reduce((sum, gift) => sum + parseFloat(gift.amount), 0);
-  const totalChildren = new Set(allGifts.map(gift => gift.childId)).size;
-  const totalGifts = allGifts.length;
+  // Calculate statistics (excluding rejected gifts)
+  const activeGifts = allGifts.filter(gift => gift.status !== 'rejected');
+  const totalContributed = activeGifts.reduce((sum, gift) => sum + parseFloat(gift.amount), 0);
+  const totalChildren = new Set(activeGifts.map(gift => gift.childId)).size;
+  const totalGifts = activeGifts.length;
   const pendingGifts = allGifts.filter(gift => gift.status === 'pending').length;
   const approvedGifts = allGifts.filter(gift => gift.status === 'approved').length;
 
-  // Group gifts by child
+  // Group gifts by child (excluding rejected gifts from totals)
   const giftsByChild = allGifts.reduce((acc, gift) => {
     if (!acc[gift.childId]) {
       acc[gift.childId] = {
@@ -111,7 +112,10 @@ export default function ContributorDashboard() {
       };
     }
     acc[gift.childId].gifts.push(gift);
-    acc[gift.childId].totalContributed += parseFloat(gift.amount);
+    // Only add to total if not rejected
+    if (gift.status !== 'rejected') {
+      acc[gift.childId].totalContributed += parseFloat(gift.amount);
+    }
     if (gift.status === 'pending') {
       acc[gift.childId].pendingCount++;
     }
@@ -328,6 +332,12 @@ export default function ContributorDashboard() {
                                   <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                                     <CheckCircle className="w-3 h-3 mr-1" />
                                     Approved
+                                  </Badge>
+                                )}
+                                {gift.status === 'rejected' && (
+                                  <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                    <AlertCircle className="w-3 h-3 mr-1" />
+                                    Rejected
                                   </Badge>
                                 )}
                                 <Badge variant="outline" className="text-xs w-fit">

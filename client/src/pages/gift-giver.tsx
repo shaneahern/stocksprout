@@ -6,18 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import InvestmentSelector from "@/components/investment-selector";
+import BrokerageTransferSelector from "@/components/brokerage-transfer-selector";
 import VideoRecorder from "@/components/video-recorder";
 import MockPaymentForm from "@/components/mock-payment-form";
 import { RecurringContributionSetup } from "@/components/recurring-contribution-setup";
 import { GiftGiverAuthModal } from "@/components/gift-giver-auth-modal";
-import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, Upload, X, Image } from "lucide-react";
+import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, ArrowLeftRight, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
+import TakePhotoModal from "@/components/take-photo-modal";
 
 export default function GiftGiver() {
   const [, params] = useRoute("/gift/:giftCode");
@@ -26,6 +27,7 @@ export default function GiftGiver() {
   const { toast } = useToast();
   const { user: authContributor, token: contributorToken, isLoading: authLoading } = useAuth();
   
+  const [giftMode, setGiftMode] = useState<"buy" | "transfer">("buy");
   const [selectedInvestment, setSelectedInvestment] = useState<any>(null);
   const [amount, setAmount] = useState("150");
   const [shares, setShares] = useState("");
@@ -34,7 +36,6 @@ export default function GiftGiver() {
   const [giftGiverName, setGiftGiverName] = useState("");
   const [giftGiverEmail, setGiftGiverEmail] = useState("");
   const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
   const [giftSent, setGiftSent] = useState(false);
   const [guestCompleted, setGuestCompleted] = useState(false);
   
@@ -45,12 +46,6 @@ export default function GiftGiver() {
   // Profile photo state
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [cameraMode, setCameraMode] = useState<'url' | 'camera' | 'gallery'>('url');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   const { data: child, isLoading } = useQuery({
     queryKey: ["/api/children/by-gift-code", giftCode],
@@ -82,107 +77,23 @@ export default function GiftGiver() {
     }
   };
 
-  // Camera functionality handlers
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setCameraMode('camera');
-    } catch (error) {
-      console.error('Error accessing camera:', error);
-      toast({
-        title: "Camera Access Error",
-        description: "Unable to access camera. Please check permissions.",
-        variant: "destructive",
-      });
-    }
-  };
+  // Handle photo taken from camera modal
+  const handlePhotoTaken = async (imageDataUrl: string) => {
+    setProfileImageUrl(imageDataUrl);
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      const context = canvas.getContext('2d');
-      
-      if (context) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0);
-        
-        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setCapturedImage(imageDataUrl);
-        setProfileImageUrl(imageDataUrl);
-        stopCamera();
-      }
-    }
-  };
-
-  const retakePhoto = () => {
-    setCapturedImage(null);
-    setProfileImageUrl('');
-    startCamera();
-  };
-
-  const handleGallerySelect = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setCapturedImage(result);
-        setProfileImageUrl(result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const switchToUrlMode = () => {
-    stopCamera();
-    setCameraMode('url');
-  };
-
-  const switchToGalleryMode = () => {
-    stopCamera();
-    setCameraMode('gallery');
-  };
-
-  const updateProfilePhoto = async () => {
     try {
       // If user is authenticated and has a contributor ID, save to database
-      if (authContributor?.id && profileImageUrl && contributorToken) {
+      if (authContributor?.id && contributorToken) {
         const response = await fetch(`/api/contributors/${authContributor.id}/profile-photo`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${contributorToken}`,
           },
-          body: JSON.stringify({ profileImageUrl }),
+          body: JSON.stringify({ profileImageUrl: imageDataUrl }),
         });
-        
+
         if (response.ok) {
-          const updatedContributor = await response.json();
-          // Note: The AuthContext will handle updating the contributor state
-          // We don't need to update local state anymore
           toast({
             title: "Profile Photo Updated",
             description: "Your profile photo has been saved to your account.",
@@ -204,10 +115,6 @@ export default function GiftGiver() {
         variant: "destructive",
       });
     }
-    
-    setIsCameraOpen(false);
-    setCapturedImage(null);
-    setCameraMode('url');
   };
 
   // Auto-authenticate if contributor is already logged in
@@ -220,13 +127,6 @@ export default function GiftGiver() {
     }
   }, [authContributor, contributorToken, authLoading]);
 
-  // Cleanup camera stream on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
   const sendGiftMutation = useMutation({
     mutationFn: async (giftData: any) => {
       const response = await apiRequest("POST", "/api/gifts", giftData);
@@ -237,27 +137,25 @@ export default function GiftGiver() {
       queryClient.invalidateQueries({ queryKey: ["/api/children"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio", typedChild.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/gifts", typedChild.id] });
-      
+
       setGiftSent(true);
-      
+
       toast({
         title: "Gift Sent Successfully!",
         description: "Your investment gift has been sent to the child's portfolio.",
       });
-      
+
       // Reset form but keep payment confirmation
       setSelectedInvestment(null);
       setAmount("150");
       setMessage("");
       setVideoUrl("");
-      setShowPayment(false);
       // Note: Keep paymentId and giftGiverName for confirmation display
     },
     onError: () => {
       // Clear payment state on error
       setPaymentId(null);
-      setShowPayment(false);
-      
+
       toast({
         title: "Error Sending Gift",
         description: "Please try again later.",
@@ -268,8 +166,7 @@ export default function GiftGiver() {
 
   const handlePaymentSuccess = (paymentId: string) => {
     setPaymentId(paymentId);
-    setShowPayment(false);
-    
+
     // Validate amount
     const amountNum = Number(amount);
     if (amountNum <= 0) {
@@ -280,7 +177,7 @@ export default function GiftGiver() {
       });
       return;
     }
-    
+
     // Proceed with gift creation after successful payment
     const giftData = {
       childId: typedChild.id,
@@ -304,6 +201,15 @@ export default function GiftGiver() {
       description: error,
       variant: "destructive",
     });
+  };
+
+  // Handle mode switching
+  const handleModeChange = (newMode: "buy" | "transfer") => {
+    setGiftMode(newMode);
+    // Reset selection when switching modes
+    setSelectedInvestment(null);
+    setAmount("150");
+    setShares("");
   };
 
   // Bidirectional amount/shares handlers - MUST BE BEFORE CONDITIONAL RETURNS
@@ -346,18 +252,56 @@ export default function GiftGiver() {
       return;
     }
 
-    // If payment is already completed, don't allow re-processing
-    if (paymentId && !sendGiftMutation.isPending) {
+    // For transfer mode, validate shares
+    if (giftMode === "transfer") {
+      if (!shares || parseFloat(shares) <= 0) {
+        toast({
+          title: "Invalid Shares",
+          description: "Please enter a valid number of shares to transfer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Skip payment for transfers and send gift directly
+      const transferAmount = (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2);
+      const giftData = {
+        childId: typedChild.id,
+        giftGiverName,
+        giftGiverEmail,
+        contributorId: authContributor?.id || null,
+        giftGiverProfileImageUrl: profileImageUrl || authContributor?.profileImageUrl || null,
+        investmentId: selectedInvestment.id,
+        amount: transferAmount,
+        shares: shares,
+        message,
+        videoMessageUrl: videoUrl || undefined,
+        transferMode: true, // Flag for backend to handle as transfer
+        paymentId: `transfer-${Date.now()}`, // Generate transfer ID
+      };
+
+      sendGiftMutation.mutate(giftData);
+      return;
+    }
+
+    // For buy mode, validate amount
+    const amountNum = Number(amount);
+    if (amountNum <= 0) {
       toast({
-        title: "Gift Already Sent",
-        description: "This gift has already been processed successfully.",
+        title: "Invalid Amount",
+        description: "Please enter a valid amount greater than $0.",
+        variant: "destructive",
       });
       return;
     }
 
-    // Show payment form if payment not completed
+    // For buy mode, payment is handled by the payment form
+    // Just show a message to complete payment
     if (!paymentId) {
-      setShowPayment(true);
+      toast({
+        title: "Complete Payment",
+        description: "Please complete the payment below to send your gift.",
+      });
     }
   };
 
@@ -404,22 +348,16 @@ export default function GiftGiver() {
               <h1 className="text-2xl sm:text-3xl font-bold">StockSprout</h1>
               <p className="text-white/90 text-sm sm:text-base">Send an investment gift to {typedChild.name}</p>
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
-              {authContributor && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLocation("/")}
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                >
-                  Go to Dashboard
-                </Button>
-              )}
-              <div className="text-left sm:text-right">
-                <p className="text-xs sm:text-sm text-white/80">Gift Link Code</p>
-                <p className="font-mono text-base sm:text-lg font-bold">{giftCode}</p>
-              </div>
-            </div>
+            {authContributor && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/")}
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+              >
+                Go to Dashboard
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -473,155 +411,14 @@ export default function GiftGiver() {
                     </AvatarFallback>
                   )}
                 </Avatar>
-                <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0"
-                      variant="secondary"
-                      onClick={() => setIsCameraOpen(true)}
-                    >
-                      <Camera className="w-3 h-3" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add Profile Photo</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      {/* Mode Selection */}
-                      {!capturedImage && cameraMode === 'url' && (
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => setCameraMode('url')}
-                            className="flex-1"
-                          >
-                            <Upload className="w-4 h-4 mr-1" />
-                            URL
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGallerySelect}
-                            className="flex-1"
-                          >
-                            <Image className="w-4 h-4 mr-1" />
-                            Gallery
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={startCamera}
-                            className="flex-1"
-                          >
-                            <Camera className="w-4 h-4 mr-1" />
-                            Camera
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* URL Input Mode */}
-                      {cameraMode === 'url' && !capturedImage && (
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium mb-2">Image URL</label>
-                            <Input
-                              value={profileImageUrl}
-                              onChange={(e) => setProfileImageUrl(e.target.value)}
-                              placeholder="Enter image URL"
-                            />
-                          </div>
-                          <Button onClick={updateProfilePhoto} className="w-full">
-                            Use This Photo
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Gallery Mode */}
-                      {cameraMode === 'gallery' && !capturedImage && (
-                        <div className="space-y-4 text-center">
-                          <div className="p-8 border-2 border-dashed border-muted-foreground/25 rounded-lg">
-                            <Image className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                            <p className="text-sm text-muted-foreground mb-4">
-                              Select a photo from your device
-                            </p>
-                            <Button onClick={handleGallerySelect} variant="outline">
-                              Choose Photo
-                            </Button>
-                          </div>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                          />
-                          <Button variant="outline" onClick={switchToUrlMode} className="w-full">
-                            Back to URL
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Camera Mode */}
-                      {cameraMode === 'camera' && !capturedImage && (
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <video
-                              ref={videoRef}
-                              autoPlay
-                              playsInline
-                              muted
-                              className="w-full h-64 object-cover rounded-lg bg-gray-100"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={switchToUrlMode}
-                              className="absolute top-2 right-2"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button onClick={capturePhoto} className="flex-1">
-                              <Camera className="w-4 h-4 mr-2" />
-                              Take Photo
-                            </Button>
-                            <Button variant="outline" onClick={switchToUrlMode} className="flex-1">
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Captured Image Preview */}
-                      {capturedImage && (
-                        <div className="space-y-4">
-                          <div className="relative">
-                            <img
-                              src={capturedImage}
-                              alt="Captured"
-                              className="w-full h-64 object-cover rounded-lg"
-                            />
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button onClick={updateProfilePhoto} className="flex-1">
-                              Use This Photo
-                            </Button>
-                            <Button variant="outline" onClick={retakePhoto} className="flex-1">
-                              Retake
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Hidden canvas for image capture */}
-                      <canvas ref={canvasRef} className="hidden" />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button
+                  size="sm"
+                  className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0"
+                  variant="secondary"
+                  onClick={() => setIsCameraOpen(true)}
+                >
+                  <Camera className="w-3 h-3" />
+                </Button>
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-semibold text-foreground">Profile Photo</h3>
@@ -630,6 +427,14 @@ export default function GiftGiver() {
                 </p>
               </div>
             </div>
+
+            {/* Take Photo Modal */}
+            <TakePhotoModal
+              isOpen={isCameraOpen}
+              onClose={() => setIsCameraOpen(false)}
+              onPhotoTaken={handlePhotoTaken}
+              title="Add Profile Photo"
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -662,70 +467,114 @@ export default function GiftGiver() {
         {/* Investment Selection */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <DollarSign className="w-6 h-6" />
-              <span>Choose an Investment</span>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="w-6 h-6" />
+                <span>Choose an Investment</span>
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <InvestmentSelector
-              selectedInvestment={selectedInvestment}
-              onSelectInvestment={setSelectedInvestment}
-            />
+          <CardContent className="space-y-6">
+            {/* Mode Switcher */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-muted rounded-lg">
+              <div className="flex-1">
+                <h4 className="font-semibold text-foreground mb-1">Gift Method</h4>
+                <p className="text-sm text-muted-foreground">
+                  Choose how you want to gift shares
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button
+                  variant={giftMode === "buy" ? "default" : "outline"}
+                  onClick={() => handleModeChange("buy")}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                  data-testid="button-mode-buy"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Buy Shares
+                </Button>
+                <Button
+                  variant={giftMode === "transfer" ? "default" : "outline"}
+                  onClick={() => handleModeChange("transfer")}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                  data-testid="button-mode-transfer"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  Transfer from Brokerage
+                </Button>
+              </div>
+            </div>
+
+            {/* Conditional Selector */}
+            {giftMode === "buy" ? (
+              <InvestmentSelector
+                selectedInvestment={selectedInvestment}
+                onSelectInvestment={setSelectedInvestment}
+              />
+            ) : (
+              <BrokerageTransferSelector
+                selectedInvestment={selectedInvestment}
+                selectedShares={shares}
+                onSelectInvestment={setSelectedInvestment}
+                onSharesChange={setShares}
+              />
+            )}
           </CardContent>
         </Card>
 
-        {/* Gift Amount */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Gift Amount</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Dollar Amount
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xl">
-                    $
-                  </span>
-                  <Input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                    className="pl-8 text-2xl font-bold h-12"
-                    min="0.01"
-                    step="0.01"
-                    data-testid="input-gift-amount"
-                  />
+        {/* Gift Amount - Only show in "buy" mode */}
+        {giftMode === "buy" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gift Amount</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">
+                    Dollar Amount
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xl">
+                      $
+                    </span>
+                    <Input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      className="pl-8 text-2xl font-bold h-12"
+                      min="0.01"
+                      step="0.01"
+                      data-testid="input-gift-amount"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">
+                    Number of Shares
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={shares}
+                      onChange={(e) => handleSharesChange(e.target.value)}
+                      className="text-2xl font-bold h-12"
+                      min="0.0001"
+                      step="0.0001"
+                      placeholder="0.0000"
+                      data-testid="input-gift-shares"
+                    />
+                  </div>
+                  {selectedInvestment && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      shares of {selectedInvestment.name}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Number of Shares
-                </label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={shares}
-                    onChange={(e) => handleSharesChange(e.target.value)}
-                    className="text-2xl font-bold h-12"
-                    min="0.0001"
-                    step="0.0001"
-                    placeholder="0.0000"
-                    data-testid="input-gift-shares"
-                  />
-                </div>
-                {selectedInvestment && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    shares of {selectedInvestment.name}
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Message */}
         <Card>
@@ -770,8 +619,8 @@ export default function GiftGiver() {
           </CardContent>
         </Card>
 
-        {/* Recurring Contribution Setup */}
-        {!giftSent && selectedInvestment && giftGiverName && (
+        {/* Recurring Contribution Setup - Only show in "buy" mode */}
+        {giftMode === "buy" && !giftSent && selectedInvestment && giftGiverName && (
           <RecurringContributionSetup
             childId={typedChild.id}
             childName={typedChild.name}
@@ -782,8 +631,8 @@ export default function GiftGiver() {
           />
         )}
 
-        {/* Payment */}
-        {showPayment && (
+        {/* Payment - Only show in "buy" mode */}
+        {giftMode === "buy" && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -795,6 +644,9 @@ export default function GiftGiver() {
               <MockPaymentForm
                 amount={parseFloat(amount)}
                 giftGiverName={giftGiverName}
+                investmentName={selectedInvestment?.name || ""}
+                shares={shares}
+                childName={typedChild.name}
                 onPaymentSuccess={handlePaymentSuccess}
                 onPaymentError={handlePaymentError}
                 disabled={sendGiftMutation.isPending}
@@ -803,43 +655,63 @@ export default function GiftGiver() {
           </Card>
         )}
 
-        {/* Send Gift */}
-        <Card className="bg-muted">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-foreground">Gift Summary</h3>
-                <p className="text-muted-foreground">
-                  ${amount} → {estimatedShares} shares of{" "}
-                  {selectedInvestment?.name || "Select an investment"}
-                </p>
-                <p className="text-muted-foreground">To: {typedChild.name}</p>
-                {paymentId && (
-                  <p className="text-success text-sm mt-2">✓ Payment confirmed: {paymentId}</p>
-                )}
+        {/* Send Gift - Hide when payment form is showing */}
+        {!showPayment && (
+          <Card className="bg-muted">
+            <CardContent className="p-8">
+              <div className="flex flex-col space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Gift Summary</h3>
+                  {giftMode === "transfer" ? (
+                    <>
+                      <p className="text-muted-foreground">
+                        Transfer {shares || "0"} shares of{" "}
+                        {selectedInvestment?.name || "Select an investment"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        Estimated value: ${shares && selectedInvestment
+                          ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      ${amount} → {estimatedShares} shares of{" "}
+                      {selectedInvestment?.name || "Select an investment"}
+                    </p>
+                  )}
+                  <p className="text-muted-foreground">To: {typedChild.name}</p>
+                  {paymentId && (
+                    <p className="text-success text-sm mt-2">
+                      ✓ {giftMode === "transfer" ? "Transfer ready" : "Payment confirmed"}: {paymentId}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  onClick={handleSendGift}
+                  disabled={!selectedInvestment || !giftGiverName || sendGiftMutation.isPending || giftSent}
+                  className={`w-full px-8 py-4 h-auto text-lg font-bold ${
+                    giftSent
+                      ? "bg-success text-success-foreground"
+                      : "bg-gradient-to-r from-primary to-accent text-white"
+                  }`}
+                  data-testid="button-send-gift"
+                >
+                  <Gift className="w-5 h-5 mr-2" />
+                  {sendGiftMutation.isPending
+                    ? giftMode === "transfer" ? "Transferring..." : "Sending..."
+                    : giftSent
+                      ? "Gift Sent Successfully!"
+                      : giftMode === "transfer"
+                        ? "Transfer Shares"
+                        : paymentId
+                          ? "Complete Gift"
+                          : "Continue to Payment"}
+                </Button>
               </div>
-              <Button
-                onClick={handleSendGift}
-                disabled={!selectedInvestment || !giftGiverName || sendGiftMutation.isPending || giftSent}
-                className={`px-8 py-4 h-auto text-lg font-bold ${
-                  giftSent 
-                    ? "bg-success text-success-foreground" 
-                    : "bg-gradient-to-r from-primary to-accent text-white"
-                }`}
-                data-testid="button-send-gift"
-              >
-                <Gift className="w-5 h-5 mr-2" />
-                {sendGiftMutation.isPending 
-                  ? "Sending..." 
-                  : giftSent 
-                    ? "Gift Sent Successfully!" 
-                    : paymentId 
-                      ? "Complete Gift" 
-                      : "Review & Pay"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

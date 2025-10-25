@@ -1,41 +1,33 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { User } from "lucide-react";
+import { aggregateHoldingsByCategory } from "@/lib/investment-categories";
+import type { Child } from "@shared/schema";
 
 interface PortfolioChartProps {
   holdings: any[];
+  child?: Child;
 }
 
-export default function PortfolioChart({ holdings }: PortfolioChartProps) {
+export default function PortfolioChart({ holdings, child }: PortfolioChartProps) {
   if (!holdings || holdings.length === 0) {
     return (
-      <div className="bg-muted rounded-lg p-8 text-center">
+      <div className="bg-card border border-border rounded-lg p-8 text-center">
         <p className="text-muted-foreground">No portfolio data to display</p>
       </div>
     );
   }
 
-  const chartData = holdings.map((holding, index) => ({
-    name: holding.investment?.symbol || 'Unknown',
-    value: parseFloat(holding.currentValue || "0"),
-    color: `hsl(${(index * 137.5) % 360}, 70%, 50%)`
-  }));
-
-  const COLORS = [
-    'hsl(221, 83%, 53%)',   // primary
-    'hsl(38, 92%, 50%)',    // secondary  
-    'hsl(158, 64%, 52%)',   // accent
-    'hsl(0, 84%, 60%)',     // destructive
-    'hsl(215, 16%, 47%)',   // muted-foreground
-    'hsl(221, 83%, 70%)',   // primary light
-  ];
+  const categoryData = aggregateHoldingsByCategory(holdings);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0];
+      const data = payload[0].payload;
       return (
         <div className="bg-card border border-border rounded-lg p-2 shadow-lg">
-          <p className="font-semibold">{data.name}</p>
+          <p className="font-semibold">{data.category}</p>
           <p className="text-sm text-muted-foreground">
-            ${data.value.toFixed(2)} ({((data.value / chartData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)
+            ${data.value.toFixed(2)} ({data.percentage.toFixed(1)}%)
           </p>
         </div>
       );
@@ -44,40 +36,60 @@ export default function PortfolioChart({ holdings }: PortfolioChartProps) {
   };
 
   return (
-    <div className="bg-card rounded-lg p-6 border border-border">
-      <h3 className="text-lg font-semibold mb-4">Portfolio Allocation</h3>
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      
-      {/* Legend */}
-      <div className="grid grid-cols-2 gap-2 mt-4">
-        {chartData.map((item, index) => (
-          <div key={item.name} className="flex items-center space-x-2">
-            <div 
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: COLORS[index % COLORS.length] }}
-            />
-            <span className="text-sm font-medium">{item.name}</span>
+    <div className="bg-card rounded-lg border border-border">
+      <div className="p-6">
+        <div className="relative h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={categoryData}
+                cx="50%"
+                cy="50%"
+                innerRadius={80}
+                outerRadius={120}
+                dataKey="value"
+                stroke="none"
+              >
+                {categoryData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+              {child?.profileImageUrl ? (
+                <AvatarImage src={child.profileImageUrl} alt={child.name} />
+              ) : (
+                <AvatarFallback className="bg-muted">
+                  <User className="w-16 h-16 text-muted-foreground" />
+                </AvatarFallback>
+              )}
+            </Avatar>
           </div>
-        ))}
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {categoryData.map((item) => (
+            <div key={item.category} className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div 
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-sm font-medium">{item.category}</span>
+                <span className="text-sm text-muted-foreground">
+                  {item.percentage.toFixed(0)}%
+                </span>
+              </div>
+              <span className="text-sm font-semibold">
+                ${item.value.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

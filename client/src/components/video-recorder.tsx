@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Video, Square, Play, Upload } from "lucide-react";
+import { Video, Square, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface VideoRecorderProps {
@@ -116,7 +116,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
         }, 100);
       };
 
-      mediaRecorderRef.current.start();
+      mediaRecorderRef.current.start(100); // Collect data every 100ms
       setIsRecording(true);
       
       toast({
@@ -196,16 +196,6 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
     }
   };
 
-  const playRecording = () => {
-    if (videoRef.current && recordedVideoUrl) {
-      console.log('Playing video:', recordedVideoUrl);
-      videoRef.current.load();
-      videoRef.current.play().catch(err => {
-        console.error('Error playing video:', err);
-      });
-    }
-  };
-
   return (
     <Card className="border-2 border-dashed border-border">
       <CardContent className="p-6 text-center">
@@ -224,26 +214,6 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={playRecording}
-                className="flex-1"
-                data-testid="button-play-recording"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Play
-              </Button>
-              <Button
-                size="sm"
-                onClick={uploadVideo}
-                disabled={isUploading}
-                className="flex-1"
-                data-testid="button-upload-video"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {isUploading ? "Uploading..." : "Use This Video"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
                 onClick={() => {
                   setRecordedVideoUrl(null);
                   if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
@@ -254,6 +224,16 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
                 data-testid="button-record-again"
               >
                 Record Again
+              </Button>
+              <Button
+                size="sm"
+                onClick={uploadVideo}
+                disabled={isUploading}
+                className="flex-1 bg-green-700 hover:bg-green-800"
+                data-testid="button-upload-video"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {isUploading ? "Uploading..." : "Use This Video"}
               </Button>
             </div>
           </div>
@@ -296,7 +276,7 @@ export default function VideoRecorder({ onVideoRecorded }: VideoRecorderProps) {
               ) : (
                 <Button
                   onClick={startRecording}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  className="flex-1 bg-green-700 hover:bg-green-800"
                   data-testid="button-start-recording"
                 >
                   <Video className="w-4 h-4 mr-2" />

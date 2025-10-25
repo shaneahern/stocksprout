@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MobileLayout from '@/components/mobile-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ChildSelector } from '@/components/child-selector';
+import JourneyGraphic, { JourneyStage, ChildJourneyPosition } from '@/components/journey-graphic';
 import { 
   Gamepad2, 
   Trophy, 
@@ -13,399 +16,326 @@ import {
   Target,
   Award,
   Star,
-  Zap
+  Zap,
+  Medal,
+  MapPin,
+  Building2,
+  ArrowUpRight,
+  Wallet,
+  FileText,
+  Layers,
+  DollarSign,
+  Flag
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Activities() {
-  const [selectedGame, setSelectedGame] = useState<string | null>(null);
-  const [quizScore, setQuizScore] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [showExplanation, setShowExplanation] = useState(false);
+  const { user, token } = useAuth();
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
-  const games = [
+  // Journey stages configuration - positioned on the S-shaped path
+  const journeyStages: JourneyStage[] = [
     {
-      id: 'financial-quiz',
-      title: 'Money Master Quiz',
-      description: 'Test your financial knowledge with fun questions',
-      icon: Brain,
-      color: 'bg-blue-500',
-      difficulty: 'Easy',
-      points: 100,
+      id: "game-on",
+      name: "Game On",
+      icon: <MapPin className="w-4 h-4" />,
+      color: "#F97316", // Orange
+      position: { x: 80, y: 250 } // Moved to match shorter bottom line
     },
     {
-      id: 'investment-challenge',
-      title: 'Investment Challenge',
-      description: 'Make smart investment decisions and grow your virtual portfolio',
-      icon: TrendingUp,
-      color: 'bg-green-500',
-      difficulty: 'Medium',
-      points: 250,
+      id: "savings",
+      name: "Savings",
+      icon: <Building2 className="w-4 h-4" />,
+      color: "#8B4513", // Brown
+      position: { x: 260, y: 250 } // Moved a little more to the left
     },
     {
-      id: 'savings-sprint',
-      title: 'Savings Sprint',
-      description: 'Learn to save money with real-world scenarios',
-      icon: PiggyBank,
-      color: 'bg-purple-500',
-      difficulty: 'Easy',
-      points: 150,
+      id: "compound-interest",
+      name: "Compound Interest",
+      icon: <ArrowUpRight className="w-4 h-4" />,
+      color: "#DC2626", // Red
+      position: { x: 120, y: 150 } // Moved a little more to the right
     },
     {
-      id: 'goal-getter',
-      title: 'Goal Getter',
-      description: 'Set and achieve financial goals',
-      icon: Target,
-      color: 'bg-orange-500',
-      difficulty: 'Hard',
-      points: 300,
-    },
-  ];
-
-  const quizQuestions = [
-    {
-      question: "What does investing mean?",
-      options: [
-        "Spending all your money",
-        "Putting money to work to grow over time",
-        "Hiding money under your pillow",
-        "Giving money away"
-      ],
-      correctAnswer: 1,
-      explanation: "Investing means putting your money to work so it can grow over time!"
+      id: "cash-flow",
+      name: "Cash Flow",
+      icon: <DollarSign className="w-4 h-4" />,
+      color: "#2563EB", // Blue
+      position: { x: 280, y: 150 } // Middle horizontal line on the right
     },
     {
-      question: "What is a stock?",
-      options: [
-        "A type of candy",
-        "A piece of ownership in a company",
-        "A savings account",
-        "A type of loan"
-      ],
-      correctAnswer: 1,
-      explanation: "A stock is a small piece of ownership in a company. When you own stock, you own a tiny part of that business!"
+      id: "investing",
+      name: "Investing",
+      icon: <Layers className="w-4 h-4" />,
+      color: "#8B5CF6", // Purple
+      position: { x: 120, y: 50 } // Moved a little more to the right
     },
     {
-      question: "Why is it important to save money?",
-      options: [
-        "To have money for future needs and goals",
-        "Because it's boring",
-        "To make your piggy bank heavy",
-        "Only adults need to save"
-      ],
-      correctAnswer: 0,
-      explanation: "Saving helps you prepare for the future and achieve your goals!"
-    },
-    {
-      question: "What does 'diversification' mean?",
-      options: [
-        "Buying only one type of investment",
-        "Spreading your money across different investments",
-        "Spending all your money at once",
-        "Keeping all money in cash"
-      ],
-      correctAnswer: 1,
-      explanation: "Diversification means spreading your investments so you don't have all your eggs in one basket!"
-    },
-    {
-      question: "How can money grow over time?",
-      options: [
-        "It doesn't grow",
-        "Through compound interest and investments",
-        "By hiding it in your room",
-        "Money trees"
-      ],
-      correctAnswer: 1,
-      explanation: "Money grows through compound interest - earning money on your earnings - and good investments!"
-    },
-  ];
-
-  const leaderboard = [
-    { rank: 1, name: 'Sarah J.', points: 2450, badge: '🏆' },
-    { rank: 2, name: 'Alex M.', points: 2100, badge: '🥈' },
-    { rank: 3, name: 'Emma W.', points: 1850, badge: '🥉' },
-    { rank: 4, name: 'You', points: 1200, badge: '⭐' },
-    { rank: 5, name: 'Lucas P.', points: 950, badge: '' },
-  ];
-
-  const handleAnswerClick = (answerIndex: number) => {
-    if (selectedAnswer !== null) return; // Prevent multiple clicks
-    
-    setSelectedAnswer(answerIndex);
-    setShowExplanation(true);
-    
-    const correct = quizQuestions[currentQuestion].correctAnswer === answerIndex;
-    
-    if (correct) {
-      setQuizScore(quizScore + 20);
+      id: "level-1-complete",
+      name: "Level 1 Complete",
+      icon: <Flag className="w-4 h-4" />,
+      color: "#16A34A", // Green
+      position: { x: 320, y: 50 } // Moved to match adjusted top line
     }
+  ];
 
-    // Move to next question after showing explanation
-    setTimeout(() => {
-      if (currentQuestion < quizQuestions.length - 1) {
-        // Reset answer state BEFORE moving to next question
-        setSelectedAnswer(null);
-        setShowExplanation(false);
-        // Use a small delay to ensure state is cleared before question changes
-        setTimeout(() => {
-          setCurrentQuestion(currentQuestion + 1);
-        }, 50);
-      } else {
-        // Quiz completed
-        setSelectedAnswer(null);
-        setShowExplanation(false);
-        setCurrentQuestion(0);
-        setQuizScore(0);
-        setSelectedGame(null);
+  // Fetch custodian's children (children where user is parent)
+  const { data: userChildren = [] } = useQuery<any[]>({
+    queryKey: ["/api/children", user?.id],
+    enabled: !!user?.id,
+  });
+
+  // Fetch children that user has contributed to (gifts they've given)
+  const { data: contributorGifts = [] } = useQuery<any[]>({
+    queryKey: ["/api/contributors/gifts", user?.id],
+    queryFn: async () => {
+      if (!user?.id || !token) return [];
+      
+      const response = await fetch(`/api/contributors/${user.id}/gifts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!user?.id && !!token,
+  });
+
+  // Extract unique children from contributor gifts (excluding own children)
+  const contributedChildren = contributorGifts.reduce((acc: any[], gift: any) => {
+    if (gift.child && !acc.find((c: any) => c.id === gift.child.id)) {
+      // Only include if this is not one of the user's own children
+      const isOwnChild = userChildren.some((child: any) => child.id === gift.child.id);
+      if (!isOwnChild) {
+        acc.push(gift.child);
       }
-    }, 2500);
+    }
+    return acc;
+  }, []);
+
+  // Combine all children (own + contributed)
+  const allChildren = [...userChildren, ...contributedChildren];
+
+  // Assign random journey stages to all children
+  const children = allChildren.map(child => {
+    // Randomly assign a journey stage
+    const randomStage = journeyStages[Math.floor(Math.random() * journeyStages.length)];
+    
+    return {
+      id: child.id,
+      name: child.name,
+      profileImageUrl: child.profileImageUrl,
+      financialJourneyStage: randomStage.id,
+      progress: {
+        points: Math.floor(Math.random() * 500),
+        level: 1,
+        gamesPlayed: Math.floor(Math.random() * 20),
+        achievements: Math.floor(Math.random() * 10),
+        badgesEarned: Math.floor(Math.random() * 5)
+      }
+    };
+  });
+
+  // Set default child if available
+  useEffect(() => {
+    if (children.length > 0 && !selectedChildId) {
+      setSelectedChildId(children[0].id);
+    }
+  }, [children, selectedChildId]);
+
+  // Calculate child positions on journey
+  const getChildJourneyPositions = (): ChildJourneyPosition[] => {
+    // Group children by their journey stage
+    const childrenByStage = children.reduce((acc: any, child: any) => {
+      if (!acc[child.financialJourneyStage]) {
+        acc[child.financialJourneyStage] = [];
+      }
+      acc[child.financialJourneyStage].push(child);
+      return acc;
+    }, {});
+
+    // Calculate positions for each child, placing multiple children side-by-side
+    const positions: ChildJourneyPosition[] = [];
+    
+    Object.keys(childrenByStage).forEach(stageId => {
+      const childrenAtStage = childrenByStage[stageId];
+      const stage = journeyStages.find(s => s.id === stageId);
+      const stagePosition = stage?.position || journeyStages[0].position;
+      
+      // Calculate spacing for side-by-side placement starting from upper right corner
+      const childCount = childrenAtStage.length;
+      const spacing = 24; // Horizontal spacing between avatars (increased for larger icons)
+      
+      // Position in upper right corner of stage icon (stage radius is 20, child radius is 16)
+      // Position so edges just touch (distance between centers = 20 + 16 = 36)
+      // At 45 degree angle: offset = 36 * cos(45°) = 36 * 0.707 ≈ 25.5
+      const startX = stagePosition.x + 26; // Upper right corner X, edges touching
+      const startY = stagePosition.y - 26; // Upper right corner Y, edges touching
+      
+      childrenAtStage.forEach((child: any, index: number) => {
+        positions.push({
+          childId: child.id,
+          childName: child.name,
+          avatarUrl: child.profileImageUrl,
+          stageId: child.financialJourneyStage,
+          position: {
+            x: startX - (index * spacing), // Move left for each additional child
+            y: startY
+          }
+        });
+      });
+    });
+    
+    return positions;
   };
 
-  const renderGameList = () => (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-          <Gamepad2 className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold">Learning Activities</h1>
-          <p className="text-muted-foreground text-sm">Build your financial knowledge</p>
-        </div>
-      </div>
+  // Get current child and their progress
+  const currentChild = children.find(child => child.id === selectedChildId);
+  const currentChildProgress = currentChild?.progress || {
+    points: 0,
+    level: 1,
+    gamesPlayed: 0,
+    achievements: 0,
+    badgesEarned: 0
+  };
 
-      {/* Games Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {games.map((game) => (
-          <Card 
-            key={game.id}
-            className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-primary"
-            onClick={() => game.id === 'financial-quiz' ? setSelectedGame(game.id) : null}
-          >
-            <CardContent className="p-6">
-              <div className={`w-12 h-12 ${game.color} rounded-lg flex items-center justify-center mb-4`}>
-                <game.icon className="w-6 h-6 text-white" />
-              </div>
-              
-              <h3 className="font-bold text-lg mb-2">{game.title}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{game.description}</p>
-              
-              <div className="flex items-center justify-between">
-                <Badge variant="secondary" className="text-xs">
-                  {game.difficulty}
-                </Badge>
-                <div className="flex items-center gap-1 text-amber-600">
-                  <Star className="w-4 h-4 fill-current" />
-                  <span className="text-sm font-semibold">{game.points} pts</span>
-                </div>
-              </div>
-              
-              {game.id === 'financial-quiz' && (
-                <Button className="w-full mt-4" size="sm">
-                  <Zap className="w-4 h-4 mr-2" />
-                  Play Now
-                </Button>
-              )}
-              {game.id !== 'financial-quiz' && (
-                <div className="mt-4 text-center">
-                  <Badge variant="outline" className="text-xs">Coming Soon</Badge>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+  const leaderboard = [
+    { rank: 1, name: 'You', points: currentChildProgress.points, isCurrentUser: true },
+    { rank: 2, name: 'Scottie N.', points: 100, isCurrentUser: false },
+    { rank: 3, name: 'Emery N.', points: 10, isCurrentUser: false },
+  ];
 
-      {/* Leaderboard */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-amber-500" />
-            Leaderboard
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {leaderboard.map((entry) => (
-              <div 
-                key={entry.rank}
-                className={`flex items-center justify-between p-3 rounded-lg ${
-                  entry.name === 'You' ? 'bg-primary/10 border-2 border-primary' : 'bg-muted'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-background rounded-full flex items-center justify-center font-bold text-sm">
-                    {entry.badge || entry.rank}
-                  </div>
-                  <span className="font-semibold">{entry.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-500" />
-                  <span className="font-bold">{entry.points}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Your Progress */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Progress</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-semibold">Level 3 - Money Explorer</span>
-              <span className="text-sm text-muted-foreground">1200 / 2000 pts</span>
-            </div>
-            <Progress value={60} className="h-2" />
-          </div>
-          
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">5</div>
-              <div className="text-xs text-muted-foreground">Games Played</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">12</div>
-              <div className="text-xs text-muted-foreground">Achievements</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-amber-600">3</div>
-              <div className="text-xs text-muted-foreground">Badges Earned</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  const renderQuiz = () => {
-    const question = quizQuestions[currentQuestion];
-    const progress = ((currentQuestion + 1) / quizQuestions.length) * 100;
-
-    return (
-      <div className="space-y-6">
-        {/* Quiz Header */}
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => setSelectedGame(null)}>
-            ← Back to Games
-          </Button>
-          <div className="flex items-center gap-2">
-            <Star className="w-5 h-5 fill-amber-500 text-amber-500" />
-            <span className="font-bold">{quizScore} pts</span>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-semibold">Question {currentQuestion + 1} of {quizQuestions.length}</span>
-              <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
-            </div>
-            <Progress value={progress} />
-          </CardContent>
-        </Card>
-
-        {/* Question */}
-        <Card key={currentQuestion}>
-          <CardHeader>
-            <CardTitle className="text-lg">{question.question}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {question.options.map((option, index) => {
-              const isSelected = selectedAnswer === index;
-              const isCorrect = question.correctAnswer === index;
-              const showResult = selectedAnswer !== null;
-              
-              let buttonClass = "w-full text-left justify-start h-auto py-4 px-4 ";
-              
-              if (showResult) {
-                if (isSelected && isCorrect) {
-                  buttonClass += "bg-green-100 border-green-500 border-2 text-green-900 font-semibold";
-                } else if (isSelected && !isCorrect) {
-                  buttonClass += "bg-red-100 border-red-500 border-2 text-red-900 font-semibold";
-                } else if (isCorrect) {
-                  buttonClass += "bg-green-50 border-green-300 border-2 text-green-800 font-semibold";
-                } else {
-                  buttonClass += "opacity-50 border-gray-200 text-gray-600";
-                }
-              } else {
-                buttonClass += "hover:bg-primary/10 hover:border-primary border-gray-200 text-foreground";
-              }
-              
-              return (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className={buttonClass}
-                  onClick={() => handleAnswerClick(index)}
-                  disabled={selectedAnswer !== null}
-                >
-                  <span className="font-semibold mr-3">{String.fromCharCode(65 + index)}.</span>
-                  <span className="flex-1">{option}</span>
-                  {showResult && isCorrect && (
-                    <span className="text-green-600 font-bold ml-2">✓</span>
-                  )}
-                  {showResult && isSelected && !isCorrect && (
-                    <span className="text-red-600 font-bold ml-2">✗</span>
-                  )}
-                </Button>
-              );
-            })}
-          </CardContent>
-        </Card>
-
-        {/* Explanation Card - Shows after answering */}
-        {showExplanation ? (
-          <Card className={selectedAnswer === question.correctAnswer ? "bg-green-50 border-green-200" : "bg-blue-50 border-blue-200"}>
-            <CardContent className="pt-4">
-              <div className="flex items-start gap-3">
-                {selectedAnswer === question.correctAnswer ? (
-                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-xl">✓</span>
-                  </div>
-                ) : (
-                  <Brain className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1">
-                  <p className="text-sm font-semibold mb-1">
-                    {selectedAnswer === question.correctAnswer ? "🎉 Correct! +20 points" : "💡 Learn & Grow"}
-                  </p>
-                  <p className="text-sm">
-                    {question.explanation}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="pt-4">
-              <div className="flex items-start gap-3">
-                <Brain className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-blue-900 mb-1">💡 Think About It</p>
-                  <p className="text-sm text-blue-800">
-                    Take your time and choose the answer that makes the most sense to you!
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
+  const handleChildChange = (childId: string) => {
+    setSelectedChildId(childId);
   };
 
   return (
     <MobileLayout currentTab="activities">
-      <div className="pb-16">
-        {selectedGame === 'financial-quiz' ? renderQuiz() : renderGameList()}
+      <div className="space-y-6 pb-16">
+        {/* Progress Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-bold">Activity Center</h1>
+            <ChildSelector 
+              currentChildId={selectedChildId || ''} 
+              onChildChange={handleChildChange}
+            />
+          </div>
+          
+          <Card>
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm sm:text-base font-semibold">
+                      Level {currentChildProgress.level} - Money Explorer
+                    </h3>
+                    <span className="text-xs sm:text-sm font-medium">
+                      {currentChildProgress.points}/2000 pts
+                    </span>
+                  </div>
+                  <div className="mb-1">
+                    <div className="relative h-3 w-full overflow-hidden rounded-full">
+                      {/* Completed progress - Blue */}
+                      <div 
+                        className="h-full transition-all duration-300 ease-in-out absolute left-0 top-0"
+                        style={{ 
+                          width: `${(currentChildProgress.points / 2000) * 100}%`,
+                          backgroundColor: '#2563EB'
+                        }}
+                      />
+                      {/* Remaining progress - Yellow */}
+                      <div 
+                        className="h-full transition-all duration-300 ease-in-out absolute left-0 top-0"
+                        style={{ 
+                          width: `${100 - (currentChildProgress.points / 2000) * 100}%`,
+                          backgroundColor: '#E2B25E',
+                          left: `${(currentChildProgress.points / 2000) * 100}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-2">
+                  <div className="text-center">
+                    <div className="text-3xl sm:text-4xl font-bold text-blue-600">
+                      {currentChildProgress.gamesPlayed}
+                    </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Games Played</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl sm:text-4xl font-bold text-green-600">
+                      {currentChildProgress.achievements}
+                    </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Achievements</div>
+                  </div>
+                  <div className="text-center">
+                    <div 
+                      className="text-3xl sm:text-4xl font-bold"
+                      style={{ color: '#E2B25E' }}
+                    >
+                      {currentChildProgress.badgesEarned}
+                    </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Badges Earned</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Leaderboard Section */}
+        <div className="border border-gray-200 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Medal 
+              className="w-5 h-5" 
+              style={{ color: '#E2B25E' }}
+            />
+            <h2 className="text-xl font-bold">Leaderboard</h2>
+          </div>
+          
+          <div className="space-y-1">
+            {leaderboard.map((entry) => (
+              <div 
+                key={entry.rank}
+                className={`flex items-center justify-between px-2 py-1 rounded ${
+                  entry.isCurrentUser ? 'bg-blue-50 border-2 border-blue-200' : 'bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: '#E2B25E' }}
+                  >
+                    <Medal className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm text-gray-500">{entry.name}</span>
+                </div>
+                <span className="text-sm text-gray-500">{entry.points} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Journey Section */}
+        <div>
+          <Card>
+            <CardContent className="p-2 sm:p-3">
+              <JourneyGraphic 
+                stages={journeyStages}
+                childPositions={getChildJourneyPositions()}
+                className="mx-auto"
+              />
+              
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </MobileLayout>
   );
+
 }

@@ -87,16 +87,16 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
   if (allChildren.length === 1) {
     // If only one child, just show their name (no selector needed)
     return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-        <Avatar className="w-6 h-6">
+      <div className="flex items-center gap-3 px-3 py-2 bg-muted rounded-lg">
+        <Avatar className="w-8 h-8">
           {currentChild?.profileImageUrl && (
             <AvatarImage src={currentChild.profileImageUrl} alt={currentChild.name} />
           )}
-          <AvatarFallback className="text-xs">
+          <AvatarFallback className="text-sm">
             {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
           </AvatarFallback>
         </Avatar>
-        <span className="font-semibold text-sm">{currentChild?.name || 'Child'}</span>
+        <span className="font-semibold text-base">{currentChild?.name || 'Child'}</span>
       </div>
     );
   }
@@ -105,16 +105,16 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
     <Select value={currentChildId} onValueChange={handleValueChange}>
       <SelectTrigger className="w-full max-w-[200px]">
         <SelectValue>
-          <div className="flex items-center gap-2">
-            <Avatar className="w-5 h-5">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-8 h-8">
               {currentChild?.profileImageUrl && (
                 <AvatarImage src={currentChild.profileImageUrl} alt={currentChild.name} />
               )}
-              <AvatarFallback className="text-xs">
+              <AvatarFallback className="text-sm">
                 {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
               </AvatarFallback>
             </Avatar>
-            <span className="font-semibold text-sm truncate">
+            <span className="font-semibold text-base truncate">
               {currentChild?.name || 'Select Child'}
             </span>
           </div>
@@ -123,18 +123,18 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
       <SelectContent>
         {allChildren.map((child: any) => (
           <SelectItem key={child.id} value={child.id}>
-            <div className="flex items-center gap-2">
-              <Avatar className="w-5 h-5">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-8 h-8">
                 {child.profileImageUrl && (
                   <AvatarImage src={child.profileImageUrl} alt={child.name} />
                 )}
-                <AvatarFallback className="text-xs">
+                <AvatarFallback className="text-sm">
                   {child.name?.charAt(0)?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span>{child.name}</span>
+              <span className="text-base font-medium">{child.name}</span>
               {!child.isContributed && child.age !== undefined && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   (Age {child.age})
                 </span>
               )}
