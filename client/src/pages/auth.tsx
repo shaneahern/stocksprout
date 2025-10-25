@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { Button } from '@/components/ui/button';
+import stockSproutLogo from '@assets/StockSproutLogo_Patriotic3.png';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -36,7 +37,7 @@ export default function AuthPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <img 
-              src="/stocksprout-logo.png" 
+              src={stockSproutLogo} 
               alt="StockSprout Logo" 
               className="h-24 w-auto"
             />
