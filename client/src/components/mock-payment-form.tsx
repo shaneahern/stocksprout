@@ -30,7 +30,7 @@ export default function MockPaymentForm({
   const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
   const [expiry, setExpiry] = useState("12/28");
   const [cvc, setCvc] = useState("123");
-  const [name, setName] = useState("Test User");
+  const [name, setName] = useState("John Doe");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const formatCardNumber = (value: string) => {
