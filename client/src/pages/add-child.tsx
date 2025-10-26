@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ArrowLeft, UserPlus, Camera, Image } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import TakePhotoModal from "@/components/take-photo-modal";
 
 export default function AddChild() {
   const [, setLocation] = useLocation();
@@ -18,6 +20,9 @@ export default function AddChild() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthdate, setBirthdate] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addChildMutation = useMutation({
     mutationFn: async (childData: any) => {
@@ -67,6 +72,7 @@ export default function AddChild() {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       birthdate: new Date(birthdate).toISOString(),
+      ...(profileImageUrl && { profileImageUrl }),
     };
 
     addChildMutation.mutate(childData);
@@ -74,6 +80,23 @@ export default function AddChild() {
 
   const handleBack = () => {
     setLocation("/");
+  };
+
+  const handlePhotoTaken = (photoDataUrl: string) => {
+    setProfileImageUrl(photoDataUrl);
+    setIsCameraOpen(false);
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setProfileImageUrl(result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -105,6 +128,57 @@ export default function AddChild() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Profile Photo Section */}
+              <div className="flex flex-col items-center gap-4 p-4 bg-muted rounded-xl">
+                <Avatar className="w-24 h-24">
+                  {profileImageUrl ? (
+                    <img src={profileImageUrl} alt="Child profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <AvatarFallback className="text-2xl bg-primary/10">
+                      {firstName ? firstName.charAt(0).toUpperCase() : <UserPlus className="w-12 h-12 text-muted-foreground" />}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsCameraOpen(true)}
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Take Photo
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Image className="w-4 h-4 mr-2" />
+                    Choose Photo
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleGallerySelect}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Add a profile photo for your child (optional)
+                </p>
+              </div>
+
+              {/* Take Photo Modal */}
+              <TakePhotoModal
+                isOpen={isCameraOpen}
+                onClose={() => setIsCameraOpen(false)}
+                onPhotoTaken={handlePhotoTaken}
+                title="Add Child's Profile Photo"
+              />
+
               <div>
                 <Label htmlFor="firstName">First Name *</Label>
                 <Input

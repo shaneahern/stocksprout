@@ -7,7 +7,8 @@ StockSprout is a custodial investment platform that allows parents to manage inv
 ## Recent Changes (October 26, 2025)
 
 - **Send Gift Page Fixed**: Resolved blank screen issue by computing child full name from firstName/lastName fields
-- **Selected Stock Display**: Added visual display of selected stock beneath search bar on Send Gift page with price and YTD return
+- **Selected Stock Display**: Added visual display of selected stock beneath search bar on Send Gift page with company logo, price, YTD return, and blue "Selected" indicator matching preset tiles
+- **Child Profile Photo**: Added dual photo options on Add Child page - users can now take a photo with camera OR choose from their device's photo gallery
 
 ## Previous Changes (October 6, 2025)
 
