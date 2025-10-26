@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera } from "lucide-react";
+import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera, Image } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -39,6 +39,7 @@ export default function Profile() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch user's own children (as custodian)
   const { data: children = [] } = useQuery<any[]>({
@@ -192,6 +193,21 @@ export default function Profile() {
     startCamera();
   };
 
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        console.log('Gallery photo selected, data URL length:', result.length);
+        setCapturedImage(result);
+        setEditData(prev => ({ ...prev, profileImageUrl: result }));
+        stopCamera();
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Cleanup camera stream on unmount
   useEffect(() => {
     return () => {
@@ -270,6 +286,14 @@ export default function Profile() {
                             Cancel
                           </Button>
                           <Button 
+                            onClick={() => fileInputRef.current?.click()} 
+                            variant="outline"
+                            className="flex-1"
+                          >
+                            <Image className="w-4 h-4 mr-2" />
+                            Choose Photo
+                          </Button>
+                          <Button 
                             onClick={capturePhoto} 
                             className="flex-1 bg-green-700 hover:bg-green-800"
                           >
@@ -277,6 +301,13 @@ export default function Profile() {
                             Take Photo
                           </Button>
                         </div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleGallerySelect}
+                          className="hidden"
+                        />
                       </div>
                     )}
 

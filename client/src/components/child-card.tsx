@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus, Image } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
@@ -25,6 +26,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
 
   // Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate child's name and age
   const fullName = child.firstName && child.lastName
@@ -92,6 +95,19 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         description: "Failed to update profile photo.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const result = event.target?.result as string;
+        await handlePhotoTaken(result);
+        setIsPhotoDialogOpen(false);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -198,7 +214,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsCameraOpen(true);
+                    setIsPhotoDialogOpen(true);
                   }}
                   className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
                   aria-label="Add profile photo"
@@ -268,6 +284,47 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         </div>
       </CardContent>
     </Card>
+
+      {/* Photo Options Dialog */}
+      <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
+        <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Add Profile Photo for {fullName}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsPhotoDialogOpen(false);
+                setIsCameraOpen(true);
+              }}
+              className="w-full"
+              variant="outline"
+            >
+              <Camera className="w-4 h-4 mr-2" />
+              Take Photo
+            </Button>
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              className="w-full"
+              variant="outline"
+            >
+              <Image className="w-4 h-4 mr-2" />
+              Choose from Gallery
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleGallerySelect}
+              className="hidden"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Take Photo Modal */}
       <TakePhotoModal

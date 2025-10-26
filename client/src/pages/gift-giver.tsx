@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import InvestmentSelector from "@/components/investment-selector";
 import BrokerageTransferSelector from "@/components/brokerage-transfer-selector";
 import VideoRecorder from "@/components/video-recorder";
 import MockPaymentForm from "@/components/mock-payment-form";
 import { RecurringContributionSetup } from "@/components/recurring-contribution-setup";
 import { GiftGiverAuthModal } from "@/components/gift-giver-auth-modal";
-import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, ArrowLeftRight, ShoppingCart } from "lucide-react";
+import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, ArrowLeftRight, ShoppingCart, Image } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,6 +48,8 @@ export default function GiftGiver() {
   // Profile photo state
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: child, isLoading } = useQuery({
     queryKey: ["/api/children/by-gift-code", giftCode],
@@ -86,6 +89,7 @@ export default function GiftGiver() {
   // Handle photo taken from camera modal
   const handlePhotoTaken = async (imageDataUrl: string) => {
     setProfileImageUrl(imageDataUrl);
+    setIsCameraOpen(false);
 
     try {
       // If user is authenticated and has a contributor ID, save to database
@@ -120,6 +124,19 @@ export default function GiftGiver() {
         description: "Failed to save profile photo. It will be used for this gift only.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        handlePhotoTaken(result);
+        setIsPhotoDialogOpen(false);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -416,7 +433,7 @@ export default function GiftGiver() {
                   size="sm"
                   className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0"
                   variant="secondary"
-                  onClick={() => setIsCameraOpen(true)}
+                  onClick={() => setIsPhotoDialogOpen(true)}
                 >
                   <Camera className="w-3 h-3" />
                 </Button>
@@ -428,6 +445,43 @@ export default function GiftGiver() {
                 </p>
               </div>
             </div>
+
+            {/* Photo Options Dialog */}
+            <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Add Profile Photo</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={() => {
+                      setIsPhotoDialogOpen(false);
+                      setIsCameraOpen(true);
+                    }}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Take Photo
+                  </Button>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    <Image className="w-4 h-4 mr-2" />
+                    Choose from Gallery
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleGallerySelect}
+                    className="hidden"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Take Photo Modal */}
             <TakePhotoModal
