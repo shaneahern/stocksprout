@@ -124,12 +124,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
     }
   };
 
-  const handleViewPortfolio = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on camera button
-    const target = e.target as HTMLElement;
-    if (target.closest('[data-camera-button]')) {
-      return;
-    }
+  const handleViewPortfolio = () => {
     setLocation(`/portfolio/${child.id}`);
   };
 
@@ -213,12 +208,14 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   return (
     <>
       <Card 
-        onClick={handleViewPortfolio}
-        className="border border-border shadow-sm cursor-pointer hover:shadow-md transition-shadow" 
+        className="border border-border shadow-sm hover:shadow-md transition-shadow" 
         data-testid={`card-child-${child.id}`}
       >
         <CardContent className="p-5">
-          <div className="flex items-center space-x-4 mb-4">
+          <div 
+            onClick={handleViewPortfolio}
+            className="flex items-center space-x-4 mb-4 cursor-pointer"
+          >
             <div className="relative">
               <Avatar className="w-16 h-16 border-2 border-primary/20">
                 {child.profileImageUrl && (
@@ -230,47 +227,19 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               </Avatar>
               {!isContributedChild && (
                 <>
-                  {/* Large invisible clickable area */}
-                  <button
+                  <Button
                     type="button"
-                    data-camera-button="true"
-                    onClickCapture={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      fileInputRef.current?.click();
-                    }}
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      e.preventDefault();
+                      fileInputRef.current?.click();
                     }}
-                    className="absolute"
+                    className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0 bg-primary hover:bg-primary/90 shadow-md"
+                    style={{ minWidth: '48px', minHeight: '48px' }}
                     aria-label="Add profile photo"
-                    style={{ 
-                      bottom: '-56px',
-                      right: '-56px',
-                      width: '112px',
-                      height: '112px',
-                      background: 'transparent',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      zIndex: 20,
-                      touchAction: 'none'
-                    }}
-                  />
-                  {/* Small visible camera icon */}
-                  <div 
-                    data-camera-button="true"
-                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md flex items-center justify-center"
-                    style={{ 
-                      width: '24px', 
-                      height: '24px', 
-                      zIndex: 15,
-                      pointerEvents: 'none'
-                    }}
                   >
                     <Camera className="w-3 h-3" />
-                  </div>
+                  </Button>
                   <input
                     ref={fileInputRef}
                     type="file"
