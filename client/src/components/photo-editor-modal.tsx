@@ -23,9 +23,11 @@ export default function PhotoEditorModal({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const outputCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number>();
 
   // Load image and reset position/zoom when modal opens
   useEffect(() => {
@@ -38,6 +40,61 @@ export default function PhotoEditorModal({
       };
     }
   }, [isOpen, imageUrl]);
+
+  // Render preview to canvas continuously
+  useEffect(() => {
+    const renderPreview = () => {
+      if (!previewCanvasRef.current || !imageRef.current || !imageRef.current.complete) {
+        animationFrameRef.current = requestAnimationFrame(renderPreview);
+        return;
+      }
+
+      const canvas = previewCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const img = imageRef.current;
+      const containerSize = 300;
+
+      // Clear canvas
+      ctx.clearRect(0, 0, containerSize, containerSize);
+
+      // Calculate base display size
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      let baseWidth, baseHeight;
+      
+      if (imgAspect > 1) {
+        baseWidth = containerSize;
+        baseHeight = containerSize / imgAspect;
+      } else {
+        baseHeight = containerSize;
+        baseWidth = containerSize * imgAspect;
+      }
+
+      // Apply zoom
+      const displayWidth = baseWidth * zoom;
+      const displayHeight = baseHeight * zoom;
+
+      // Calculate position (centered + offset)
+      const x = (containerSize - displayWidth) / 2 + position.x;
+      const y = (containerSize - displayHeight) / 2 + position.y;
+
+      // Draw image
+      ctx.drawImage(img, x, y, displayWidth, displayHeight);
+
+      animationFrameRef.current = requestAnimationFrame(renderPreview);
+    };
+
+    if (isOpen) {
+      renderPreview();
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isOpen, zoom, position]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -82,97 +139,31 @@ export default function PhotoEditorModal({
   };
 
   const handleSave = () => {
-    if (!canvasRef.current || !imageRef.current) return;
+    if (!previewCanvasRef.current || !outputCanvasRef.current) return;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const outputCanvas = outputCanvasRef.current;
+    const ctx = outputCanvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size for output
+    // Set output size
     const outputSize = 300;
-    canvas.width = outputSize;
-    canvas.height = outputSize;
+    outputCanvas.width = outputSize;
+    outputCanvas.height = outputSize;
 
-    const img = imageRef.current;
-    const containerSize = 300;
-
-    // Calculate base display dimensions (how image fits in container before zoom)
-    const imgAspect = img.naturalWidth / img.naturalHeight;
-    let baseDisplayWidth, baseDisplayHeight;
-    
-    if (imgAspect > 1) {
-      baseDisplayWidth = containerSize;
-      baseDisplayHeight = containerSize / imgAspect;
-    } else {
-      baseDisplayHeight = containerSize;
-      baseDisplayWidth = containerSize * imgAspect;
-    }
-
-    // The CSS does: centered image, then scale(zoom), then translate(position)
-    // But transform order is applied right-to-left in the transform-origin coordinate system
-    
-    // Center point of container
-    const centerX = containerSize / 2;
-    const centerY = containerSize / 2;
-
-    // To reverse the transform for cropping:
-    // 1. The image is centered at (centerX, centerY) before any transforms
-    // 2. scale(zoom) scales from center
-    // 3. translate(position.x, position.y) moves it
-    
-    // After all transforms, a point at (x, y) in the source image appears at:
-    // displayX = centerX + (x - img.naturalWidth/2) * (baseDisplayWidth/img.naturalWidth) * zoom + position.x
-    // We need to reverse this to find which source pixel appears at each output pixel
-    
-    const scale = (baseDisplayWidth / img.naturalWidth) * zoom;
-    
-    // For output pixel (outX, outY), find source pixel:
-    // outX = centerX + (srcX - img.naturalWidth/2) * scale + position.x
-    // srcX = (outX - centerX - position.x) / scale + img.naturalWidth/2
-    
-    // Calculate the source rectangle that maps to the output (0,0) to (300,300)
-    const srcCenterX = img.naturalWidth / 2;
-    const srcCenterY = img.naturalHeight / 2;
-    
-    // Top-left corner of output (0, 0) maps to:
-    const srcX = (0 - centerX - position.x) / scale + srcCenterX;
-    const srcY = (0 - centerY - position.y) / scale + srcCenterY;
-    
-    // Bottom-right corner of output (300, 300) maps to:
-    const srcX2 = (outputSize - centerX - position.x) / scale + srcCenterX;
-    const srcY2 = (outputSize - centerY - position.y) / scale + srcCenterY;
-    
-    const srcWidth = srcX2 - srcX;
-    const srcHeight = srcY2 - srcY;
-
-    // Draw circular clipped image
+    // Draw circular clip
     ctx.save();
     ctx.beginPath();
     ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
 
-    // Clear with white background (for areas outside source image)
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, outputSize, outputSize);
-
-    // Draw the image
-    ctx.drawImage(
-      img,
-      srcX,
-      srcY,
-      srcWidth,
-      srcHeight,
-      0,
-      0,
-      outputSize,
-      outputSize
-    );
+    // Copy from preview canvas (which shows exactly what user sees)
+    ctx.drawImage(previewCanvasRef.current, 0, 0);
 
     ctx.restore();
 
     // Convert to base64
-    const croppedImageUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const croppedImageUrl = outputCanvas.toDataURL('image/jpeg', 0.9);
     onSave(croppedImageUrl);
   };
 
@@ -197,26 +188,22 @@ export default function PhotoEditorModal({
             onTouchEnd={handleTouchEnd}
             style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           >
-            {/* Image Layer */}
-            <div className="absolute inset-0" style={{ zIndex: 1 }}>
-              <img
-                ref={imageRef}
-                src={imageUrl}
-                alt="Preview"
-                className="absolute select-none"
-                style={{
-                  transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                  transformOrigin: 'center',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  left: '50%',
-                  top: '50%',
-                  marginLeft: '-50%',
-                  marginTop: '-50%'
-                }}
-                draggable={false}
-              />
-            </div>
+            {/* Hidden image for loading */}
+            <img
+              ref={imageRef}
+              src={imageUrl}
+              alt="Source"
+              className="hidden"
+            />
+
+            {/* Preview canvas - shows exactly what will be cropped */}
+            <canvas
+              ref={previewCanvasRef}
+              width={300}
+              height={300}
+              className="absolute inset-0"
+              style={{ zIndex: 1 }}
+            />
 
             {/* Circular Overlay - ON TOP */}
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
@@ -262,8 +249,8 @@ export default function PhotoEditorModal({
             </Button>
           </div>
 
-          {/* Hidden canvas for generating final image */}
-          <canvas ref={canvasRef} className="hidden" />
+          {/* Hidden canvas for generating final output */}
+          <canvas ref={outputCanvasRef} className="hidden" />
         </div>
       </DialogContent>
     </Dialog>

@@ -193,6 +193,7 @@ export default function Profile() {
   const retakePhoto = () => {
     setCapturedImage(null);
     setEditData(prev => ({ ...prev, profileImageUrl: '' }));
+    setIsCameraOpen(true);
     startCamera();
   };
 
@@ -212,11 +213,39 @@ export default function Profile() {
     }
   };
 
-  const handlePhotoEdited = (croppedImageUrl: string) => {
-    setCapturedImage(croppedImageUrl);
-    setEditData(prev => ({ ...prev, profileImageUrl: croppedImageUrl }));
+  const handlePhotoEdited = async (croppedImageUrl: string) => {
     setIsPhotoEditorOpen(false);
     setTempImageUrl("");
+    setIsCameraOpen(false);
+    
+    // Update the edit data
+    setEditData(prev => ({ ...prev, profileImageUrl: croppedImageUrl }));
+    
+    // Save to backend
+    setIsLoading(true);
+    try {
+      if (!user) throw new Error('No user logged in');
+      
+      const response = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          profileImageUrl: croppedImageUrl
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update profile');
+
+      const updatedUser = await response.json();
+      updateProfile(updatedUser);
+    } catch (error) {
+      console.error('Profile update error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Cleanup camera stream on unmount
@@ -276,72 +305,48 @@ export default function Profile() {
                     <DialogTitle>Update Profile Picture</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    {/* Camera View */}
-                    {!capturedImage && (
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-64 object-cover rounded-lg bg-gray-100"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setIsCameraOpen(false)} 
-                            className="flex-1"
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={() => fileInputRef.current?.click()} 
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            <Image className="w-4 h-4 mr-2" />
-                            Choose Photo
-                          </Button>
-                          <Button 
-                            onClick={capturePhoto} 
-                            className="flex-1 bg-green-700 hover:bg-green-800"
-                          >
-                            <Camera className="w-4 h-4 mr-2" />
-                            Take Photo
-                          </Button>
-                        </div>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={handleGallerySelect}
-                          className="hidden"
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-64 object-cover rounded-lg bg-gray-100"
                         />
                       </div>
-                    )}
-
-                    {/* Captured Image Preview */}
-                    {capturedImage && (
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <img
-                            src={capturedImage}
-                            alt="Captured"
-                            className="w-full h-64 object-cover rounded-lg"
-                          />
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" onClick={retakePhoto} className="flex-1">
-                            Retake
-                          </Button>
-                          <Button onClick={handleEditSubmit} disabled={isLoading} className="flex-1 bg-green-700 hover:bg-green-800">
-                            {isLoading ? 'Updating...' : 'Use This Photo'}
-                          </Button>
-                        </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setIsCameraOpen(false)} 
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={() => fileInputRef.current?.click()} 
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          <Image className="w-4 h-4 mr-2" />
+                          Choose Photo
+                        </Button>
+                        <Button 
+                          onClick={capturePhoto} 
+                          className="flex-1 bg-green-700 hover:bg-green-800"
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          Take Photo
+                        </Button>
                       </div>
-                    )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleGallerySelect}
+                        className="hidden"
+                      />
+                    </div>
 
                     {/* Hidden canvas for image capture */}
                     <canvas ref={canvasRef} className="hidden" />
