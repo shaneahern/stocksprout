@@ -218,41 +218,12 @@ export default function Profile() {
     setTempImageUrl("");
     setIsCameraOpen(false);
     
-    // Update the local state
-    if (user) {
-      updateProfile({ ...user, profileImageUrl: croppedImageUrl });
-    }
-    
-    // Save to backend
+    // Save to backend using updateProfile from AuthContext
     setIsLoading(true);
     try {
-      if (!user) throw new Error('No user logged in');
-      
-      const response = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          profileImageUrl: croppedImageUrl
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update profile');
-      }
-
-      const updatedUser = await response.json();
-      // Only update with the returned data to keep everything in sync
-      updateProfile(updatedUser);
+      await updateProfile({ profileImageUrl: croppedImageUrl });
     } catch (error) {
       console.error('Profile update error:', error);
-      // Revert on error
-      if (user) {
-        updateProfile(user);
-      }
     } finally {
       setIsLoading(false);
     }
