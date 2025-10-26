@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
+import { calculateAge } from '@/lib/utils';
 
 interface ChildSelectorProps {
   currentChildId: string;
@@ -54,10 +55,13 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
       if (!isOwnChild) {
         acc.push({
           id: gift.child.id,
-          name: gift.child.name,
+          firstName: gift.child.firstName,
+          lastName: gift.child.lastName,
+          name: gift.child.name, // Keep for backwards compatibility
           giftLinkCode: gift.child.giftCode,
           profileImageUrl: gift.child.profileImageUrl,
-          age: gift.child.age || 0,
+          birthdate: gift.child.birthdate,
+          age: gift.child.age || 0, // Keep for backwards compatibility
           isContributed: true
         });
       }
@@ -80,26 +84,45 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
 
   const currentChild = allChildren.find((child: any) => child.id === currentChildId);
 
+  // Helper function to get child's full name
+  const getChildName = (child: any) => {
+    if (child?.firstName && child?.lastName) {
+      return `${child.firstName} ${child.lastName}`;
+    }
+    return child?.name || 'Child';
+  };
+
+  // Helper function to get child's age
+  const getChildAge = (child: any) => {
+    if (child?.birthdate) {
+      return calculateAge(child.birthdate);
+    }
+    return child?.age || 0;
+  };
+
   if (allChildren.length === 0) {
     return null;
   }
 
   if (allChildren.length === 1) {
     // If only one child, just show their name (no selector needed)
+    const childName = getChildName(currentChild);
     return (
       <div className="flex items-center gap-3 px-3 py-2 bg-muted rounded-lg">
         <Avatar className="w-8 h-8">
           {currentChild?.profileImageUrl && (
-            <AvatarImage src={currentChild.profileImageUrl} alt={currentChild.name} />
+            <AvatarImage src={currentChild.profileImageUrl} alt={childName} />
           )}
           <AvatarFallback className="text-sm">
-            {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
+            {currentChild?.firstName?.charAt(0)?.toUpperCase() || currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
           </AvatarFallback>
         </Avatar>
-        <span className="font-semibold text-base">{currentChild?.name || 'Child'}</span>
+        <span className="font-semibold text-base">{childName}</span>
       </div>
     );
   }
+
+  const currentChildName = getChildName(currentChild);
 
   return (
     <Select value={currentChildId} onValueChange={handleValueChange}>
@@ -108,39 +131,43 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
           <div className="flex items-center gap-3">
             <Avatar className="w-8 h-8">
               {currentChild?.profileImageUrl && (
-                <AvatarImage src={currentChild.profileImageUrl} alt={currentChild.name} />
+                <AvatarImage src={currentChild.profileImageUrl} alt={currentChildName} />
               )}
               <AvatarFallback className="text-sm">
-                {currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
+                {currentChild?.firstName?.charAt(0)?.toUpperCase() || currentChild?.name?.charAt(0)?.toUpperCase() || 'C'}
               </AvatarFallback>
             </Avatar>
             <span className="font-semibold text-base truncate">
-              {currentChild?.name || 'Select Child'}
+              {currentChildName || 'Select Child'}
             </span>
           </div>
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {allChildren.map((child: any) => (
-          <SelectItem key={child.id} value={child.id}>
-            <div className="flex items-center gap-3">
-              <Avatar className="w-8 h-8">
-                {child.profileImageUrl && (
-                  <AvatarImage src={child.profileImageUrl} alt={child.name} />
+        {allChildren.map((child: any) => {
+          const childName = getChildName(child);
+          const childAge = getChildAge(child);
+          return (
+            <SelectItem key={child.id} value={child.id}>
+              <div className="flex items-center gap-3">
+                <Avatar className="w-8 h-8">
+                  {child.profileImageUrl && (
+                    <AvatarImage src={child.profileImageUrl} alt={childName} />
+                  )}
+                  <AvatarFallback className="text-sm">
+                    {child.firstName?.charAt(0)?.toUpperCase() || child.name?.charAt(0)?.toUpperCase() || 'C'}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-base font-medium">{childName}</span>
+                {!child.isContributed && (
+                  <span className="text-sm text-muted-foreground">
+                    (Age {childAge})
+                  </span>
                 )}
-                <AvatarFallback className="text-sm">
-                  {child.name?.charAt(0)?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-base font-medium">{child.name}</span>
-              {!child.isContributed && child.age !== undefined && (
-                <span className="text-sm text-muted-foreground">
-                  (Age {child.age})
-                </span>
-              )}
-            </div>
-          </SelectItem>
-        ))}
+              </div>
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );

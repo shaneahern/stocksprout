@@ -620,10 +620,11 @@ export class DatabaseStorage implements IStorage {
         investmentName: investments.name,
         investmentCurrentPrice: investments.currentPrice,
         // Child fields
-        childName: children.name,
+        childFirstName: children.firstName,
+        childLastName: children.lastName,
+        childBirthdate: children.birthdate,
         childGiftCode: children.giftLinkCode,
         childProfileImageUrl: children.profileImageUrl,
-        childAge: children.age,
       })
       .from(gifts)
       .leftJoin(investments, eq(gifts.investmentId, investments.id))
@@ -654,10 +655,11 @@ export class DatabaseStorage implements IStorage {
       },
       child: {
         id: row.childId,
-        name: row.childName,
+        firstName: row.childFirstName,
+        lastName: row.childLastName,
+        birthdate: row.childBirthdate,
         giftCode: row.childGiftCode,
         profileImageUrl: row.childProfileImageUrl,
-        age: row.childAge,
       }
     }));
   }

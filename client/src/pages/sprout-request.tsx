@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Gift, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { calculateAge } from '@/lib/utils';
 
 export default function SproutRequestPage() {
   const { requestCode } = useParams<{ requestCode: string }>();
@@ -133,6 +134,10 @@ export default function SproutRequestPage() {
   }
 
   const child = requestData.child;
+  const childName = child?.firstName && child?.lastName
+    ? `${child.firstName} ${child.lastName}`
+    : child?.name || 'Child';
+  const childAge = child?.birthdate ? calculateAge(child.birthdate) : child?.age || 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -155,15 +160,15 @@ export default function SproutRequestPage() {
             <div className="text-center mb-4">
               <Avatar className="w-16 h-16 mx-auto mb-3">
                 {child?.profileImageUrl ? (
-                  <img src={child.profileImageUrl} alt={child.name} />
+                  <img src={child.profileImageUrl} alt={childName} />
                 ) : (
                   <AvatarFallback className="text-lg">
-                    {child?.name?.charAt(0)?.toUpperCase()}
+                    {child?.firstName?.charAt(0)?.toUpperCase() || child?.name?.charAt(0)?.toUpperCase() || 'C'}
                   </AvatarFallback>
                 )}
               </Avatar>
-              <h3 className="text-xl font-bold">{child?.name}</h3>
-              <p className="text-sm text-muted-foreground">Age {child?.age}</p>
+              <h3 className="text-xl font-bold">{childName}</h3>
+              <p className="text-sm text-muted-foreground">Age {childAge}</p>
             </div>
 
             {requestData.message && (
@@ -173,7 +178,7 @@ export default function SproutRequestPage() {
             )}
 
             <p className="text-sm text-muted-foreground text-center">
-              You've been invited to contribute to {child?.name}'s investment account.
+              You've been invited to contribute to {childName}'s investment account.
               Help them build their financial future!
             </p>
           </CardContent>

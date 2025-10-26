@@ -51,10 +51,13 @@ export default function Home() {
           // Create new entry for this child
           existingChild = {
             id: gift.child.id,
-            name: gift.child.name,
+            firstName: gift.child.firstName,
+            lastName: gift.child.lastName,
+            name: gift.child.name, // Keep for backwards compatibility
             giftLinkCode: gift.child.giftCode,
             profileImageUrl: gift.child.profileImageUrl,
-            age: gift.child.age,
+            birthdate: gift.child.birthdate,
+            age: gift.child.age, // Keep for backwards compatibility
             totalValue: 0, // This will be the sum of all gifts (excluding rejected)
             totalGain: 0,
             pendingCount: 0,

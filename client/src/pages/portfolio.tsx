@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { PortfolioHolding, Investment, Child } from "@shared/schema";
 import { useEffect } from "react";
 import { getStockLogoUrl, getFallbackLogoUrl } from "@/lib/stock-logo";
+import { calculateAge } from "@/lib/utils";
 
 type EnrichedHolding = PortfolioHolding & { investment: Investment };
 
@@ -337,12 +338,15 @@ export default function Portfolio() {
                       body: JSON.stringify({ childId }),
                     });
                     const data = await response.json();
-                    
+
                     // Use the same SMS sharing logic as the child card
-                    const smsMessage = `🎁 You're invited to send a gift to ${child?.name}! Give the gift of investment: ${data.giftLink}`;
+                    const childName = child?.firstName && child?.lastName
+                      ? `${child.firstName} ${child.lastName}`
+                      : 'Child';
+                    const smsMessage = `🎁 You're invited to send a gift to ${childName}! Give the gift of investment: ${data.giftLink}`;
                     try {
                       await navigator.share({
-                        title: `Send a gift to ${child?.name}`,
+                        title: `Send a gift to ${childName}`,
                         text: smsMessage,
                         url: data.giftLink
                       });
@@ -368,13 +372,13 @@ export default function Portfolio() {
         {/* Send Gift Button - when viewing a child you've contributed to (not your own child) */}
         {childId && contributedChildren.some((c: any) => c.id === childId) && !userChildren.some((c: any) => c.id === childId) && (
           <div className="flex flex-col gap-2 -mt-2 mb-2">
-            <Button 
+            <Button
               onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
               className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
               style={{ backgroundColor: '#328956' }}
             >
               <Gift className="w-4 h-4 mr-2" />
-              Send Another Gift to {child?.name}
+              Send Another Gift to {child?.firstName && child?.lastName ? `${child.firstName} ${child.lastName}` : 'Child'}
             </Button>
           </div>
         )}
