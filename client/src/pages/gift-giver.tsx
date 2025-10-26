@@ -19,6 +19,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import TakePhotoModal from "@/components/take-photo-modal";
+import { getStockLogoUrl, getFallbackLogoUrl } from "@/lib/stock-logo";
 
 export default function GiftGiver() {
   const [, params] = useRoute("/gift/:giftCode");
@@ -525,8 +526,18 @@ export default function GiftGiver() {
               <div className="p-4 bg-primary/5 border-2 border-primary rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
-                      {selectedInvestment.symbol.charAt(0)}
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-muted">
+                      <img 
+                        src={getStockLogoUrl(selectedInvestment.symbol, selectedInvestment.name)}
+                        alt={`${selectedInvestment.symbol} logo`}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.src.startsWith('data:')) {
+                            target.src = getFallbackLogoUrl(selectedInvestment.symbol);
+                          }
+                        }}
+                      />
                     </div>
                     <div>
                       <h4 className="font-semibold text-foreground">{selectedInvestment.name}</h4>
