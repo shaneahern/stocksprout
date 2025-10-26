@@ -23,7 +23,6 @@ export default function PhotoEditorModal({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,7 +33,6 @@ export default function PhotoEditorModal({
       const img = new Image();
       img.src = imageUrl;
       img.onload = () => {
-        setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
         setPosition({ x: 0, y: 0 });
         setZoom(1);
       };
@@ -98,15 +96,16 @@ export default function PhotoEditorModal({
     const img = imageRef.current;
     const containerSize = 300; // Preview container size
 
-    // Calculate how the image is displayed
+    // Calculate the base display size (before zoom) - how the image fits in the container
     const imgAspect = img.naturalWidth / img.naturalHeight;
     let baseDisplayWidth, baseDisplayHeight;
     
-    // Image is scaled to fit within the container
     if (imgAspect > 1) {
+      // Wider image - constrained by width
       baseDisplayWidth = containerSize;
       baseDisplayHeight = containerSize / imgAspect;
     } else {
+      // Taller image - constrained by height
       baseDisplayHeight = containerSize;
       baseDisplayWidth = containerSize * imgAspect;
     }
@@ -115,22 +114,32 @@ export default function PhotoEditorModal({
     const displayWidth = baseDisplayWidth * zoom;
     const displayHeight = baseDisplayHeight * zoom;
 
-    // The image is centered in the container, then offset by position
-    const displayX = (containerSize - displayWidth) / 2 + position.x;
-    const displayY = (containerSize - displayHeight) / 2 + position.y;
+    // Calculate where the top-left corner of the image is displayed
+    // The image is centered, then offset by position
+    const imageDisplayX = (containerSize - displayWidth) / 2 + position.x;
+    const imageDisplayY = (containerSize - displayHeight) / 2 + position.y;
 
-    // Calculate which part of the display corresponds to the center circle
-    // The circle is the full 300x300 container
-    const cropDisplayX = 0;
-    const cropDisplayY = 0;
-    const cropDisplaySize = containerSize;
-
+    // We want to crop the part of the image that's visible in the circle (entire 300x300 container)
     // Convert display coordinates to source image coordinates
-    const scaleToSource = img.naturalWidth / displayWidth;
-    
-    const sourceX = (cropDisplayX - displayX) * scaleToSource;
-    const sourceY = (cropDisplayY - displayY) * scaleToSource;
-    const sourceSize = cropDisplaySize * scaleToSource;
+    const pixelScale = img.naturalWidth / displayWidth; // How many source pixels per display pixel
+
+    // Calculate source coordinates
+    // sourceX = how far into the source image does the left edge of the crop area (x=0) correspond to
+    const sourceX = (0 - imageDisplayX) * pixelScale;
+    const sourceY = (0 - imageDisplayY) * pixelScale;
+    const sourceSize = containerSize * pixelScale;
+
+    // Clamp to image bounds
+    const clampedSourceX = Math.max(0, Math.min(sourceX, img.naturalWidth));
+    const clampedSourceY = Math.max(0, Math.min(sourceY, img.naturalHeight));
+    const clampedSourceWidth = Math.min(sourceSize, img.naturalWidth - clampedSourceX);
+    const clampedSourceHeight = Math.min(sourceSize, img.naturalHeight - clampedSourceY);
+
+    // Calculate destination position if we had to clamp
+    const destX = clampedSourceX > sourceX ? (clampedSourceX - sourceX) / pixelScale : 0;
+    const destY = clampedSourceY > sourceY ? (clampedSourceY - sourceY) / pixelScale : 0;
+    const destWidth = clampedSourceWidth / pixelScale;
+    const destHeight = clampedSourceHeight / pixelScale;
 
     // Draw circular clipped image
     ctx.save();
@@ -142,14 +151,14 @@ export default function PhotoEditorModal({
     // Draw the cropped portion
     ctx.drawImage(
       img,
-      sourceX,
-      sourceY,
-      sourceSize,
-      sourceSize,
-      0,
-      0,
-      outputSize,
-      outputSize
+      clampedSourceX,
+      clampedSourceY,
+      clampedSourceWidth,
+      clampedSourceHeight,
+      destX,
+      destY,
+      destWidth,
+      destHeight
     );
 
     ctx.restore();
@@ -181,24 +190,25 @@ export default function PhotoEditorModal({
             style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           >
             {/* Image Layer */}
-            <img
-              ref={imageRef}
-              src={imageUrl}
-              alt="Preview"
-              className="absolute select-none"
-              style={{
-                transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-                transformOrigin: 'center',
-                maxWidth: '100%',
-                maxHeight: '100%',
-                left: '50%',
-                top: '50%',
-                marginLeft: '-50%',
-                marginTop: '-50%',
-                zIndex: 1
-              }}
-              draggable={false}
-            />
+            <div className="absolute inset-0" style={{ zIndex: 1 }}>
+              <img
+                ref={imageRef}
+                src={imageUrl}
+                alt="Preview"
+                className="absolute select-none"
+                style={{
+                  transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+                  transformOrigin: 'center',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  left: '50%',
+                  top: '50%',
+                  marginLeft: '-50%',
+                  marginTop: '-50%'
+                }}
+                draggable={false}
+              />
+            </div>
 
             {/* Circular Overlay - ON TOP */}
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
