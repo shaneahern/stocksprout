@@ -224,9 +224,18 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 </AvatarFallback>
               </Avatar>
               {!isContributedChild && (
-                <>
-                  {/* Invisible large clickable area */}
+                <div className="absolute -bottom-1 -right-1" style={{ position: 'relative' }}>
+                  {/* Large invisible clickable area - centered on the icon */}
                   <button
+                    type="button"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
@@ -235,20 +244,22 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                     className="absolute"
                     aria-label="Add profile photo"
                     style={{ 
-                      bottom: '-16px',
-                      right: '-16px',
-                      width: '48px',
-                      height: '48px',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '112px',
+                      height: '112px',
                       background: 'transparent',
                       border: 'none',
                       padding: 0,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      zIndex: 10
                     }}
                   />
                   {/* Small visible camera icon */}
                   <div 
-                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md pointer-events-none"
-                    style={{ width: '24px', height: '24px' }}
+                    className="bg-primary text-primary-foreground rounded-full p-1.5 shadow-md pointer-events-none flex items-center justify-center"
+                    style={{ width: '24px', height: '24px', position: 'relative', zIndex: 5 }}
                   >
                     <Camera className="w-3 h-3" />
                   </div>
@@ -259,7 +270,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                     onChange={handleGallerySelect}
                     className="hidden"
                   />
-                </>
+                </div>
               )}
             </div>
           <div className="flex-1">
