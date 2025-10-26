@@ -315,9 +315,7 @@ export class DatabaseStorage implements IStorage {
     const giftLinkCode = this.generateGiftLinkCode();
     const [child] = await db.insert(children).values({
       ...insertChild,
-      giftLinkCode,
-      profileImageUrl: insertChild.profileImageUrl ?? null,
-      birthday: insertChild.birthday ?? null
+      giftLinkCode
     }).returning();
     return child;
   }
