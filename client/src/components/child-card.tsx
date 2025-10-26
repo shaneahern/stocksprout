@@ -225,22 +225,33 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               </Avatar>
               {!isContributedChild && (
                 <>
+                  {/* Invisible large clickable area */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
                       fileInputRef.current?.click();
                     }}
-                    className="absolute bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
+                    className="absolute"
                     aria-label="Add profile photo"
                     style={{ 
-                      bottom: '-4px',
-                      right: '-4px',
-                      padding: '12px'
+                      bottom: '-16px',
+                      right: '-16px',
+                      width: '48px',
+                      height: '48px',
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer'
                     }}
+                  />
+                  {/* Small visible camera icon */}
+                  <div 
+                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md pointer-events-none"
+                    style={{ width: '24px', height: '24px' }}
                   >
                     <Camera className="w-3 h-3" />
-                  </button>
+                  </div>
                   <input
                     ref={fileInputRef}
                     type="file"
