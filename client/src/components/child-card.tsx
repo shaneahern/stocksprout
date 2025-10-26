@@ -224,8 +224,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 </AvatarFallback>
               </Avatar>
               {!isContributedChild && (
-                <div className="absolute -bottom-1 -right-1" style={{ position: 'relative' }}>
-                  {/* Large invisible clickable area - centered on the icon */}
+                <>
+                  {/* Large invisible clickable area */}
                   <button
                     type="button"
                     onPointerDown={(e) => {
@@ -233,6 +233,10 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                       e.preventDefault();
                     }}
                     onTouchStart={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                    onMouseDown={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
                     }}
@@ -244,22 +248,21 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                     className="absolute"
                     aria-label="Add profile photo"
                     style={{ 
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
+                      bottom: '-56px',
+                      right: '-56px',
                       width: '112px',
                       height: '112px',
                       background: 'transparent',
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      zIndex: 10
+                      zIndex: 20
                     }}
                   />
                   {/* Small visible camera icon */}
                   <div 
-                    className="bg-primary text-primary-foreground rounded-full p-1.5 shadow-md pointer-events-none flex items-center justify-center"
-                    style={{ width: '24px', height: '24px', position: 'relative', zIndex: 5 }}
+                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md pointer-events-none flex items-center justify-center"
+                    style={{ width: '24px', height: '24px', zIndex: 15 }}
                   >
                     <Camera className="w-3 h-3" />
                   </div>
@@ -270,7 +273,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                     onChange={handleGallerySelect}
                     className="hidden"
                   />
-                </div>
+                </>
               )}
             </div>
           <div className="flex-1">
