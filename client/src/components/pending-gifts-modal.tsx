@@ -198,7 +198,7 @@ export function PendingGiftsModal({ isOpen, onClose }: PendingGiftsModalProps) {
                         )}
                       </div>
 
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-4">
                         <Button
                           size="sm"
                           onClick={() => approveMutation.mutate(gift.id)}
