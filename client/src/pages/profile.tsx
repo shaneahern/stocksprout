@@ -218,8 +218,10 @@ export default function Profile() {
     setTempImageUrl("");
     setIsCameraOpen(false);
     
-    // Update the edit data
-    setEditData(prev => ({ ...prev, profileImageUrl: croppedImageUrl }));
+    // Update the local state
+    if (user) {
+      updateProfile({ ...user, profileImageUrl: croppedImageUrl });
+    }
     
     // Save to backend
     setIsLoading(true);
@@ -237,12 +239,20 @@ export default function Profile() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to update profile');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update profile');
+      }
 
       const updatedUser = await response.json();
+      // Only update with the returned data to keep everything in sync
       updateProfile(updatedUser);
     } catch (error) {
       console.error('Profile update error:', error);
+      // Revert on error
+      if (user) {
+        updateProfile(user);
+      }
     } finally {
       setIsLoading(false);
     }
