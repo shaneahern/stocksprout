@@ -32,10 +32,10 @@ export default function AddChild() {
       });
       setLocation("/");
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error Adding Child",
-        description: "Please try again later.",
+        description: error?.message || "Please try again later.",
         variant: "destructive",
       });
     },
@@ -66,7 +66,7 @@ export default function AddChild() {
       parentId: user.id,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      birthdate: new Date(birthdate).toISOString(),
+      birthdate: new Date(birthdate),
     };
 
     addChildMutation.mutate(childData);
