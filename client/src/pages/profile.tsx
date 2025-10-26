@@ -280,7 +280,6 @@ export default function Profile() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="user"
                 onChange={handleGallerySelect}
                 className="hidden"
               />

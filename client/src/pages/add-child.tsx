@@ -163,7 +163,6 @@ export default function AddChild() {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  capture="user"
                   onChange={handleGallerySelect}
                   className="hidden"
                 />

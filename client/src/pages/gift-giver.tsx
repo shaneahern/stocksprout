@@ -453,7 +453,6 @@ export default function GiftGiver() {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  capture="user"
                   onChange={handleGallerySelect}
                   className="hidden"
                 />

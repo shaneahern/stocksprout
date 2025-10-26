@@ -8,8 +8,7 @@ StockSprout is a custodial investment platform that allows parents to manage inv
 
 - **Photo Selection UX Ultra-Simplified**: Removed dropdown menus in favor of direct file picker:
   - Click camera icon → native file picker opens immediately
-  - Mobile devices show built-in "Take Photo" and "Choose from Photos" options
-  - Added `capture="user"` attribute to enable camera access on mobile
+  - Mobile devices show built-in menu: "Take Photo", "Photo Library", "Browse", etc.
   - Single-click flow for maximum simplicity
   - Applied to: Profile page, Add Child page, Child cards, and Gift Giver page
   - Maintains all photo editor functionality (drag-to-reposition and zoom)

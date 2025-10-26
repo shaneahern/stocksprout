@@ -239,7 +239,6 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    capture="user"
                     onChange={handleGallerySelect}
                     className="hidden"
                   />
