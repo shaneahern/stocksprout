@@ -54,6 +54,11 @@ export default function GiftGiver() {
 
   // Type guard for child data
   const typedChild = child as any;
+  
+  // Compute child's full name from firstName and lastName
+  const childFullName = typedChild 
+    ? `${typedChild.firstName || ''} ${typedChild.lastName || ''}`.trim() || typedChild.name || 'this child'
+    : 'this child';
 
   // Handle authentication
   const handleAuthenticated = (contributorData: any, isNewUser: boolean) => {
@@ -332,7 +337,7 @@ export default function GiftGiver() {
         isOpen={shouldShowAuthModal}
         onClose={() => {}} // Modal will hide automatically when authenticated
         onAuthenticated={handleAuthenticated}
-        childName={typedChild?.name || 'this child'}
+        childName={childFullName}
       />
       
       {/* Header */}
@@ -341,7 +346,7 @@ export default function GiftGiver() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl sm:text-3xl font-bold">StockSprout</h1>
-              <p className="text-white/90 text-sm sm:text-base">Send an investment gift to {typedChild.name}</p>
+              <p className="text-white/90 text-sm sm:text-base">Send an investment gift to {childFullName}</p>
             </div>
             {authContributor && (
               <Button
@@ -369,10 +374,10 @@ export default function GiftGiver() {
           <CardContent>
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 bg-muted rounded-xl p-4 sm:p-6">
               <div className="w-20 h-20 sm:w-24 sm:h-24 bg-primary rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold">
-                {typedChild.name.charAt(0)}
+                {childFullName.charAt(0)}
               </div>
               <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-xl sm:text-2xl font-bold text-foreground">{typedChild.name}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-foreground">{childFullName}</h3>
                 <p className="text-muted-foreground text-base sm:text-lg">
                   {typedChild.age} years old
                   {typedChild.birthday && ` • Birthday: ${typedChild.birthday}`}
@@ -604,7 +609,7 @@ export default function GiftGiver() {
                 <Textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Write a personal message for ${typedChild.name}...`}
+                  placeholder={`Write a personal message for ${childFullName}...`}
                   rows={8}
                   className="resize-none"
                   data-testid="textarea-message"
@@ -618,7 +623,7 @@ export default function GiftGiver() {
         {giftMode === "buy" && !giftSent && selectedInvestment && giftGiverName && (
           <RecurringContributionSetup
             childId={typedChild.id}
-            childName={typedChild.name}
+            childName={childFullName}
             selectedInvestment={selectedInvestment}
             amount={amount}
             contributorName={giftGiverName}
@@ -641,7 +646,7 @@ export default function GiftGiver() {
                 giftGiverName={giftGiverName}
                 investmentName={selectedInvestment?.name || ""}
                 shares={shares}
-                childName={typedChild.name}
+                childName={childFullName}
                 onPaymentSuccess={handlePaymentSuccess}
                 onPaymentError={handlePaymentError}
                 disabled={sendGiftMutation.isPending}
@@ -666,7 +671,7 @@ export default function GiftGiver() {
                       ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
                       : "0.00"}
                   </p>
-                  <p className="text-muted-foreground">To: {typedChild.name}</p>
+                  <p className="text-muted-foreground">To: {childFullName}</p>
                   {paymentId && (
                     <p className="text-success text-sm mt-2">
                       ✓ Transfer ready: {paymentId}
