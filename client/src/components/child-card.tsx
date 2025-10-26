@@ -234,10 +234,14 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                   <button
                     type="button"
                     data-camera-button="true"
-                    onClick={(e) => {
+                    onClickCapture={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
                       fileInputRef.current?.click();
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
                     }}
                     className="absolute"
                     aria-label="Add profile photo"
@@ -250,14 +254,20 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      zIndex: 20
+                      zIndex: 20,
+                      touchAction: 'none'
                     }}
                   />
                   {/* Small visible camera icon */}
                   <div 
                     data-camera-button="true"
-                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md pointer-events-none flex items-center justify-center"
-                    style={{ width: '24px', height: '24px', zIndex: 15 }}
+                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md flex items-center justify-center"
+                    style={{ 
+                      width: '24px', 
+                      height: '24px', 
+                      zIndex: 15,
+                      pointerEvents: 'none'
+                    }}
                   >
                     <Camera className="w-3 h-3" />
                   </div>
