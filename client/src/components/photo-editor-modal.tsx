@@ -23,22 +23,20 @@ export default function PhotoEditorModal({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load image when modal opens
+  // Load image and reset position/zoom when modal opens
   useEffect(() => {
     if (isOpen && imageUrl) {
       const img = new Image();
       img.src = imageUrl;
       img.onload = () => {
-        if (imageRef.current) {
-          imageRef.current.src = imageUrl;
-          // Center the image initially
-          setPosition({ x: 0, y: 0 });
-          setZoom(1);
-        }
+        setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+        setPosition({ x: 0, y: 0 });
+        setZoom(1);
       };
     }
   }, [isOpen, imageUrl]);
@@ -92,60 +90,69 @@ export default function PhotoEditorModal({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size to desired output (300x300 for profile photos)
-    const size = 300;
-    canvas.width = size;
-    canvas.height = size;
+    // Set canvas size for output
+    const outputSize = 300;
+    canvas.width = outputSize;
+    canvas.height = outputSize;
 
-    // Calculate the source rectangle from the displayed image
     const img = imageRef.current;
-    const containerWidth = 300; // Fixed preview size
-    const containerHeight = 300;
+    const containerSize = 300; // Preview container size
 
-    // Calculate actual image dimensions when scaled
+    // Calculate how the image is displayed
     const imgAspect = img.naturalWidth / img.naturalHeight;
-    let displayWidth, displayHeight;
+    let baseDisplayWidth, baseDisplayHeight;
     
+    // Image is scaled to fit within the container
     if (imgAspect > 1) {
-      displayWidth = containerWidth;
-      displayHeight = containerWidth / imgAspect;
+      baseDisplayWidth = containerSize;
+      baseDisplayHeight = containerSize / imgAspect;
     } else {
-      displayHeight = containerHeight;
-      displayWidth = containerHeight * imgAspect;
+      baseDisplayHeight = containerSize;
+      baseDisplayWidth = containerSize * imgAspect;
     }
 
-    // Apply zoom
-    displayWidth *= zoom;
-    displayHeight *= zoom;
+    // Apply zoom to get actual display size
+    const displayWidth = baseDisplayWidth * zoom;
+    const displayHeight = baseDisplayHeight * zoom;
 
-    // Calculate the center point
-    const centerX = containerWidth / 2;
-    const centerY = containerHeight / 2;
+    // The image is centered in the container, then offset by position
+    const displayX = (containerSize - displayWidth) / 2 + position.x;
+    const displayY = (containerSize - displayHeight) / 2 + position.y;
 
-    // Calculate source coordinates (which part of the original image to use)
-    const scale = img.naturalWidth / displayWidth;
-    const sourceX = (centerX - position.x - displayWidth / 2) * scale;
-    const sourceY = (centerY - position.y - displayHeight / 2) * scale;
-    const sourceSize = size * scale;
+    // Calculate which part of the display corresponds to the center circle
+    // The circle is the full 300x300 container
+    const cropDisplayX = 0;
+    const cropDisplayY = 0;
+    const cropDisplaySize = containerSize;
+
+    // Convert display coordinates to source image coordinates
+    const scaleToSource = img.naturalWidth / displayWidth;
+    
+    const sourceX = (cropDisplayX - displayX) * scaleToSource;
+    const sourceY = (cropDisplayY - displayY) * scaleToSource;
+    const sourceSize = cropDisplaySize * scaleToSource;
 
     // Draw circular clipped image
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
 
-    // Draw the image
+    // Draw the cropped portion
     ctx.drawImage(
       img,
-      Math.max(0, sourceX),
-      Math.max(0, sourceY),
-      Math.min(sourceSize, img.naturalWidth),
-      Math.min(sourceSize, img.naturalHeight),
+      sourceX,
+      sourceY,
+      sourceSize,
+      sourceSize,
       0,
       0,
-      size,
-      size
+      outputSize,
+      outputSize
     );
+
+    ctx.restore();
 
     // Convert to base64
     const croppedImageUrl = canvas.toDataURL('image/jpeg', 0.9);
@@ -173,21 +180,7 @@ export default function PhotoEditorModal({
             onTouchEnd={handleTouchEnd}
             style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           >
-            {/* Circular Overlay */}
-            <div className="absolute inset-0 pointer-events-none">
-              <svg width="300" height="300" className="absolute inset-0">
-                <defs>
-                  <mask id="circleMask">
-                    <rect width="300" height="300" fill="white" />
-                    <circle cx="150" cy="150" r="145" fill="black" />
-                  </mask>
-                </defs>
-                <rect width="300" height="300" fill="rgba(0,0,0,0.5)" mask="url(#circleMask)" />
-                <circle cx="150" cy="150" r="145" fill="none" stroke="white" strokeWidth="2" />
-              </svg>
-            </div>
-
-            {/* Image */}
+            {/* Image Layer */}
             <img
               ref={imageRef}
               src={imageUrl}
@@ -201,10 +194,25 @@ export default function PhotoEditorModal({
                 left: '50%',
                 top: '50%',
                 marginLeft: '-50%',
-                marginTop: '-50%'
+                marginTop: '-50%',
+                zIndex: 1
               }}
               draggable={false}
             />
+
+            {/* Circular Overlay - ON TOP */}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+              <svg width="300" height="300" className="absolute inset-0">
+                <defs>
+                  <mask id="circleMask">
+                    <rect width="300" height="300" fill="white" />
+                    <circle cx="150" cy="150" r="145" fill="black" />
+                  </mask>
+                </defs>
+                <rect width="300" height="300" fill="rgba(0,0,0,0.5)" mask="url(#circleMask)" />
+                <circle cx="150" cy="150" r="145" fill="none" stroke="white" strokeWidth="2" />
+              </svg>
+            </div>
           </div>
 
           {/* Zoom Controls */}
