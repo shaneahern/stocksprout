@@ -335,9 +335,9 @@ export default function Activities() {
         <div>
           <Card>
             <CardContent className="p-2 sm:p-3">
-              <JourneyGraphic 
+              <JourneyGraphic
                 stages={journeyStages}
-                childPositions={getChildJourneyPositions()}
+                childPositions={[]}
                 className="mx-auto"
               />
               
