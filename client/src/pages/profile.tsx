@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import PhotoEditorModal from "@/components/photo-editor-modal";
 
 export default function Profile() {
   const { user, token, logout, updateProfile } = useAuth();
@@ -36,6 +37,8 @@ export default function Profile() {
   // Camera functionality state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -177,10 +180,10 @@ export default function Profile() {
         
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         console.log('Photo captured, data URL length:', imageDataUrl.length);
-        setCapturedImage(imageDataUrl);
-        setEditData(prev => ({ ...prev, profileImageUrl: imageDataUrl }));
+        setTempImageUrl(imageDataUrl);
+        setIsCameraOpen(false);
+        setIsPhotoEditorOpen(true);
         stopCamera();
-        // Don't close dialog immediately - let user see preview and decide
       }
     } else {
       console.error('Video or canvas ref not available');
@@ -200,12 +203,20 @@ export default function Profile() {
       reader.onload = (event) => {
         const result = event.target?.result as string;
         console.log('Gallery photo selected, data URL length:', result.length);
-        setCapturedImage(result);
-        setEditData(prev => ({ ...prev, profileImageUrl: result }));
+        setTempImageUrl(result);
+        setIsCameraOpen(false);
+        setIsPhotoEditorOpen(true);
         stopCamera();
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handlePhotoEdited = (croppedImageUrl: string) => {
+    setCapturedImage(croppedImageUrl);
+    setEditData(prev => ({ ...prev, profileImageUrl: croppedImageUrl }));
+    setIsPhotoEditorOpen(false);
+    setTempImageUrl("");
   };
 
   // Cleanup camera stream on unmount
@@ -456,6 +467,18 @@ export default function Profile() {
           <LogOut className="w-7 h-7 mr-3" />
           Sign Out
         </Button>
+
+        {/* Photo Editor Modal */}
+        <PhotoEditorModal
+          isOpen={isPhotoEditorOpen}
+          onClose={() => {
+            setIsPhotoEditorOpen(false);
+            setTempImageUrl("");
+          }}
+          imageUrl={tempImageUrl}
+          onSave={handlePhotoEdited}
+          title="Edit Profile Photo"
+        />
       </div>
     </MobileLayout>
   );

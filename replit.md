@@ -14,6 +14,13 @@ StockSprout is a custodial investment platform that allows parents to manage inv
   - Profile page - Take photo OR choose from gallery
   - Send Gift page (contributor profile) - Take photo OR choose from gallery
   - Mobile-optimized: iOS shows "Photo Library/Take Photo/Browse", Android opens native gallery picker
+- **Photo Editor**: Added interactive photo editor with center and zoom capabilities for all profile photos:
+  - Drag to reposition image within circular frame
+  - Slider to zoom in/out (0.5x to 3x)
+  - Live preview with circular overlay showing final crop area
+  - Touch-enabled for mobile devices
+  - Outputs 300x300px circular profile photos
+  - Works with both camera and gallery photos
 
 ## Previous Changes (October 6, 2025)
 

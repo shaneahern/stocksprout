@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import TakePhotoModal from "@/components/take-photo-modal";
+import PhotoEditorModal from "@/components/photo-editor-modal";
 
 export default function AddChild() {
   const [, setLocation] = useLocation();
@@ -22,6 +23,8 @@ export default function AddChild() {
   const [birthdate, setBirthdate] = useState("");
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addChildMutation = useMutation({
@@ -83,8 +86,9 @@ export default function AddChild() {
   };
 
   const handlePhotoTaken = (photoDataUrl: string) => {
-    setProfileImageUrl(photoDataUrl);
+    setTempImageUrl(photoDataUrl);
     setIsCameraOpen(false);
+    setIsPhotoEditorOpen(true);
   };
 
   const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,10 +97,17 @@ export default function AddChild() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const result = event.target?.result as string;
-        setProfileImageUrl(result);
+        setTempImageUrl(result);
+        setIsPhotoEditorOpen(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handlePhotoEdited = (croppedImageUrl: string) => {
+    setProfileImageUrl(croppedImageUrl);
+    setIsPhotoEditorOpen(false);
+    setTempImageUrl("");
   };
 
   return (
@@ -177,6 +188,18 @@ export default function AddChild() {
                 onClose={() => setIsCameraOpen(false)}
                 onPhotoTaken={handlePhotoTaken}
                 title="Add Child's Profile Photo"
+              />
+
+              {/* Photo Editor Modal */}
+              <PhotoEditorModal
+                isOpen={isPhotoEditorOpen}
+                onClose={() => {
+                  setIsPhotoEditorOpen(false);
+                  setTempImageUrl("");
+                }}
+                imageUrl={tempImageUrl}
+                onSave={handlePhotoEdited}
+                title="Edit Profile Photo"
               />
 
               <div>

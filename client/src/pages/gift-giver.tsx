@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import TakePhotoModal from "@/components/take-photo-modal";
 import { getStockLogoUrl, getFallbackLogoUrl } from "@/lib/stock-logo";
+import PhotoEditorModal from "@/components/photo-editor-modal";
 
 export default function GiftGiver() {
   const [, params] = useRoute("/gift/:giftCode");
@@ -49,6 +50,8 @@ export default function GiftGiver() {
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: child, isLoading } = useQuery({
@@ -87,9 +90,31 @@ export default function GiftGiver() {
   };
 
   // Handle photo taken from camera modal
-  const handlePhotoTaken = async (imageDataUrl: string) => {
-    setProfileImageUrl(imageDataUrl);
+  const handlePhotoTaken = (imageDataUrl: string) => {
+    setTempImageUrl(imageDataUrl);
     setIsCameraOpen(false);
+    setIsPhotoDialogOpen(false);
+    setIsPhotoEditorOpen(true);
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setTempImageUrl(result);
+        setIsPhotoDialogOpen(false);
+        setIsPhotoEditorOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoEdited = async (croppedImageUrl: string) => {
+    setProfileImageUrl(croppedImageUrl);
+    setIsPhotoEditorOpen(false);
+    setTempImageUrl("");
 
     try {
       // If user is authenticated and has a contributor ID, save to database
@@ -100,7 +125,7 @@ export default function GiftGiver() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${contributorToken}`,
           },
-          body: JSON.stringify({ profileImageUrl: imageDataUrl }),
+          body: JSON.stringify({ profileImageUrl: croppedImageUrl }),
         });
 
         if (response.ok) {
@@ -124,19 +149,6 @@ export default function GiftGiver() {
         description: "Failed to save profile photo. It will be used for this gift only.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        handlePhotoTaken(result);
-        setIsPhotoDialogOpen(false);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -489,6 +501,18 @@ export default function GiftGiver() {
               onClose={() => setIsCameraOpen(false)}
               onPhotoTaken={handlePhotoTaken}
               title="Add Profile Photo"
+            />
+
+            {/* Photo Editor Modal */}
+            <PhotoEditorModal
+              isOpen={isPhotoEditorOpen}
+              onClose={() => {
+                setIsPhotoEditorOpen(false);
+                setTempImageUrl("");
+              }}
+              imageUrl={tempImageUrl}
+              onSave={handlePhotoEdited}
+              title="Edit Profile Photo"
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -13,6 +13,7 @@ import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
 import { calculateAge } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import TakePhotoModal from "@/components/take-photo-modal";
+import PhotoEditorModal from "@/components/photo-editor-modal";
 
 interface ChildCardProps {
   child: any;
@@ -27,6 +28,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   // Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate child's name and age
@@ -72,7 +75,28 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   });
 
   // Handle photo taken from camera modal
-  const handlePhotoTaken = async (imageDataUrl: string) => {
+  const handlePhotoTaken = (imageDataUrl: string) => {
+    setTempImageUrl(imageDataUrl);
+    setIsCameraOpen(false);
+    setIsPhotoDialogOpen(false);
+    setIsPhotoEditorOpen(true);
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setTempImageUrl(result);
+        setIsPhotoDialogOpen(false);
+        setIsPhotoEditorOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoEdited = async (croppedImageUrl: string) => {
     try {
       const response = await fetch(`/api/children/${child.id}/profile-photo`, {
         method: 'PATCH',
@@ -80,7 +104,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ profileImageUrl: imageDataUrl }),
+        body: JSON.stringify({ profileImageUrl: croppedImageUrl }),
       });
       if (!response.ok) throw new Error("Failed to update photo");
 
@@ -89,25 +113,14 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         title: "Photo Updated!",
         description: `Profile photo for ${fullName} has been updated.`,
       });
+      setIsPhotoEditorOpen(false);
+      setTempImageUrl("");
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to update profile photo.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const result = event.target?.result as string;
-        await handlePhotoTaken(result);
-        setIsPhotoDialogOpen(false);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -332,6 +345,18 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         onClose={() => setIsCameraOpen(false)}
         onPhotoTaken={handlePhotoTaken}
         title={`Add Profile Photo for ${fullName}`}
+      />
+
+      {/* Photo Editor Modal */}
+      <PhotoEditorModal
+        isOpen={isPhotoEditorOpen}
+        onClose={() => {
+          setIsPhotoEditorOpen(false);
+          setTempImageUrl("");
+        }}
+        imageUrl={tempImageUrl}
+        onSave={handlePhotoEdited}
+        title={`Edit Photo for ${fullName}`}
       />
     </>
   );
