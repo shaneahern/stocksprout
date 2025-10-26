@@ -231,11 +231,15 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                       e.preventDefault();
                       fileInputRef.current?.click();
                     }}
-                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-2.5 shadow-md hover:bg-primary/90 transition-colors touch-manipulation"
+                    className="absolute bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
                     aria-label="Add profile photo"
-                    style={{ minWidth: '40px', minHeight: '40px' }}
+                    style={{ 
+                      bottom: '-4px',
+                      right: '-4px',
+                      padding: '12px'
+                    }}
                   >
-                    <Camera className="w-4 h-4" />
+                    <Camera className="w-3 h-3" />
                   </button>
                   <input
                     ref={fileInputRef}
