@@ -6,6 +6,13 @@ StockSprout is a custodial investment platform that allows parents to manage inv
 
 ## Recent Changes (October 26, 2025)
 
+- **Photo Selection UX Ultra-Simplified**: Removed dropdown menus in favor of direct file picker:
+  - Click camera icon → native file picker opens immediately
+  - Mobile devices show built-in "Take Photo" and "Choose from Photos" options
+  - Added `capture="user"` attribute to enable camera access on mobile
+  - Single-click flow for maximum simplicity
+  - Applied to: Profile page, Add Child page, Child cards, and Gift Giver page
+  - Maintains all photo editor functionality (drag-to-reposition and zoom)
 - **Send Gift Page Fixed**: Resolved blank screen issue by computing child full name from firstName/lastName fields
 - **Selected Stock Display**: Added visual display of selected stock beneath search bar on Send Gift page with company logo, price, YTD return, and blue "Selected" indicator matching preset tiles
 - **Gallery Photo Selection**: Added gallery photo selection option across all profile photo features:
@@ -18,6 +25,7 @@ StockSprout is a custodial investment platform that allows parents to manage inv
   - Drag to reposition image within circular frame
   - Slider to zoom in/out (0.5x to 3x)
   - Live preview with circular overlay showing final crop area
+  - Canvas-based rendering ensures exact match between preview and saved result
   - Touch-enabled for mobile devices
   - Outputs 300x300px circular profile photos
   - Works with both camera and gallery photos

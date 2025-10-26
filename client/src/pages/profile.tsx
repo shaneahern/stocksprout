@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera, Image } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -264,6 +264,28 @@ export default function Profile() {
                   </AvatarFallback>
                 )}
               </Avatar>
+              
+              {/* Photo Selection Button */}
+              <Button
+                size="sm"
+                className="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-500 hover:bg-blue-600 border-2 border-white"
+                variant="default"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="w-4 h-4 text-white" />
+              </Button>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="user"
+                onChange={handleGallerySelect}
+                className="hidden"
+              />
+
+              {/* Camera Dialog - only for taking photos */}
               <Dialog open={isCameraOpen} onOpenChange={(open) => {
                 setIsCameraOpen(open);
                 if (!open) {
@@ -271,62 +293,35 @@ export default function Profile() {
                   setCapturedImage(null);
                 }
               }}>
-                <DialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-500 hover:bg-blue-600 border-2 border-white"
-                    variant="default"
-                    onClick={() => setIsCameraOpen(true)}
-                  >
-                    <Camera className="w-4 h-4 text-white" />
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Update Profile Picture</DialogTitle>
+                    <DialogTitle>Take Photo</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="relative">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-64 object-cover rounded-lg bg-gray-100"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          onClick={() => setIsCameraOpen(false)} 
-                          className="flex-1"
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={() => fileInputRef.current?.click()} 
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          <Image className="w-4 h-4 mr-2" />
-                          Choose Photo
-                        </Button>
-                        <Button 
-                          onClick={capturePhoto} 
-                          className="flex-1 bg-green-700 hover:bg-green-800"
-                        >
-                          <Camera className="w-4 h-4 mr-2" />
-                          Take Photo
-                        </Button>
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleGallerySelect}
-                        className="hidden"
+                    <div className="relative">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-64 object-cover rounded-lg bg-gray-100"
                       />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setIsCameraOpen(false)} 
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={capturePhoto} 
+                        className="flex-1 bg-green-700 hover:bg-green-800"
+                      >
+                        <Camera className="w-4 h-4 mr-2" />
+                        Capture
+                      </Button>
                     </div>
 
                     {/* Hidden canvas for image capture */}
@@ -365,17 +360,17 @@ export default function Profile() {
 
         {/* Settings Options */}
         <div className="space-y-0">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start h-12 px-4 text-base"
+            onClick={() => setIsEditing(true)}
+            data-testid="button-edit-profile"
+          >
+            <Edit3 className="w-7 h-7 mr-4" />
+            Edit Profile
+          </Button>
+          
           <Dialog open={isEditing} onOpenChange={setIsEditing}>
-            <DialogTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start h-12 px-4 text-base"
-                data-testid="button-edit-profile"
-              >
-                <Edit3 className="w-7 h-7 mr-4" />
-                Edit Profile
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Edit Profile</DialogTitle>

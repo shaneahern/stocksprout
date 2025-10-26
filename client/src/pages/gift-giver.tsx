@@ -14,7 +14,7 @@ import VideoRecorder from "@/components/video-recorder";
 import MockPaymentForm from "@/components/mock-payment-form";
 import { RecurringContributionSetup } from "@/components/recurring-contribution-setup";
 import { GiftGiverAuthModal } from "@/components/gift-giver-auth-modal";
-import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, ArrowLeftRight, ShoppingCart, Image } from "lucide-react";
+import { CheckCircle, Gift, DollarSign, MessageSquare, Video, CreditCard, Camera, ArrowLeftRight, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
@@ -445,10 +445,18 @@ export default function GiftGiver() {
                   size="sm"
                   className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0"
                   variant="secondary"
-                  onClick={() => setIsPhotoDialogOpen(true)}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera className="w-3 h-3" />
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  onChange={handleGallerySelect}
+                  className="hidden"
+                />
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-semibold text-foreground">Profile Photo</h3>
@@ -457,43 +465,6 @@ export default function GiftGiver() {
                 </p>
               </div>
             </div>
-
-            {/* Photo Options Dialog */}
-            <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
-              <DialogContent className="max-w-sm">
-                <DialogHeader>
-                  <DialogTitle>Add Profile Photo</DialogTitle>
-                </DialogHeader>
-                <div className="flex flex-col gap-3">
-                  <Button
-                    onClick={() => {
-                      setIsPhotoDialogOpen(false);
-                      setIsCameraOpen(true);
-                    }}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    <Camera className="w-4 h-4 mr-2" />
-                    Take Photo
-                  </Button>
-                  <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    <Image className="w-4 h-4 mr-2" />
-                    Choose from Gallery
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleGallerySelect}
-                    className="hidden"
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
 
             {/* Take Photo Modal */}
             <TakePhotoModal

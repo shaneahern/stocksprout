@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus, Image } from "lucide-react";
+import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
@@ -224,16 +224,26 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 </AvatarFallback>
               </Avatar>
               {!isContributedChild && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsPhotoDialogOpen(true);
-                  }}
-                  className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
-                  aria-label="Add profile photo"
-                >
-                  <Camera className="w-3 h-3" />
-                </button>
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
+                    aria-label="Add profile photo"
+                  >
+                    <Camera className="w-3 h-3" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={handleGallerySelect}
+                    className="hidden"
+                  />
+                </>
               )}
             </div>
           <div className="flex-1">
@@ -297,47 +307,6 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         </div>
       </CardContent>
     </Card>
-
-      {/* Photo Options Dialog */}
-      <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
-        <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
-          <DialogHeader>
-            <DialogTitle>Add Profile Photo for {fullName}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsPhotoDialogOpen(false);
-                setIsCameraOpen(true);
-              }}
-              className="w-full"
-              variant="outline"
-            >
-              <Camera className="w-4 h-4 mr-2" />
-              Take Photo
-            </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-              className="w-full"
-              variant="outline"
-            >
-              <Image className="w-4 h-4 mr-2" />
-              Choose from Gallery
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleGallerySelect}
-              className="hidden"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Take Photo Modal */}
       <TakePhotoModal
