@@ -18,10 +18,10 @@ export const users = pgTable("users", {
 export const children = pgTable("children", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   parentId: varchar("parent_id").notNull(),
-  name: text("name").notNull(),
-  age: integer("age").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  birthdate: timestamp("birthdate").notNull(),
   profileImageUrl: text("profile_image_url"),
-  birthday: text("birthday"),
   giftLinkCode: text("gift_link_code").notNull().unique(),
 }, (table) => ({
   parentIdIdx: index("children_parent_id_idx").on(table.parentId),
@@ -166,10 +166,10 @@ export const updateProfileSchema = z.object({
 
 export const insertChildSchema = createInsertSchema(children).pick({
   parentId: true,
-  name: true,
-  age: true,
+  firstName: true,
+  lastName: true,
+  birthdate: true,
   profileImageUrl: true,
-  birthday: true,
 });
 
 export const insertInvestmentSchema = createInsertSchema(investments).pick({

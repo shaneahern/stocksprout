@@ -110,7 +110,14 @@ export default function Activities() {
       // Only include if this is not one of the user's own children
       const isOwnChild = userChildren.some((child: any) => child.id === gift.child.id);
       if (!isOwnChild) {
-        acc.push(gift.child);
+        acc.push({
+          ...gift.child,
+          firstName: gift.child.firstName,
+          lastName: gift.child.lastName,
+          name: gift.child.name, // Keep for backwards compatibility
+          birthdate: gift.child.birthdate,
+          age: gift.child.age, // Keep for backwards compatibility
+        });
       }
     }
     return acc;
@@ -123,10 +130,13 @@ export default function Activities() {
   const children = allChildren.map(child => {
     // Randomly assign a journey stage
     const randomStage = journeyStages[Math.floor(Math.random() * journeyStages.length)];
-    
+    const childName = child.firstName && child.lastName
+      ? `${child.firstName} ${child.lastName}`
+      : child.name || 'Child';
+
     return {
       id: child.id,
-      name: child.name,
+      name: childName,
       profileImageUrl: child.profileImageUrl,
       financialJourneyStage: randomStage.id,
       progress: {

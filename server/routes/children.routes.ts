@@ -17,10 +17,10 @@ export function registerChildrenRoutes(app: Express) {
         .select({
           id: children.id,
           parentId: children.parentId,
-          name: children.name,
-          age: children.age,
+          firstName: children.firstName,
+          lastName: children.lastName,
+          birthdate: children.birthdate,
           profileImageUrl: children.profileImageUrl,
-          birthday: children.birthday,
           giftLinkCode: children.giftLinkCode,
           totalValue: sql<string>`COALESCE(SUM(${portfolioHoldings.currentValue}), 0)`,
           totalCost: sql<string>`COALESCE(SUM(${portfolioHoldings.shares} * ${portfolioHoldings.averageCost}), 0)`,
@@ -117,11 +117,12 @@ export function registerChildrenRoutes(app: Express) {
         'http://localhost:3000';
 
       const giftLink = `${baseUrl}/gift/${child.giftLinkCode}`;
+      const childName = `${child.firstName} ${child.lastName}`;
 
       res.json({
         giftLink,
         giftCode: child.giftLinkCode,
-        childName: child.name
+        childName
       });
     } catch (error) {
       return handleError(res, error, "Failed to generate gift link");

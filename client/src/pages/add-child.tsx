@@ -15,9 +15,9 @@ export default function AddChild() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [name, setName] = useState("");
-  const [age, setAge] = useState("");
-  const [birthday, setBirthday] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthdate, setBirthdate] = useState("");
 
   const addChildMutation = useMutation({
     mutationFn: async (childData: any) => {
@@ -43,8 +43,8 @@ export default function AddChild() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!name || !age) {
+
+    if (!firstName || !lastName || !birthdate) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -64,9 +64,9 @@ export default function AddChild() {
 
     const childData = {
       parentId: user.id,
-      name: name.trim(),
-      age: parseInt(age),
-      birthday: birthday || undefined,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      birthdate: new Date(birthdate).toISOString(),
     };
 
     addChildMutation.mutate(childData);
@@ -106,38 +106,36 @@ export default function AddChild() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <Label htmlFor="name">Child's Name *</Label>
+                <Label htmlFor="firstName">First Name *</Label>
                 <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter child's name"
-                  data-testid="input-child-name"
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter first name"
+                  data-testid="input-child-first-name"
                 />
               </div>
 
               <div>
-                <Label htmlFor="age">Age *</Label>
+                <Label htmlFor="lastName">Last Name *</Label>
                 <Input
-                  id="age"
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder="Enter child's age"
-                  min="0"
-                  max="18"
-                  data-testid="input-child-age"
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Enter last name"
+                  data-testid="input-child-last-name"
                 />
               </div>
 
               <div>
-                <Label htmlFor="birthday">Birthday (Optional)</Label>
+                <Label htmlFor="birthdate">Date of Birth *</Label>
                 <Input
-                  id="birthday"
-                  value={birthday}
-                  onChange={(e) => setBirthday(e.target.value)}
-                  placeholder="e.g., March 15th"
-                  data-testid="input-child-birthday"
+                  id="birthdate"
+                  type="date"
+                  value={birthdate}
+                  onChange={(e) => setBirthdate(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]}
+                  data-testid="input-child-birthdate"
                 />
               </div>
 

@@ -9,6 +9,7 @@ import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus }
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
+import { calculateAge } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import TakePhotoModal from "@/components/take-photo-modal";
 
@@ -24,6 +25,12 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
 
   // Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+
+  // Calculate child's name and age
+  const fullName = child.firstName && child.lastName
+    ? `${child.firstName} ${child.lastName}`
+    : child.name || 'Child';
+  const age = child.birthdate ? calculateAge(child.birthdate) : child.age || 0;
 
   const generateLinkMutation = useMutation({
     mutationFn: async () => {
@@ -42,13 +49,13 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         });
         toast({
           title: "Share Menu Opened!",
-          description: `Choose how you want to share the gift link for ${child.name}.`,
+          description: `Choose how you want to share the gift link for ${fullName}.`,
         });
       } catch (error) {
         // Fallback if sharing failed or was cancelled
         toast({
           title: "Share Ready",
-          description: `Gift link generated for ${child.name}. Use the share options to send it via SMS.`,
+          description: `Gift link generated for ${fullName}. Use the share options to send it via SMS.`,
         });
       }
     },
@@ -77,7 +84,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
       queryClient.invalidateQueries({ queryKey: ["/api/children"] });
       toast({
         title: "Photo Updated!",
-        description: `Profile photo for ${child.name} has been updated.`,
+        description: `Profile photo for ${fullName} has been updated.`,
       });
     } catch (error) {
       toast({
@@ -181,10 +188,10 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
             <div className="relative">
               <Avatar className="w-16 h-16 border-2 border-primary/20">
                 {child.profileImageUrl && (
-                  <AvatarImage src={child.profileImageUrl} alt={child.name} />
+                  <AvatarImage src={child.profileImageUrl} alt={fullName} />
                 )}
                 <AvatarFallback className="text-lg font-bold">
-                  {child.name.charAt(0)}
+                  {child.firstName?.charAt(0) || child.name?.charAt(0) || 'C'}
                 </AvatarFallback>
               </Avatar>
               {!isContributedChild && (
@@ -201,8 +208,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               )}
             </div>
           <div className="flex-1">
-            <h3 className="font-bold text-lg text-foreground">{child.name}</h3>
-            <p className="text-muted-foreground text-sm">Age {child.age}</p>
+            <h3 className="font-bold text-lg text-foreground">{fullName}</h3>
+            <p className="text-muted-foreground text-sm">Age {age}</p>
           </div>
           <div className="text-right">
             <div className="flex items-center justify-end gap-2">
@@ -267,7 +274,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         isOpen={isCameraOpen}
         onClose={() => setIsCameraOpen(false)}
         onPhotoTaken={handlePhotoTaken}
-        title={`Add Profile Photo for ${child.name}`}
+        title={`Add Profile Photo for ${fullName}`}
       />
     </>
   );

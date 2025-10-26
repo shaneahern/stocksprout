@@ -61,7 +61,10 @@ export default function PortfolioChart({ holdings, child }: PortfolioChartProps)
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
             <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
               {child?.profileImageUrl ? (
-                <AvatarImage src={child.profileImageUrl} alt={child.name} />
+                <AvatarImage
+                  src={child.profileImageUrl}
+                  alt={child.firstName && child.lastName ? `${child.firstName} ${child.lastName}` : 'Child'}
+                />
               ) : (
                 <AvatarFallback className="bg-muted">
                   <User className="w-16 h-16 text-muted-foreground" />
