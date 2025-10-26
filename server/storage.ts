@@ -656,7 +656,8 @@ export class DatabaseStorage implements IStorage {
         firstName: row.childFirstName,
         lastName: row.childLastName,
         birthdate: row.childBirthdate,
-        giftCode: row.childGiftCode,
+        giftLinkCode: row.childGiftCode,
+        giftCode: row.childGiftCode, // Include both for backwards compatibility
         profileImageUrl: row.childProfileImageUrl,
       }
     }));
