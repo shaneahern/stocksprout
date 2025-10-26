@@ -124,7 +124,12 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
     }
   };
 
-  const handleViewPortfolio = () => {
+  const handleViewPortfolio = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on camera button
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-camera-button]')) {
+      return;
+    }
     setLocation(`/portfolio/${child.id}`);
   };
 
@@ -228,18 +233,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                   {/* Large invisible clickable area */}
                   <button
                     type="button"
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                    }}
-                    onTouchStart={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                    }}
+                    data-camera-button="true"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
@@ -261,6 +255,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                   />
                   {/* Small visible camera icon */}
                   <div 
+                    data-camera-button="true"
                     className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md pointer-events-none flex items-center justify-center"
                     style={{ width: '24px', height: '24px', zIndex: 15 }}
                   >
