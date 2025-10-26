@@ -94,52 +94,56 @@ export default function PhotoEditorModal({
     canvas.height = outputSize;
 
     const img = imageRef.current;
-    const containerSize = 300; // Preview container size
+    const containerSize = 300;
 
-    // Calculate the base display size (before zoom) - how the image fits in the container
+    // Calculate base display dimensions (how image fits in container before zoom)
     const imgAspect = img.naturalWidth / img.naturalHeight;
     let baseDisplayWidth, baseDisplayHeight;
     
     if (imgAspect > 1) {
-      // Wider image - constrained by width
       baseDisplayWidth = containerSize;
       baseDisplayHeight = containerSize / imgAspect;
     } else {
-      // Taller image - constrained by height
       baseDisplayHeight = containerSize;
       baseDisplayWidth = containerSize * imgAspect;
     }
 
-    // Apply zoom to get actual display size
-    const displayWidth = baseDisplayWidth * zoom;
-    const displayHeight = baseDisplayHeight * zoom;
+    // The CSS does: centered image, then scale(zoom), then translate(position)
+    // But transform order is applied right-to-left in the transform-origin coordinate system
+    
+    // Center point of container
+    const centerX = containerSize / 2;
+    const centerY = containerSize / 2;
 
-    // Calculate where the top-left corner of the image is displayed
-    // The image is centered, then offset by position
-    const imageDisplayX = (containerSize - displayWidth) / 2 + position.x;
-    const imageDisplayY = (containerSize - displayHeight) / 2 + position.y;
-
-    // We want to crop the part of the image that's visible in the circle (entire 300x300 container)
-    // Convert display coordinates to source image coordinates
-    const pixelScale = img.naturalWidth / displayWidth; // How many source pixels per display pixel
-
-    // Calculate source coordinates
-    // sourceX = how far into the source image does the left edge of the crop area (x=0) correspond to
-    const sourceX = (0 - imageDisplayX) * pixelScale;
-    const sourceY = (0 - imageDisplayY) * pixelScale;
-    const sourceSize = containerSize * pixelScale;
-
-    // Clamp to image bounds
-    const clampedSourceX = Math.max(0, Math.min(sourceX, img.naturalWidth));
-    const clampedSourceY = Math.max(0, Math.min(sourceY, img.naturalHeight));
-    const clampedSourceWidth = Math.min(sourceSize, img.naturalWidth - clampedSourceX);
-    const clampedSourceHeight = Math.min(sourceSize, img.naturalHeight - clampedSourceY);
-
-    // Calculate destination position if we had to clamp
-    const destX = clampedSourceX > sourceX ? (clampedSourceX - sourceX) / pixelScale : 0;
-    const destY = clampedSourceY > sourceY ? (clampedSourceY - sourceY) / pixelScale : 0;
-    const destWidth = clampedSourceWidth / pixelScale;
-    const destHeight = clampedSourceHeight / pixelScale;
+    // To reverse the transform for cropping:
+    // 1. The image is centered at (centerX, centerY) before any transforms
+    // 2. scale(zoom) scales from center
+    // 3. translate(position.x, position.y) moves it
+    
+    // After all transforms, a point at (x, y) in the source image appears at:
+    // displayX = centerX + (x - img.naturalWidth/2) * (baseDisplayWidth/img.naturalWidth) * zoom + position.x
+    // We need to reverse this to find which source pixel appears at each output pixel
+    
+    const scale = (baseDisplayWidth / img.naturalWidth) * zoom;
+    
+    // For output pixel (outX, outY), find source pixel:
+    // outX = centerX + (srcX - img.naturalWidth/2) * scale + position.x
+    // srcX = (outX - centerX - position.x) / scale + img.naturalWidth/2
+    
+    // Calculate the source rectangle that maps to the output (0,0) to (300,300)
+    const srcCenterX = img.naturalWidth / 2;
+    const srcCenterY = img.naturalHeight / 2;
+    
+    // Top-left corner of output (0, 0) maps to:
+    const srcX = (0 - centerX - position.x) / scale + srcCenterX;
+    const srcY = (0 - centerY - position.y) / scale + srcCenterY;
+    
+    // Bottom-right corner of output (300, 300) maps to:
+    const srcX2 = (outputSize - centerX - position.x) / scale + srcCenterX;
+    const srcY2 = (outputSize - centerY - position.y) / scale + srcCenterY;
+    
+    const srcWidth = srcX2 - srcX;
+    const srcHeight = srcY2 - srcY;
 
     // Draw circular clipped image
     ctx.save();
@@ -148,17 +152,21 @@ export default function PhotoEditorModal({
     ctx.closePath();
     ctx.clip();
 
-    // Draw the cropped portion
+    // Clear with white background (for areas outside source image)
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, outputSize, outputSize);
+
+    // Draw the image
     ctx.drawImage(
       img,
-      clampedSourceX,
-      clampedSourceY,
-      clampedSourceWidth,
-      clampedSourceHeight,
-      destX,
-      destY,
-      destWidth,
-      destHeight
+      srcX,
+      srcY,
+      srcWidth,
+      srcHeight,
+      0,
+      0,
+      outputSize,
+      outputSize
     );
 
     ctx.restore();
