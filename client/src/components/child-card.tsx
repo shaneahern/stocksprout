@@ -212,10 +212,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         data-testid={`card-child-${child.id}`}
       >
         <CardContent className="p-5">
-          <div 
-            onClick={handleViewPortfolio}
-            className="flex items-center space-x-4 mb-4 cursor-pointer"
-          >
+          <div className="flex items-center space-x-4 mb-4">
+            {/* Avatar with camera button - NOT clickable */}
             <div className="relative">
               <Avatar className="w-16 h-16 border-2 border-primary/20">
                 {child.profileImageUrl && (
@@ -230,10 +228,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                   <Button
                     type="button"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      fileInputRef.current?.click();
-                    }}
+                    onClick={() => fileInputRef.current?.click()}
                     className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0 bg-primary hover:bg-primary/90 shadow-md"
                     style={{ minWidth: '48px', minHeight: '48px' }}
                     aria-label="Add profile photo"
@@ -250,34 +245,41 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 </>
               )}
             </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-lg text-foreground">{fullName}</h3>
-            <p className="text-muted-foreground text-sm">Age {age}</p>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center justify-end gap-2">
-              <p className="text-2xl font-bold text-foreground" data-testid={`text-child-value-${child.id}`}>
-                ${(isContributedChild ? child.totalValue : portfolioStats.totalValue).toLocaleString()}
-              </p>
-              {isContributedChild && child.pendingCount > 0 && (
-                <span title={`${child.pendingCount} gift(s) pending approval`}>
-                  <Clock className="w-5 h-5 text-amber-500" />
+            
+            {/* Name area - NOT clickable */}
+            <div className="flex-1">
+              <h3 className="font-bold text-lg text-foreground">{fullName}</h3>
+              <p className="text-muted-foreground text-sm">Age {age}</p>
+            </div>
+            
+            {/* Stats area - CLICKABLE to view portfolio */}
+            <div 
+              onClick={handleViewPortfolio}
+              className="text-right cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              <div className="flex items-center justify-end gap-2">
+                <p className="text-2xl font-bold text-foreground" data-testid={`text-child-value-${child.id}`}>
+                  ${(isContributedChild ? child.totalValue : portfolioStats.totalValue).toLocaleString()}
+                </p>
+                {isContributedChild && child.pendingCount > 0 && (
+                  <span title={`${child.pendingCount} gift(s) pending approval`}>
+                    <Clock className="w-5 h-5 text-amber-500" />
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-end mt-1">
+                <span className="text-sm font-medium" style={{ color: '#328956' }}>
+                  +{portfolioStats.monthlyGrowth}% growth
                 </span>
+              </div>
+              {isContributedChild && child.pendingCount > 0 && (
+                <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 mt-2">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {child.pendingCount} Pending Approval
+                </Badge>
               )}
             </div>
-            <div className="flex items-center justify-end mt-1">
-              <span className="text-sm font-medium" style={{ color: '#328956' }}>
-                +{portfolioStats.monthlyGrowth}% growth
-              </span>
-            </div>
-            {isContributedChild && child.pendingCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 mt-2">
-                <Clock className="w-3 h-3 mr-1" />
-                {child.pendingCount} Pending Approval
-              </Badge>
-            )}
           </div>
-        </div>
         
         
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">

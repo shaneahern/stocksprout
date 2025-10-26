@@ -12,6 +12,10 @@ StockSprout is a custodial investment platform that allows parents to manage inv
   - Single-click flow for maximum simplicity
   - Applied to: Profile page, Add Child page, Child cards, and Gift Giver page
   - Maintains all photo editor functionality (drag-to-reposition and zoom)
+- **Child Card UX Improved**: Separated clickable areas to prevent conflicts:
+  - Camera button (left side) - opens file picker with larger 48px tap target
+  - Portfolio stats (right side) - click to view portfolio details
+  - No overlapping click handlers for reliable mobile interaction
 - **Send Gift Page Fixed**: Resolved blank screen issue by computing child full name from firstName/lastName fields
 - **Selected Stock Display**: Added visual display of selected stock beneath search bar on Send Gift page with company logo, price, YTD return, and blue "Selected" indicator matching preset tiles
 - **Gallery Photo Selection**: Added gallery photo selection option across all profile photo features:
