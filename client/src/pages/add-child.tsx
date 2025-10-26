@@ -66,7 +66,7 @@ export default function AddChild() {
       parentId: user.id,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      birthdate: new Date(birthdate),
+      birthdate: new Date(birthdate).toISOString(),
     };
 
     addChildMutation.mutate(childData);

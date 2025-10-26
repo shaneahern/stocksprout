@@ -170,6 +170,8 @@ export const insertChildSchema = createInsertSchema(children).pick({
   lastName: true,
   birthdate: true,
   profileImageUrl: true,
+}).extend({
+  birthdate: z.coerce.date(),
 });
 
 export const insertInvestmentSchema = createInsertSchema(investments).pick({
