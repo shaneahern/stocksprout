@@ -519,6 +519,38 @@ export default function GiftGiver() {
                 onSharesChange={setShares}
               />
             )}
+
+            {/* Selected Stock Display */}
+            {selectedInvestment && (
+              <div className="p-4 bg-primary/5 border-2 border-primary rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
+                      {selectedInvestment.symbol.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">{selectedInvestment.name}</h4>
+                      <p className="text-sm text-muted-foreground">{selectedInvestment.symbol}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-foreground">${parseFloat(selectedInvestment.currentPrice).toFixed(2)}</p>
+                    <p className={`text-sm font-medium ${
+                      parseFloat(selectedInvestment.ytdReturn) >= 0 
+                        ? 'text-green-600' 
+                        : 'text-red-600'
+                    }`}>
+                      {parseFloat(selectedInvestment.ytdReturn) >= 0 ? '+' : ''}
+                      {parseFloat(selectedInvestment.ytdReturn).toFixed(2)}% YTD
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                  <span className="text-primary text-sm font-medium">Selected</span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -4,7 +4,12 @@
 
 StockSprout is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, educational activities, and interactive timeline functionality.
 
-## Recent Changes (October 6, 2025)
+## Recent Changes (October 26, 2025)
+
+- **Send Gift Page Fixed**: Resolved blank screen issue by computing child full name from firstName/lastName fields
+- **Selected Stock Display**: Added visual display of selected stock beneath search bar on Send Gift page with price and YTD return
+
+## Previous Changes (October 6, 2025)
 
 - **Unified Authentication System**: All users now use a single unified authentication system with roles determined by relationships to children
 - **Database Schema Updated**: Successfully migrated to unified users table with optional username, phone field, and createdAt timestamp
