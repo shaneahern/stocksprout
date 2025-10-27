@@ -147,14 +147,14 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
     <div className="mobile-container min-h-screen flex flex-col">
       {/* App Header - Only show on home */}
       {currentTab === "home" && (
-        <div className="bg-white px-4 pt-3 pb-1 sm:pt-4 sm:pb-2 md:pt-4 md:pb-3 border-b border-border flex-shrink-0">
+        <div className="bg-white px-4 pt-2 pb-1 sm:pt-2 sm:pb-1 md:pt-2 md:pb-1 border-b border-border flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center">
                 <img
                   src="/stocksprout-logo.png"
                   alt="StockSprout logo"
-                  className="block h-32 w-auto sm:h-36 md:h-20 lg:h-16 object-contain flex-shrink-0"
+                  className="block h-20 w-auto sm:h-20 md:h-16 lg:h-14 object-contain flex-shrink-0"
                   data-testid="img-logo"
                 />
               </div>
@@ -354,7 +354,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       )}
 
       {/* Main Content */}
-      <div className={`flex-1 overflow-y-auto px-4 sm:px-6 pb-36 ${currentTab === "home" ? "pt-2 sm:pt-3" : "pt-10 sm:pt-12 pb-4 sm:pb-6"}`}>
+      <div className={`flex-1 overflow-y-auto px-4 sm:px-6 pb-36 ${currentTab === "home" ? "pt-1 sm:pt-1" : "pt-10 sm:pt-12 pb-4 sm:pb-6"}`}>
         {children}
       </div>
 
