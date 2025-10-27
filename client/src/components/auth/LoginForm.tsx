@@ -89,11 +89,12 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-8">Welcome In</h1>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <Card className="border border-gray-200 shadow-lg rounded-xl bg-white">
+        <CardHeader className="text-center pb-6">
+          <CardTitle className="text-2xl font-semibold text-gray-800">Welcome In</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
@@ -200,34 +201,37 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
           </div>
         </div>
 
-        {/* Links below form */}
-        <div className="space-y-4 pt-6">
-          <div className="flex items-center space-x-2 text-sm">
-            <User className="w-4 h-4 text-gray-600" />
-            <span className="text-gray-600">Don't have an account? </span>
+          </form>
+        </CardContent>
+      </Card>
+      
+      {/* Links below card */}
+      <div className="space-y-4 pt-6">
+        <div className="flex items-center space-x-2 text-sm">
+          <User className="w-4 h-4 text-gray-600" />
+          <span className="text-gray-600">Don't have an account? </span>
+          <Button
+            type="button"
+            variant="link"
+            className="p-0 h-auto text-blue-600 font-medium"
+            onClick={onSwitchToSignup}
+          >
+            Sign up
+          </Button>
+        </div>
+        <div className="flex items-center space-x-2 text-sm">
+          <Lock className="w-4 h-4 text-gray-600" />
+          <Link href="/forgot-password">
             <Button
               type="button"
               variant="link"
               className="p-0 h-auto text-blue-600 font-medium"
-              onClick={onSwitchToSignup}
             >
-              Sign up
+              Forgot username or password?
             </Button>
-          </div>
-          <div className="flex items-center space-x-2 text-sm">
-            <Lock className="w-4 h-4 text-gray-600" />
-            <Link href="/forgot-password">
-              <Button
-                type="button"
-                variant="link"
-                className="p-0 h-auto text-blue-600 font-medium"
-              >
-                Forgot username or password?
-              </Button>
-            </Link>
-          </div>
+          </Link>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

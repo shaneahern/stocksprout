@@ -42,7 +42,7 @@ export default function AuthPage() {
             />
           </div>
           <p className="text-sm text-gray-600">
-            Grow their future our kids deserve
+            {isLogin ? "Grow their future our kids deserve" : "Growing the future our kids deserve"}
           </p>
         </div>
         

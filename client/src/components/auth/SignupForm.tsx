@@ -67,11 +67,12 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-8">Create Account</h1>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <Card className="border border-gray-200 shadow-lg rounded-xl bg-white">
+        <CardHeader className="text-center pb-6">
+          <CardTitle className="text-2xl font-semibold text-gray-800">Create Account</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
@@ -181,7 +182,9 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg h-12 font-medium" disabled={isLoading}>
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </Button>
-      </form>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
