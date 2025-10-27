@@ -125,6 +125,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   };
 
   const handleViewPortfolio = () => {
+    console.log('Navigating to portfolio for child:', child.id);
     setLocation(`/portfolio/${child.id}`);
   };
 
@@ -227,7 +228,10 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 <>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
                     className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 transition-colors"
                     style={{ 
                       width: '24px', 
@@ -252,15 +256,28 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               )}
             </div>
             
-            {/* Name area - NOT clickable */}
-            <div className="flex-1">
+            {/* Name area - CLICKABLE */}
+            <div 
+              className="flex-1 cursor-pointer hover:opacity-80 transition-opacity min-h-[60px] flex flex-col justify-center"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Name area clicked for child:', child.id);
+                handleViewPortfolio();
+              }}
+            >
               <h3 className="font-bold text-lg text-foreground">{fullName}</h3>
               <p className="text-muted-foreground text-sm">Age {age}</p>
             </div>
             
             {/* Stats area - CLICKABLE to view portfolio */}
             <div 
-              onClick={handleViewPortfolio}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Stats area clicked for child:', child.id);
+                handleViewPortfolio();
+              }}
               className="text-right cursor-pointer hover:opacity-80 transition-opacity"
             >
               <div className="flex items-center justify-end gap-2">
