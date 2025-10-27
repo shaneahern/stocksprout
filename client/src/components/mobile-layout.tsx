@@ -154,7 +154,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
                 <img
                   src="/stocksprout-logo.png"
                   alt="StockSprout logo"
-                  className="block w-full h-auto max-h-20 sm:max-h-20 md:max-h-16 lg:max-h-14 object-contain flex-shrink-0"
+                  className="block w-full h-auto max-h-20 sm:max-h-20 md:max-h-16 lg:max-h-14 max-w-48 sm:max-w-48 md:max-w-40 lg:max-w-36 object-contain flex-shrink-0"
                   data-testid="img-logo"
                 />
               </div>
