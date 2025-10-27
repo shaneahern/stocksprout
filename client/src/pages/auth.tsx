@@ -33,16 +33,16 @@ export default function AuthPage() {
       {/* Main Content */}
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-60px)] px-4 py-8">
         {/* Logo Section */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
             <img 
               src="/stocksprout-logo.png" 
               alt="StockSprout Logo" 
-              className="h-24 w-auto"
+              className="h-20 w-auto"
             />
           </div>
           <p className="text-sm text-gray-600">
-            Growing the future our kids deserve
+            Grow their future our kids deserve
           </p>
         </div>
         
@@ -52,7 +52,7 @@ export default function AuthPage() {
           <>
             <SignupForm onSwitchToLogin={() => setIsLogin(true)} />
             {/* Sign in link below the form */}
-            <div className="text-center mt-4">
+            <div className="text-center mt-6">
               <Button
                 type="button"
                 variant="link"
@@ -66,7 +66,7 @@ export default function AuthPage() {
         )}
 
         {/* Footer */}
-        <div className="mt-12 text-center text-xs text-gray-600 space-y-1">
+        <div className="mt-16 text-center text-xs text-gray-600 space-y-1">
           <p>StockSprout LLC, Member NYSE, SIPC, FCC.</p>
           <p>700 Sprout Street, Phoenix, AZ 85235</p>
           <p>©2025, All rights reserved.</p>

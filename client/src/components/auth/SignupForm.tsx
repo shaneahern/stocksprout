@@ -66,123 +66,122 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto shadow-lg border-0 rounded-2xl">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-2xl text-center text-gray-800 font-semibold">Create Account</CardTitle>
-      </CardHeader>
-      <CardContent className="px-6 pb-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="firstName" className="text-gray-700 font-medium">First Name</Label>
+    <div className="w-full max-w-md mx-auto">
+      <div className="text-center mb-8">
+        <h1 className="text-2xl font-semibold text-gray-800 mb-8">Create Account</h1>
+      </div>
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="space-y-2">
+          <Label htmlFor="firstName" className="text-gray-700 font-medium">First Name</Label>
+          <Input
+            id="firstName"
+            name="firstName"
+            type="text"
+            value={formData.firstName}
+            onChange={handleChange}
+            required
+            placeholder="Enter your first name"
+            className="bg-gray-50 border-gray-200 rounded-lg h-12"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="lastName" className="text-gray-700 font-medium">Last Name</Label>
+          <Input
+            id="lastName"
+            name="lastName"
+            type="text"
+            value={formData.lastName}
+            onChange={handleChange}
+            required
+            placeholder="Enter your last name"
+            className="bg-gray-50 border-gray-200 rounded-lg h-12"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="username" className="text-gray-700 font-medium">Username</Label>
+          <Input
+            id="username"
+            name="username"
+            type="text"
+            value={formData.username}
+            onChange={handleChange}
+            required
+            placeholder="Enter your username"
+            className="bg-gray-50 border-gray-200 rounded-lg h-12"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+          <div className="relative">
             <Input
-              id="firstName"
-              name="firstName"
-              type="text"
-              value={formData.firstName}
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
               onChange={handleChange}
               required
-              placeholder="Enter your first name"
-              className="bg-gray-50 border-gray-200 rounded-lg h-11"
+              placeholder="Create your password"
+              className="bg-gray-50 border-gray-200 rounded-lg h-12 pr-12"
             />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </Button>
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lastName" className="text-gray-700 font-medium">Last Name</Label>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
+          <div className="relative">
             <Input
-              id="lastName"
-              name="lastName"
-              type="text"
-              value={formData.lastName}
+              id="confirmPassword"
+              name="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              value={formData.confirmPassword}
               onChange={handleChange}
               required
-              placeholder="Enter your last name"
-              className="bg-gray-50 border-gray-200 rounded-lg h-11"
+              placeholder="Confirm your password"
+              className="bg-gray-50 border-gray-200 rounded-lg h-12 pr-12"
             />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </Button>
           </div>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="username" className="text-gray-700 font-medium">Username</Label>
-            <Input
-              id="username"
-              name="username"
-              type="text"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              placeholder="Enter your username"
-              className="bg-gray-50 border-gray-200 rounded-lg h-11"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={handleChange}
-                required
-                placeholder="Create your password"
-                className="bg-gray-50 border-gray-200 rounded-lg h-11 pr-12"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
-            <div className="relative">
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                placeholder="Confirm your password"
-                className="bg-gray-50 border-gray-200 rounded-lg h-11 pr-12"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg h-11 font-medium" disabled={isLoading}>
-            {isLoading ? 'Creating Account...' : 'Create Account'}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg h-12 font-medium" disabled={isLoading}>
+          {isLoading ? 'Creating Account...' : 'Create Account'}
+        </Button>
+      </form>
+    </div>
   );
 }
