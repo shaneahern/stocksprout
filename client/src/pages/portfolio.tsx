@@ -324,10 +324,10 @@ export default function Portfolio() {
 
         {/* Action Buttons - Only for parents/custodians */}
         {user && childId && (
-          <div className="flex gap-3 -mt-2 mb-2">
+          <div className="flex flex-col gap-2 -mt-2 mb-2">
             <Button 
               onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
-              className="flex-1 text-white font-semibold text-sm hover:opacity-90 py-3"
+              className="w-full text-white font-semibold text-sm hover:opacity-90 py-2"
               style={{ backgroundColor: '#328956' }}
             >
               <Gift className="w-4 h-4 mr-2" />
@@ -369,7 +369,7 @@ export default function Portfolio() {
                 };
                 generateLink();
               }}
-              className="flex-1 text-white font-semibold text-sm hover:opacity-90 py-3"
+              className="w-full text-white font-semibold text-sm hover:opacity-90 py-2"
               style={{ backgroundColor: '#2563eb' }}
             >
               <UserPlus className="w-4 h-4 mr-2" />
