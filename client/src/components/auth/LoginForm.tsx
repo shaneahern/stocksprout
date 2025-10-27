@@ -207,7 +207,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
       
       {/* Links below card */}
       <div className="space-y-4 pt-6">
-        <div className="flex items-center space-x-2 text-sm">
+        <div className="flex items-center justify-center space-x-2 text-sm">
           <User className="w-4 h-4 text-gray-600" />
           <span className="text-gray-600">Don't have an account? </span>
           <Button
@@ -219,7 +219,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
             Sign up
           </Button>
         </div>
-        <div className="flex items-center space-x-2 text-sm">
+        <div className="flex items-center justify-center space-x-2 text-sm">
           <Lock className="w-4 h-4 text-gray-600" />
           <Link href="/forgot-password">
             <Button
