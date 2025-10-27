@@ -38,7 +38,7 @@ export default function AuthPage() {
             <img 
               src="/stocksprout-logo.png" 
               alt="StockSprout Logo" 
-              className="h-24 w-auto sm:h-32 md:h-36"
+              className="h-28 w-auto sm:h-36 md:h-40"
             />
           </div>
           <p className="text-base text-gray-600">
