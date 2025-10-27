@@ -226,18 +226,7 @@ export default function Portfolio() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                <span className="text-sm font-bold">
-                  {child?.firstName?.charAt(0) || 'C'}
-                </span>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold text-sm">{child?.firstName && child?.lastName ? `${child.firstName} ${child.lastName}` : 'Child'}</div>
-                <div className="text-xs text-muted-foreground">Age {child?.birthdate ? calculateAge(child.birthdate) : 0}</div>
-              </div>
-              <ChildSelector currentChildId={childId} redirectPath="portfolio" />
-            </div>
+            <ChildSelector currentChildId={childId} redirectPath="portfolio" />
           </div>
         )}
         {!childId && (

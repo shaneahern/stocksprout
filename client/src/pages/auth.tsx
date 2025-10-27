@@ -38,11 +38,11 @@ export default function AuthPage() {
             <img 
               src="/stocksprout-logo.png" 
               alt="StockSprout Logo" 
-              className="h-20 w-auto"
+              className="h-24 w-auto"
             />
           </div>
-          <p className="text-sm text-gray-600">
-            {isLogin ? "Grow their future our kids deserve" : "Growing the future our kids deserve"}
+          <p className="text-base text-gray-600">
+            {isLogin ? "Grow the future our kids deserve" : "Growing the future our kids deserve"}
           </p>
         </div>
         

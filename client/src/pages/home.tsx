@@ -108,7 +108,7 @@ export default function Home() {
 
         {/* Your Children Section - Only show if user is logged in */}
         {user && <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-bold text-foreground">
               Your Sprouts
             </h2>
@@ -116,11 +116,11 @@ export default function Home() {
               <Button 
                 onClick={handleAddChild}
                 variant="ghost" 
-                className="text-primary font-semibold"
+                className="text-primary font-semibold py-1"
                 data-testid="button-add-child"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                + Add Child
+                <Plus className="w-4 h-4 mr-0.5" />
+                Add Child
               </Button>
             )}
           </div>

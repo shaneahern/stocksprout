@@ -148,16 +148,17 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       {/* App Header - Only show on home */}
       {currentTab === "home" && (
         <div className="bg-white px-4 pt-4 pb-4 border-b border-border flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <img
-                src={stockSproutLogo}
-                alt="StockSprout logo"
-                className="w-8 h-8 object-contain flex-shrink-0"
-                data-testid="img-logo"
-              />
-              <div>
-                <h1 className="text-lg font-bold text-foreground">StockSprout</h1>
+          <div className="flex items-end justify-between">
+            <div className="flex items-end space-x-4">
+              <div className="flex items-end">
+                <img
+                  src={stockSproutLogo}
+                  alt="StockSprout logo"
+                  className="w-20 h-20 object-contain flex-shrink-0 -mb-4"
+                  data-testid="img-logo"
+                />
+              </div>
+              <div className="flex flex-col justify-center pr-2">
                 <p className="text-xs text-muted-foreground" data-testid="text-tagline">
                   Start before they know what money is, end with more then they imagined...
                 </p>
@@ -166,10 +167,13 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
             <div className="relative">
               <button 
                 onClick={handleNotificationClick}
-                className="p-2 hover:bg-accent rounded-full transition-colors"
+                className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+                style={{ backgroundColor: '#009538' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#007a2e'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#009538'}
                 data-testid="button-notifications"
               >
-                <Bell className="w-5 h-5 text-muted-foreground" />
+                <Bell className="w-5 h-5 text-white" />
               </button>
               {(totalUnreadCount > 0 || pendingCount > 0) && (
                 <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
@@ -350,7 +354,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       )}
 
       {/* Main Content */}
-      <div className={`flex-1 overflow-y-auto px-4 sm:px-6 pb-32 ${currentTab === "home" ? "py-4 sm:py-6" : "pt-10 sm:pt-12 pb-4 sm:pb-6"}`}>
+      <div className={`flex-1 overflow-y-auto px-4 sm:px-6 pb-36 ${currentTab === "home" ? "py-4 sm:py-6" : "pt-10 sm:pt-12 pb-4 sm:pb-6"}`}>
         {children}
       </div>
 
@@ -359,59 +363,59 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
         <div className="flex">
           <Link href="/" className="flex-1">
             <button 
-              className={`w-full py-3 text-center ${
+              className={`w-full py-4 text-center ${
                 currentTab === "home" ? "text-primary" : "text-muted-foreground"
               }`}
               data-testid="tab-home"
             >
-              <Home className="w-5 h-5 mx-auto mb-1" />
-              <span className="text-xs font-medium">Home</span>
+              <Home className="w-6 h-6 mx-auto mb-1" />
+              <span className="text-sm font-medium">Home</span>
             </button>
           </Link>
           
           <button 
             onClick={handlePortfolioClick}
-            className={`flex-1 py-3 text-center ${
+            className={`flex-1 py-4 text-center ${
               currentTab === "portfolio" ? "text-primary" : "text-muted-foreground"
             }`}
             data-testid="tab-portfolio"
           >
-            <TrendingUp className="w-5 h-5 mx-auto mb-1" />
-            <span className="text-xs font-medium">Portfolio</span>
+            <TrendingUp className="w-6 h-6 mx-auto mb-1" />
+            <span className="text-sm font-medium">Portfolio</span>
           </button>
           
           <button 
             onClick={handleTimelineClick}
-            className={`flex-1 py-3 text-center ${
+            className={`flex-1 py-4 text-center ${
               currentTab === "timeline" ? "text-primary" : "text-muted-foreground"
             }`}
             data-testid="tab-timeline"
           >
-            <History className="w-5 h-5 mx-auto mb-1" />
-            <span className="text-xs font-medium">Timeline</span>
+            <History className="w-6 h-6 mx-auto mb-1" />
+            <span className="text-sm font-medium">Timeline</span>
           </button>
           
           <Link href="/activities" className="flex-1">
             <button 
-              className={`w-full py-3 text-center ${
+              className={`w-full py-4 text-center ${
                 currentTab === "activities" ? "text-primary" : "text-muted-foreground"
               }`}
               data-testid="tab-activities"
             >
-              <Gamepad2 className="w-5 h-5 mx-auto mb-1" />
-              <span className="text-xs font-medium">Activities</span>
+              <Gamepad2 className="w-6 h-6 mx-auto mb-1" />
+              <span className="text-sm font-medium">Activities</span>
             </button>
           </Link>
           
           <Link href="/profile" className="flex-1">
             <button 
-              className={`w-full py-3 text-center ${
+              className={`w-full py-4 text-center ${
                 currentTab === "profile" ? "text-primary" : "text-muted-foreground"
               }`}
               data-testid="tab-profile"
             >
-              <User className="w-5 h-5 mx-auto mb-1" />
-              <span className="text-xs font-medium">Profile</span>
+              <User className="w-6 h-6 mx-auto mb-1" />
+              <span className="text-sm font-medium">Profile</span>
             </button>
           </Link>
         </div>

@@ -159,11 +159,9 @@ export function ChildSelector({ currentChildId, onChildChange, redirectPath }: C
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-base font-medium">{childName}</span>
-                {!child.isContributed && (
-                  <span className="text-sm text-muted-foreground">
-                    (Age {childAge})
-                  </span>
-                )}
+                <span className="text-sm text-muted-foreground">
+                  (Age {childAge})
+                </span>
               </div>
             </SelectItem>
           );
