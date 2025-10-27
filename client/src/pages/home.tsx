@@ -120,7 +120,7 @@ export default function Home() {
                 data-testid="button-add-child"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Child
+                + Add Child
               </Button>
             )}
           </div>

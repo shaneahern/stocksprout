@@ -128,32 +128,33 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
     <div className="mobile-container min-h-screen flex flex-col">
       {/* App Header - Only show on home */}
       {currentTab === "home" && (
-        <div className="bg-white px-4 sm:px-6 pt-4 sm:pt-6 pb-1 sm:pb-1.5 border-b border-border flex-shrink-0">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0 flex-1 flex items-center space-x-3">
+        <div className="bg-white px-4 pt-4 pb-4 border-b border-border flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
               <img
                 src={stockSproutLogo}
                 alt="StockSprout logo"
-                className="w-20 h-20 sm:w-24 sm:h-24 object-contain flex-shrink-0"
+                className="w-8 h-8 object-contain flex-shrink-0"
                 data-testid="img-logo"
               />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm sm:text-base text-muted-foreground line-clamp-2" data-testid="text-tagline">
-                  {currentQuote}
+              <div>
+                <h1 className="text-lg font-bold text-foreground">StockSprout</h1>
+                <p className="text-xs text-muted-foreground" data-testid="text-tagline">
+                  Start before they know what money is, end with more then they imagined...
                 </p>
               </div>
             </div>
             <div className="relative">
               <button 
                 onClick={handleNotificationClick}
-                className="w-10 h-10 bg-green-700 rounded-full flex items-center justify-center transition-colors hover:bg-green-800"
+                className="p-2 hover:bg-accent rounded-full transition-colors"
                 data-testid="button-notifications"
               >
-                <Bell className="w-5 h-5 text-white" />
+                <Bell className="w-5 h-5 text-muted-foreground" />
               </button>
               {(unreadApprovedCount > 0 || pendingCount > 0) && (
                 <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{pendingCount > 0 ? pendingCount : unreadApprovedCount}</span>
+                  <span className="text-white text-xs font-medium">{pendingCount > 0 ? pendingCount : unreadApprovedCount}</span>
                 </div>
               )}
             </div>
@@ -280,19 +281,8 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       </div>
 
       {/* Tab Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-emerald-50 border-t border-border shadow-lg z-40">
-        <div className="flex relative">
-          <div 
-            className="absolute bottom-0 left-0 h-1 bg-primary transition-all duration-300 ease-in-out"
-            style={{ 
-              width: "20%", 
-              left: currentTab === "home" ? "0%" : 
-                    currentTab === "portfolio" ? "20%" : 
-                    currentTab === "timeline" ? "40%" :
-                    currentTab === "activities" ? "60%" : "80%" 
-            }}
-          />
-          
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-40">
+        <div className="flex">
           <Link href="/" className="flex-1">
             <button 
               className={`w-full py-3 text-center ${
@@ -351,6 +341,8 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
             </button>
           </Link>
         </div>
+        {/* Home indicator */}
+        <div className="w-32 h-1 bg-black rounded-full mx-auto mb-1"></div>
       </div>
     </div>
   );
