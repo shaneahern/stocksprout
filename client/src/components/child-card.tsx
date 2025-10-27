@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrendingUp, Share2, Gift, Camera, Clock, AlertCircle, Users, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -12,6 +13,7 @@ import { generateSMSMessage, shareViaWebShare } from "@/lib/sms-utils";
 import { calculateAge } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import TakePhotoModal from "@/components/take-photo-modal";
+import PhotoEditorModal from "@/components/photo-editor-modal";
 
 interface ChildCardProps {
   child: any;
@@ -25,6 +27,10 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
 
   // Camera state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate child's name and age
   const fullName = child.firstName && child.lastName
@@ -69,7 +75,28 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   });
 
   // Handle photo taken from camera modal
-  const handlePhotoTaken = async (imageDataUrl: string) => {
+  const handlePhotoTaken = (imageDataUrl: string) => {
+    setTempImageUrl(imageDataUrl);
+    setIsCameraOpen(false);
+    setIsPhotoDialogOpen(false);
+    setIsPhotoEditorOpen(true);
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setTempImageUrl(result);
+        setIsPhotoDialogOpen(false);
+        setIsPhotoEditorOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoEdited = async (croppedImageUrl: string) => {
     try {
       const response = await fetch(`/api/children/${child.id}/profile-photo`, {
         method: 'PATCH',
@@ -77,7 +104,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ profileImageUrl: imageDataUrl }),
+        body: JSON.stringify({ profileImageUrl: croppedImageUrl }),
       });
       if (!response.ok) throw new Error("Failed to update photo");
 
@@ -86,6 +113,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         title: "Photo Updated!",
         description: `Profile photo for ${fullName} has been updated.`,
       });
+      setIsPhotoEditorOpen(false);
+      setTempImageUrl("");
     } catch (error) {
       toast({
         title: "Error",
@@ -179,12 +208,12 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   return (
     <>
       <Card 
-        onClick={handleViewPortfolio}
-        className="border border-border shadow-sm cursor-pointer hover:shadow-md transition-shadow" 
+        className="border border-border shadow-sm hover:shadow-md transition-shadow" 
         data-testid={`card-child-${child.id}`}
       >
         <CardContent className="p-5">
           <div className="flex items-center space-x-4 mb-4">
+            {/* Avatar with camera button - NOT clickable */}
             <div className="relative">
               <Avatar className="w-16 h-16 border-2 border-primary/20">
                 {child.profileImageUrl && (
@@ -195,23 +224,45 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 </AvatarFallback>
               </Avatar>
               {!isContributedChild && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsCameraOpen(true);
-                  }}
-                  className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors"
-                  aria-label="Add profile photo"
-                >
-                  <Camera className="w-3 h-3" />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 transition-colors"
+                    style={{ 
+                      width: '24px', 
+                      height: '24px',
+                      padding: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    aria-label="Add profile photo"
+                  >
+                    <Camera className="w-3 h-3" style={{ position: 'absolute' }} />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleGallerySelect}
+                    className="hidden"
+                  />
+                </>
               )}
             </div>
+            
+            {/* Name area - NOT clickable */}
             <div className="flex-1">
               <h3 className="font-bold text-lg text-foreground">{fullName}</h3>
               <p className="text-muted-foreground text-sm">Age {age}</p>
             </div>
-            <div className="text-right">
+            
+            {/* Stats area - CLICKABLE to view portfolio */}
+            <div 
+              onClick={handleViewPortfolio}
+              className="text-right cursor-pointer hover:opacity-80 transition-opacity"
+            >
               <div className="flex items-center justify-end gap-2">
                 <p className="text-2xl font-bold text-foreground" data-testid={`text-child-value-${child.id}`}>
                   ${(isContributedChild ? child.totalValue : portfolioStats.totalValue).toLocaleString()}
@@ -224,7 +275,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               </div>
               <div className="flex items-center justify-end mt-1">
                 <span className="text-sm font-medium" style={{ color: '#328956' }}>
-                  +{portfolioStats.monthlyGrowth}% Growth
+                  +{portfolioStats.monthlyGrowth}% growth
                 </span>
               </div>
               {isContributedChild && child.pendingCount > 0 && (
@@ -235,7 +286,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               )}
             </div>
           </div>
-          
+        
           <div className="flex flex-col gap-2">
             <Button 
               onClick={(e) => {
@@ -274,6 +325,18 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
         onClose={() => setIsCameraOpen(false)}
         onPhotoTaken={handlePhotoTaken}
         title={`Add Profile Photo for ${fullName}`}
+      />
+
+      {/* Photo Editor Modal */}
+      <PhotoEditorModal
+        isOpen={isPhotoEditorOpen}
+        onClose={() => {
+          setIsPhotoEditorOpen(false);
+          setTempImageUrl("");
+        }}
+        imageUrl={tempImageUrl}
+        onSave={handlePhotoEdited}
+        title={`Edit Photo for ${fullName}`}
       />
     </>
   );

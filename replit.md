@@ -4,7 +4,46 @@
 
 StockSprout is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, educational activities, and interactive timeline functionality.
 
-## Recent Changes (October 6, 2025)
+## Recent Changes (October 27, 2025)
+
+- **Inbox Notification System**: Gift givers now receive inbox alerts when recipients send thank you messages
+  - New `notifications` table stores inbox notifications with support for multiple notification types
+  - Thank you messages trigger automatic notifications to gift givers (both authenticated and guest users)
+  - Notification bell badge shows combined count of unread gifts and thank you messages
+  - Notification dropdown displays thank you alerts with purple heart icon alongside gift notifications
+  - Click-to-navigate: thank you notifications link to the child's timeline
+  - Mark as read: notifications automatically marked as read when clicked
+
+## Previous Changes (October 26, 2025)
+
+- **Photo Selection UX Ultra-Simplified**: Removed dropdown menus in favor of direct file picker:
+  - Click camera icon → native file picker opens immediately
+  - Mobile devices show built-in menu: "Take Photo", "Photo Library", "Browse", etc.
+  - Single-click flow for maximum simplicity
+  - Applied to: Profile page, Add Child page, Child cards, and Gift Giver page
+  - Maintains all photo editor functionality (drag-to-reposition and zoom)
+- **Child Card UX Improved**: Separated clickable areas to prevent conflicts:
+  - Camera button (left side) - opens file picker with larger 48px tap target
+  - Portfolio stats (right side) - click to view portfolio details
+  - No overlapping click handlers for reliable mobile interaction
+- **Send Gift Page Fixed**: Resolved blank screen issue by computing child full name from firstName/lastName fields
+- **Selected Stock Display**: Added visual display of selected stock beneath search bar on Send Gift page with company logo, price, YTD return, and blue "Selected" indicator matching preset tiles
+- **Gallery Photo Selection**: Added gallery photo selection option across all profile photo features:
+  - Add Child page - Take photo OR choose from gallery
+  - Child profile cards on main page - Take photo OR choose from gallery  
+  - Profile page - Take photo OR choose from gallery
+  - Send Gift page (contributor profile) - Take photo OR choose from gallery
+  - Mobile-optimized: iOS shows "Photo Library/Take Photo/Browse", Android opens native gallery picker
+- **Photo Editor**: Added interactive photo editor with center and zoom capabilities for all profile photos:
+  - Drag to reposition image within circular frame
+  - Slider to zoom in/out (0.5x to 3x)
+  - Live preview with circular overlay showing final crop area
+  - Canvas-based rendering ensures exact match between preview and saved result
+  - Touch-enabled for mobile devices
+  - Outputs 300x300px circular profile photos
+  - Works with both camera and gallery photos
+
+## Previous Changes (October 6, 2025)
 
 - **Unified Authentication System**: All users now use a single unified authentication system with roles determined by relationships to children
 - **Database Schema Updated**: Successfully migrated to unified users table with optional username, phone field, and createdAt timestamp

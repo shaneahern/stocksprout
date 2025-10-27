@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Settings, HelpCircle, Shield, LogOut, Edit3, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import PhotoEditorModal from "@/components/photo-editor-modal";
 
 export default function Profile() {
   const { user, token, logout, updateProfile } = useAuth();
@@ -36,9 +37,12 @@ export default function Profile() {
   // Camera functionality state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch user's own children (as custodian)
   const { data: children = [] } = useQuery<any[]>({
@@ -176,10 +180,10 @@ export default function Profile() {
         
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         console.log('Photo captured, data URL length:', imageDataUrl.length);
-        setCapturedImage(imageDataUrl);
-        setEditData(prev => ({ ...prev, profileImageUrl: imageDataUrl }));
+        setTempImageUrl(imageDataUrl);
+        setIsCameraOpen(false);
+        setIsPhotoEditorOpen(true);
         stopCamera();
-        // Don't close dialog immediately - let user see preview and decide
       }
     } else {
       console.error('Video or canvas ref not available');
@@ -189,7 +193,40 @@ export default function Profile() {
   const retakePhoto = () => {
     setCapturedImage(null);
     setEditData(prev => ({ ...prev, profileImageUrl: '' }));
+    setIsCameraOpen(true);
     startCamera();
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        console.log('Gallery photo selected, data URL length:', result.length);
+        setTempImageUrl(result);
+        setIsCameraOpen(false);
+        setIsPhotoEditorOpen(true);
+        stopCamera();
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoEdited = async (croppedImageUrl: string) => {
+    setIsPhotoEditorOpen(false);
+    setTempImageUrl("");
+    setIsCameraOpen(false);
+    
+    // Save to backend using updateProfile from AuthContext
+    setIsLoading(true);
+    try {
+      await updateProfile({ profileImageUrl: croppedImageUrl });
+    } catch (error) {
+      console.error('Profile update error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Cleanup camera stream on unmount
@@ -227,6 +264,27 @@ export default function Profile() {
                   </AvatarFallback>
                 )}
               </Avatar>
+              
+              {/* Photo Selection Button */}
+              <Button
+                size="sm"
+                className="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-500 hover:bg-blue-600 border-2 border-white"
+                variant="default"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="w-4 h-4 text-white" />
+              </Button>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleGallerySelect}
+                className="hidden"
+              />
+
+              {/* Camera Dialog - only for taking photos */}
               <Dialog open={isCameraOpen} onOpenChange={(open) => {
                 setIsCameraOpen(open);
                 if (!open) {
@@ -234,72 +292,36 @@ export default function Profile() {
                   setCapturedImage(null);
                 }
               }}>
-                <DialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="absolute bottom-2 right-2 rounded-full w-10 h-10 p-0 bg-blue-500 hover:bg-blue-600 border-2 border-white"
-                    variant="default"
-                    onClick={() => setIsCameraOpen(true)}
-                  >
-                    <Camera className="w-4 h-4 text-white" />
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Update Profile Picture</DialogTitle>
+                    <DialogTitle>Take Photo</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    {/* Camera View */}
-                    {!capturedImage && (
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-64 object-cover rounded-lg bg-gray-100"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setIsCameraOpen(false)} 
-                            className="flex-1"
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={capturePhoto} 
-                            className="flex-1 bg-green-700 hover:bg-green-800"
-                          >
-                            <Camera className="w-4 h-4 mr-2" />
-                            Take Photo
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Captured Image Preview */}
-                    {capturedImage && (
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <img
-                            src={capturedImage}
-                            alt="Captured"
-                            className="w-full h-64 object-cover rounded-lg"
-                          />
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" onClick={retakePhoto} className="flex-1">
-                            Retake
-                          </Button>
-                          <Button onClick={handleEditSubmit} disabled={isLoading} className="flex-1 bg-green-700 hover:bg-green-800">
-                            {isLoading ? 'Updating...' : 'Use This Photo'}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    <div className="relative">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-64 object-cover rounded-lg bg-gray-100"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setIsCameraOpen(false)} 
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={capturePhoto} 
+                        className="flex-1 bg-green-700 hover:bg-green-800"
+                      >
+                        <Camera className="w-4 h-4 mr-2" />
+                        Capture
+                      </Button>
+                    </div>
 
                     {/* Hidden canvas for image capture */}
                     <canvas ref={canvasRef} className="hidden" />
@@ -337,17 +359,17 @@ export default function Profile() {
 
         {/* Settings Options */}
         <div className="space-y-0">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start h-12 px-4 text-base"
+            onClick={() => setIsEditing(true)}
+            data-testid="button-edit-profile"
+          >
+            <Edit3 className="w-7 h-7 mr-4" />
+            Edit Profile
+          </Button>
+          
           <Dialog open={isEditing} onOpenChange={setIsEditing}>
-            <DialogTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start h-12 px-4 text-base"
-                data-testid="button-edit-profile"
-              >
-                <Edit3 className="w-7 h-7 mr-4" />
-                Edit Profile
-              </Button>
-            </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Edit Profile</DialogTitle>
@@ -425,6 +447,18 @@ export default function Profile() {
           <LogOut className="w-7 h-7 mr-3" />
           Sign Out
         </Button>
+
+        {/* Photo Editor Modal */}
+        <PhotoEditorModal
+          isOpen={isPhotoEditorOpen}
+          onClose={() => {
+            setIsPhotoEditorOpen(false);
+            setTempImageUrl("");
+          }}
+          imageUrl={tempImageUrl}
+          onSave={handlePhotoEdited}
+          title="Edit Profile Photo"
+        />
       </div>
     </MobileLayout>
   );

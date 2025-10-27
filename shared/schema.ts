@@ -131,6 +131,25 @@ export const recurringContributions = pgTable("recurring_contributions", {
   isActiveIdx: index("recurring_contributions_is_active_idx").on(table.isActive),
 }));
 
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recipientUserId: varchar("recipient_user_id"), // For parent users
+  recipientContributorId: varchar("recipient_contributor_id"), // For contributor users
+  recipientEmail: text("recipient_email"), // Fallback for guest users without accounts
+  type: text("type").notNull(), // 'thank_you', 'pending_gift', etc.
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  relatedGiftId: varchar("related_gift_id"),
+  relatedChildId: varchar("related_child_id"),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  recipientUserIdIdx: index("notifications_recipient_user_id_idx").on(table.recipientUserId),
+  recipientContributorIdIdx: index("notifications_recipient_contributor_id_idx").on(table.recipientContributorId),
+  recipientEmailIdx: index("notifications_recipient_email_idx").on(table.recipientEmail),
+  isReadIdx: index("notifications_is_read_idx").on(table.isRead),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -246,6 +265,11 @@ export const createRecurringContributionSchema = z.object({
   frequency: z.enum(['monthly', 'yearly']),
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -278,3 +302,6 @@ export type CreateSproutRequestData = z.infer<typeof createSproutRequestSchema>;
 export type InsertRecurringContribution = z.infer<typeof insertRecurringContributionSchema>;
 export type RecurringContribution = typeof recurringContributions.$inferSelect;
 export type CreateRecurringContributionData = z.infer<typeof createRecurringContributionSchema>;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;

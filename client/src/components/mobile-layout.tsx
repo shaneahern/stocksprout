@@ -3,8 +3,9 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { PendingGiftsModal } from "@/components/pending-gifts-modal";
-import { Home, TrendingUp, History, User, Bell, X, Gift, AlertCircle, Gamepad2 } from "lucide-react";
+import { Home, TrendingUp, History, User, Bell, X, Gift, AlertCircle, Gamepad2, Heart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { queryClient } from "@/lib/queryClient";
 import stockSproutLogo from "@assets/image_1759012993458.png";
 
 interface MobileLayoutProps {
@@ -116,9 +117,27 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
     enabled: childrenData.length > 0,
   });
 
+  // Fetch thank you notifications from the new notifications API
+  const { data: thankYouNotifications = [] } = useQuery<any[]>({
+    queryKey: ["/api/notifications"],
+    queryFn: async () => {
+      if (!user?.id || !token) return [];
+      const response = await fetch('/api/notifications', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!user?.id && !!token,
+  });
+
   // Only count approved gifts as unread, and pending gifts separately
   const pendingCount = allGifts.filter((gift: any) => !gift.status || gift.status === 'pending').length;
   const unreadApprovedCount = allGifts.filter((gift: any) => !gift.isViewed && gift.status === 'approved').length;
+  const unreadThankYouCount = thankYouNotifications.filter((notif: any) => !notif.isRead).length;
+  const totalUnreadCount = unreadApprovedCount + unreadThankYouCount;
 
   const handleNotificationClick = () => {
     setShowNotifications(!showNotifications);
@@ -152,9 +171,9 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
               >
                 <Bell className="w-5 h-5 text-muted-foreground" />
               </button>
-              {(unreadApprovedCount > 0 || pendingCount > 0) && (
+              {(totalUnreadCount > 0 || pendingCount > 0) && (
                 <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-medium">{pendingCount > 0 ? pendingCount : unreadApprovedCount}</span>
+                  <span className="text-white text-xs font-bold">{pendingCount > 0 ? pendingCount : totalUnreadCount}</span>
                 </div>
               )}
             </div>
@@ -210,16 +229,67 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
             </div>
           )}
           <div className="max-h-64 overflow-y-auto">
-            {allGifts.length > 0 ? (
-              allGifts
-                .filter((gift: any) => {
-                  // Show pending gifts or unread approved gifts
-                  const isPending = !gift.status || gift.status === 'pending';
-                  const isUnreadApproved = gift.status === 'approved' && !gift.isViewed;
-                  return isPending || isUnreadApproved;
-                })
-                .slice(0, 5)
-                .map((gift: any) => {
+            {/* Thank You Notifications */}
+            {thankYouNotifications
+              .filter((notif: any) => !notif.isRead)
+              .map((notification: any) => {
+                const child = childrenData.find((c: any) => c.id === notification.relatedChildId);
+                return (
+                  <button
+                    key={notification.id}
+                    onClick={async () => {
+                      // Mark as read
+                      try {
+                        await fetch(`/api/notifications/${notification.id}/read`, {
+                          method: 'PATCH',
+                          headers: {
+                            'Authorization': `Bearer ${token}`,
+                          },
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+                      } catch (error) {
+                        console.error('Failed to mark notification as read:', error);
+                      }
+                      // Navigate to timeline
+                      setShowNotifications(false);
+                      if (notification.relatedChildId) {
+                        setLocation(`/timeline/${notification.relatedChildId}`);
+                      }
+                    }}
+                    className="w-full p-3 border-b border-border hover:bg-muted text-left transition-colors"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Heart className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold">{notification.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {!notification.isRead && (
+                        <div className="w-2 h-2 bg-primary rounded-full mt-1 flex-shrink-0"></div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            }
+
+            {/* Gift Notifications */}
+            {allGifts
+              .filter((gift: any) => {
+                // Show pending gifts or unread approved gifts
+                const isPending = !gift.status || gift.status === 'pending';
+                const isUnreadApproved = gift.status === 'approved' && !gift.isViewed;
+                return isPending || isUnreadApproved;
+              })
+              .slice(0, 5)
+              .map((gift: any) => {
                 const child = childrenData.find((c: any) => c.id === gift.childId);
                 // Check if pending - default to pending if status is undefined (new gifts)
                 const isPending = !gift.status || gift.status === 'pending';
@@ -266,7 +336,11 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
                   </button>
                 );
               })
-            ) : (
+            }
+
+            {/* Empty State */}
+            {allGifts.filter((g: any) => (!g.status || g.status === 'pending') || (g.status === 'approved' && !g.isViewed)).length === 0 && 
+             thankYouNotifications.filter((n: any) => !n.isRead).length === 0 && (
               <div className="p-4 text-center text-muted-foreground">
                 <p>No notifications yet</p>
               </div>

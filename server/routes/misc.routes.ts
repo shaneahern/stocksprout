@@ -5,6 +5,8 @@ import path from "path";
 import { mkdirSync } from "fs";
 import { storage } from "../storage";
 import { db } from "../db";
+import { authenticate, getAuthUser, type AuthenticatedRequest } from "../middleware/auth.middleware";
+import { or } from "drizzle-orm";
 
 export function registerMiscRoutes(app: Express) {
   // Create uploads directory if it doesn't exist
@@ -61,6 +63,36 @@ export function registerMiscRoutes(app: Express) {
 
   // Serve uploaded videos
   app.use('/uploads', express.static('uploads'));
+
+  // Notifications endpoints
+  app.get("/api/notifications", authenticate, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      
+      // Get all notifications for this user (as parent/user or as contributor)
+      const userNotifications = await storage.getNotificationsByUser(userId);
+      const contributorNotifications = await storage.getNotificationsByContributor(userId);
+      
+      // Combine and sort by date
+      const allNotifications = [...userNotifications, ...contributorNotifications]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      res.json(allNotifications);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", authenticate, async (req: AuthenticatedRequest, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
 
   // TEST ONLY: Clean up broken holdings with temp investment IDs
   app.post("/api/test/cleanup-broken-holdings/:childId", async (req, res) => {

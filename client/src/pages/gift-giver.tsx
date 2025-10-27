@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import InvestmentSelector from "@/components/investment-selector";
 import BrokerageTransferSelector from "@/components/brokerage-transfer-selector";
 import VideoRecorder from "@/components/video-recorder";
@@ -19,6 +20,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import TakePhotoModal from "@/components/take-photo-modal";
+import { getStockLogoUrl, getFallbackLogoUrl } from "@/lib/stock-logo";
+import PhotoEditorModal from "@/components/photo-editor-modal";
 
 export default function GiftGiver() {
   const [, params] = useRoute("/gift/:giftCode");
@@ -46,6 +49,10 @@ export default function GiftGiver() {
   // Profile photo state
   const [profileImageUrl, setProfileImageUrl] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  const [isPhotoEditorOpen, setIsPhotoEditorOpen] = useState(false);
+  const [tempImageUrl, setTempImageUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: child, isLoading } = useQuery({
     queryKey: ["/api/children/by-gift-code", giftCode],
@@ -54,6 +61,11 @@ export default function GiftGiver() {
 
   // Type guard for child data
   const typedChild = child as any;
+  
+  // Compute child's full name from firstName and lastName
+  const childFullName = typedChild 
+    ? `${typedChild.firstName || ''} ${typedChild.lastName || ''}`.trim() || typedChild.name || 'this child'
+    : 'this child';
 
   // Handle authentication
   const handleAuthenticated = (contributorData: any, isNewUser: boolean) => {
@@ -78,8 +90,31 @@ export default function GiftGiver() {
   };
 
   // Handle photo taken from camera modal
-  const handlePhotoTaken = async (imageDataUrl: string) => {
-    setProfileImageUrl(imageDataUrl);
+  const handlePhotoTaken = (imageDataUrl: string) => {
+    setTempImageUrl(imageDataUrl);
+    setIsCameraOpen(false);
+    setIsPhotoDialogOpen(false);
+    setIsPhotoEditorOpen(true);
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setTempImageUrl(result);
+        setIsPhotoDialogOpen(false);
+        setIsPhotoEditorOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoEdited = async (croppedImageUrl: string) => {
+    setProfileImageUrl(croppedImageUrl);
+    setIsPhotoEditorOpen(false);
+    setTempImageUrl("");
 
     try {
       // If user is authenticated and has a contributor ID, save to database
@@ -90,7 +125,7 @@ export default function GiftGiver() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${contributorToken}`,
           },
-          body: JSON.stringify({ profileImageUrl: imageDataUrl }),
+          body: JSON.stringify({ profileImageUrl: croppedImageUrl }),
         });
 
         if (response.ok) {
@@ -332,7 +367,7 @@ export default function GiftGiver() {
         isOpen={shouldShowAuthModal}
         onClose={() => {}} // Modal will hide automatically when authenticated
         onAuthenticated={handleAuthenticated}
-        childName={typedChild?.name || 'this child'}
+        childName={childFullName}
       />
       
       {/* Header */}
@@ -341,7 +376,7 @@ export default function GiftGiver() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl sm:text-3xl font-bold">StockSprout</h1>
-              <p className="text-white/90 text-sm sm:text-base">Send an investment gift to {typedChild.name}</p>
+              <p className="text-white/90 text-sm sm:text-base">Send an investment gift to {childFullName}</p>
             </div>
             {authContributor && (
               <Button
@@ -369,10 +404,10 @@ export default function GiftGiver() {
           <CardContent>
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 bg-muted rounded-xl p-4 sm:p-6">
               <div className="w-20 h-20 sm:w-24 sm:h-24 bg-primary rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold">
-                {typedChild.name.charAt(0)}
+                {childFullName.charAt(0)}
               </div>
               <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-xl sm:text-2xl font-bold text-foreground">{typedChild.name}</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-foreground">{childFullName}</h3>
                 <p className="text-muted-foreground text-base sm:text-lg">
                   {typedChild.age} years old
                   {typedChild.birthday && ` • Birthday: ${typedChild.birthday}`}
@@ -410,10 +445,17 @@ export default function GiftGiver() {
                   size="sm"
                   className="absolute -bottom-1 -right-1 rounded-full w-6 h-6 p-0"
                   variant="secondary"
-                  onClick={() => setIsCameraOpen(true)}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera className="w-3 h-3" />
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleGallerySelect}
+                  className="hidden"
+                />
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="font-semibold text-foreground">Profile Photo</h3>
@@ -429,6 +471,18 @@ export default function GiftGiver() {
               onClose={() => setIsCameraOpen(false)}
               onPhotoTaken={handlePhotoTaken}
               title="Add Profile Photo"
+            />
+
+            {/* Photo Editor Modal */}
+            <PhotoEditorModal
+              isOpen={isPhotoEditorOpen}
+              onClose={() => {
+                setIsPhotoEditorOpen(false);
+                setTempImageUrl("");
+              }}
+              imageUrl={tempImageUrl}
+              onSave={handlePhotoEdited}
+              title="Edit Profile Photo"
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -513,6 +567,48 @@ export default function GiftGiver() {
                 onSelectInvestment={setSelectedInvestment}
                 onSharesChange={setShares}
               />
+            )}
+
+            {/* Selected Stock Display */}
+            {selectedInvestment && (
+              <div className="p-4 bg-primary/5 border-2 border-primary rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-muted">
+                      <img 
+                        src={getStockLogoUrl(selectedInvestment.symbol, selectedInvestment.name)}
+                        alt={`${selectedInvestment.symbol} logo`}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          if (!target.src.startsWith('data:')) {
+                            target.src = getFallbackLogoUrl(selectedInvestment.symbol);
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">{selectedInvestment.name}</h4>
+                      <p className="text-sm text-muted-foreground">{selectedInvestment.symbol}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-foreground">${parseFloat(selectedInvestment.currentPrice).toFixed(2)}</p>
+                    <p className={`text-sm font-medium ${
+                      parseFloat(selectedInvestment.ytdReturn) >= 0 
+                        ? 'text-green-600' 
+                        : 'text-red-600'
+                    }`}>
+                      {parseFloat(selectedInvestment.ytdReturn) >= 0 ? '+' : ''}
+                      {parseFloat(selectedInvestment.ytdReturn).toFixed(2)}% YTD
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                  <span className="text-primary text-sm font-medium">Selected</span>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -604,7 +700,7 @@ export default function GiftGiver() {
                 <Textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Write a personal message for ${typedChild.name}...`}
+                  placeholder={`Write a personal message for ${childFullName}...`}
                   rows={8}
                   className="resize-none"
                   data-testid="textarea-message"
@@ -618,7 +714,7 @@ export default function GiftGiver() {
         {giftMode === "buy" && !giftSent && selectedInvestment && giftGiverName && (
           <RecurringContributionSetup
             childId={typedChild.id}
-            childName={typedChild.name}
+            childName={childFullName}
             selectedInvestment={selectedInvestment}
             amount={amount}
             contributorName={giftGiverName}
@@ -641,7 +737,7 @@ export default function GiftGiver() {
                 giftGiverName={giftGiverName}
                 investmentName={selectedInvestment?.name || ""}
                 shares={shares}
-                childName={typedChild.name}
+                childName={childFullName}
                 onPaymentSuccess={handlePaymentSuccess}
                 onPaymentError={handlePaymentError}
                 disabled={sendGiftMutation.isPending}
@@ -666,7 +762,7 @@ export default function GiftGiver() {
                       ? (parseFloat(shares) * parseFloat(selectedInvestment.currentPrice)).toFixed(2)
                       : "0.00"}
                   </p>
-                  <p className="text-muted-foreground">To: {typedChild.name}</p>
+                  <p className="text-muted-foreground">To: {childFullName}</p>
                   {paymentId && (
                     <p className="text-success text-sm mt-2">
                       ✓ Transfer ready: {paymentId}
