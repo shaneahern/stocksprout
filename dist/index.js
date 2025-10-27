@@ -20,6 +20,7 @@ __export(schema_exports, {
   insertContributorSchema: () => insertContributorSchema,
   insertGiftSchema: () => insertGiftSchema,
   insertInvestmentSchema: () => insertInvestmentSchema,
+  insertNotificationSchema: () => insertNotificationSchema,
   insertPortfolioHoldingSchema: () => insertPortfolioHoldingSchema,
   insertRecurringContributionSchema: () => insertRecurringContributionSchema,
   insertSproutRequestSchema: () => insertSproutRequestSchema,
@@ -27,6 +28,7 @@ __export(schema_exports, {
   insertUserSchema: () => insertUserSchema,
   investments: () => investments,
   loginSchema: () => loginSchema,
+  notifications: () => notifications,
   portfolioHoldings: () => portfolioHoldings,
   recurringContributions: () => recurringContributions,
   signupSchema: () => signupSchema,
@@ -36,10 +38,10 @@ __export(schema_exports, {
   users: () => users
 });
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var users, children, investments, portfolioHoldings, gifts, thankYouMessages, contributors, sproutRequests, recurringContributions, insertUserSchema, signupSchema, loginSchema, updateProfileSchema, insertChildSchema, insertInvestmentSchema, insertPortfolioHoldingSchema, insertGiftSchema, insertThankYouMessageSchema, insertContributorSchema, insertSproutRequestSchema, createSproutRequestSchema, insertRecurringContributionSchema, createRecurringContributionSchema;
+var users, children, investments, portfolioHoldings, gifts, thankYouMessages, contributors, sproutRequests, recurringContributions, notifications, insertUserSchema, signupSchema, loginSchema, updateProfileSchema, insertChildSchema, insertInvestmentSchema, insertPortfolioHoldingSchema, insertGiftSchema, insertThankYouMessageSchema, insertContributorSchema, insertSproutRequestSchema, createSproutRequestSchema, insertRecurringContributionSchema, createRecurringContributionSchema, insertNotificationSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -58,10 +60,10 @@ var init_schema = __esm({
     children = pgTable("children", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       parentId: varchar("parent_id").notNull(),
-      name: text("name").notNull(),
-      age: integer("age").notNull(),
+      firstName: text("first_name").notNull(),
+      lastName: text("last_name").notNull(),
+      birthdate: timestamp("birthdate").notNull(),
       profileImageUrl: text("profile_image_url"),
-      birthday: text("birthday"),
       giftLinkCode: text("gift_link_code").notNull().unique()
     }, (table) => ({
       parentIdIdx: index("children_parent_id_idx").on(table.parentId),
@@ -172,6 +174,28 @@ var init_schema = __esm({
       contributorIdIdx: index("recurring_contributions_contributor_id_idx").on(table.contributorId),
       isActiveIdx: index("recurring_contributions_is_active_idx").on(table.isActive)
     }));
+    notifications = pgTable("notifications", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      recipientUserId: varchar("recipient_user_id"),
+      // For parent users
+      recipientContributorId: varchar("recipient_contributor_id"),
+      // For contributor users
+      recipientEmail: text("recipient_email"),
+      // Fallback for guest users without accounts
+      type: text("type").notNull(),
+      // 'thank_you', 'pending_gift', etc.
+      title: text("title").notNull(),
+      message: text("message").notNull(),
+      relatedGiftId: varchar("related_gift_id"),
+      relatedChildId: varchar("related_child_id"),
+      isRead: boolean("is_read").default(false).notNull(),
+      createdAt: timestamp("created_at").defaultNow().notNull()
+    }, (table) => ({
+      recipientUserIdIdx: index("notifications_recipient_user_id_idx").on(table.recipientUserId),
+      recipientContributorIdIdx: index("notifications_recipient_contributor_id_idx").on(table.recipientContributorId),
+      recipientEmailIdx: index("notifications_recipient_email_idx").on(table.recipientEmail),
+      isReadIdx: index("notifications_is_read_idx").on(table.isRead)
+    }));
     insertUserSchema = createInsertSchema(users).pick({
       username: true,
       email: true,
@@ -203,10 +227,12 @@ var init_schema = __esm({
     });
     insertChildSchema = createInsertSchema(children).pick({
       parentId: true,
-      name: true,
-      age: true,
-      profileImageUrl: true,
-      birthday: true
+      firstName: true,
+      lastName: true,
+      birthdate: true,
+      profileImageUrl: true
+    }).extend({
+      birthdate: z.coerce.date()
     });
     insertInvestmentSchema = createInsertSchema(investments).pick({
       symbol: true,
@@ -270,6 +296,10 @@ var init_schema = __esm({
       investmentId: z.string(),
       amount: z.string().or(z.number()),
       frequency: z.enum(["monthly", "yearly"])
+    });
+    insertNotificationSchema = createInsertSchema(notifications).omit({
+      id: true,
+      createdAt: true
     });
   }
 });
@@ -474,9 +504,7 @@ var DatabaseStorage = class {
     const giftLinkCode = this.generateGiftLinkCode();
     const [child] = await db.insert(children).values({
       ...insertChild,
-      giftLinkCode,
-      profileImageUrl: insertChild.profileImageUrl ?? null,
-      birthday: insertChild.birthday ?? null
+      giftLinkCode
     }).returning();
     return child;
   }
@@ -691,10 +719,11 @@ var DatabaseStorage = class {
       investmentName: investments.name,
       investmentCurrentPrice: investments.currentPrice,
       // Child fields
-      childName: children.name,
+      childFirstName: children.firstName,
+      childLastName: children.lastName,
+      childBirthdate: children.birthdate,
       childGiftCode: children.giftLinkCode,
-      childProfileImageUrl: children.profileImageUrl,
-      childAge: children.age
+      childProfileImageUrl: children.profileImageUrl
     }).from(gifts).leftJoin(investments, eq(gifts.investmentId, investments.id)).leftJoin(children, eq(gifts.childId, children.id)).where(eq(gifts.contributorId, contributorId)).orderBy(desc(gifts.createdAt));
     return results.map((row) => ({
       id: row.id,
@@ -718,12 +747,32 @@ var DatabaseStorage = class {
       },
       child: {
         id: row.childId,
-        name: row.childName,
+        firstName: row.childFirstName,
+        lastName: row.childLastName,
+        birthdate: row.childBirthdate,
+        giftLinkCode: row.childGiftCode,
         giftCode: row.childGiftCode,
-        profileImageUrl: row.childProfileImageUrl,
-        age: row.childAge
+        // Include both for backwards compatibility
+        profileImageUrl: row.childProfileImageUrl
       }
     }));
+  }
+  // Notifications
+  async createNotification(notification) {
+    const [newNotification] = await db.insert(notifications).values(notification).returning();
+    return newNotification;
+  }
+  async getNotificationsByUser(userId) {
+    return await db.select().from(notifications).where(eq(notifications.recipientUserId, userId)).orderBy(desc(notifications.createdAt));
+  }
+  async getNotificationsByContributor(contributorId) {
+    return await db.select().from(notifications).where(eq(notifications.recipientContributorId, contributorId)).orderBy(desc(notifications.createdAt));
+  }
+  async getNotificationsByEmail(email) {
+    return await db.select().from(notifications).where(eq(notifications.recipientEmail, email)).orderBy(desc(notifications.createdAt));
+  }
+  async markNotificationAsRead(id) {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
   }
 };
 var storage = new DatabaseStorage();
@@ -1159,10 +1208,10 @@ function registerChildrenRoutes(app2) {
       const results = await db.select({
         id: children2.id,
         parentId: children2.parentId,
-        name: children2.name,
-        age: children2.age,
+        firstName: children2.firstName,
+        lastName: children2.lastName,
+        birthdate: children2.birthdate,
         profileImageUrl: children2.profileImageUrl,
-        birthday: children2.birthday,
         giftLinkCode: children2.giftLinkCode,
         totalValue: sql2`COALESCE(SUM(${portfolioHoldings2.currentValue}), 0)`,
         totalCost: sql2`COALESCE(SUM(${portfolioHoldings2.shares} * ${portfolioHoldings2.averageCost}), 0)`
@@ -1236,10 +1285,11 @@ function registerChildrenRoutes(app2) {
       }
       const baseUrl = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "http://localhost:3000";
       const giftLink = `${baseUrl}/gift/${child.giftLinkCode}`;
+      const childName = `${child.firstName} ${child.lastName}`;
       res.json({
         giftLink,
         giftCode: child.giftLinkCode,
-        childName: child.name
+        childName
       });
     } catch (error) {
       return handleError(res, error, "Failed to generate gift link");
@@ -2003,6 +2053,22 @@ function registerGiftRoutes(app2) {
     try {
       const validatedData = insertThankYouMessageSchema.parse(req.body);
       const message = await storage.createThankYouMessage(validatedData);
+      const gift = await storage.getGift(validatedData.giftId);
+      if (gift) {
+        const child = await storage.getChild(gift.childId);
+        const childName = child ? `${child.firstName} ${child.lastName}` : "a child";
+        await storage.createNotification({
+          recipientUserId: gift.contributorId && !gift.giftGiverEmail ? gift.contributorId : null,
+          recipientContributorId: gift.contributorId,
+          recipientEmail: gift.giftGiverEmail,
+          type: "thank_you",
+          title: `Thank You from ${childName}!`,
+          message: validatedData.message,
+          relatedGiftId: gift.id,
+          relatedChildId: gift.childId,
+          isRead: false
+        });
+      }
       res.json(message);
     } catch (error) {
       console.error("Failed to create thank you message:", error);
@@ -2340,6 +2406,27 @@ function registerMiscRoutes(app2) {
     }
   });
   app2.use("/uploads", express.static("uploads"));
+  app2.get("/api/notifications", authenticate, async (req, res) => {
+    try {
+      const { userId } = getAuthUser(req);
+      const userNotifications = await storage.getNotificationsByUser(userId);
+      const contributorNotifications = await storage.getNotificationsByContributor(userId);
+      const allNotifications = [...userNotifications, ...contributorNotifications].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      res.json(allNotifications);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+  app2.patch("/api/notifications/:id/read", authenticate, async (req, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
   app2.post("/api/test/cleanup-broken-holdings/:childId", async (req, res) => {
     try {
       const { childId } = req.params;

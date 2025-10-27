@@ -214,32 +214,41 @@ export default function Portfolio() {
         {childId && (
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <div className="text-lg font-bold mb-1" data-testid="text-portfolio-value">
+              <div className="text-3xl font-bold mb-1" data-testid="text-portfolio-value">
                 ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="flex items-center gap-2">
                 <span 
-                  className="text-sm font-semibold"
-                  style={{ color: '#AAAAAA' }}
+                  className="text-sm font-medium text-muted-foreground"
                   data-testid="text-portfolio-gain"
                 >
                   {totalGain >= 0 ? '+' : ''}${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Gain
                 </span>
               </div>
             </div>
-            <ChildSelector currentChildId={childId} redirectPath="portfolio" />
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                <span className="text-sm font-bold">
+                  {child?.firstName?.charAt(0) || 'C'}
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-sm">{child?.firstName && child?.lastName ? `${child.firstName} ${child.lastName}` : 'Child'}</div>
+                <div className="text-xs text-muted-foreground">Age {child?.birthdate ? calculateAge(child.birthdate) : 0}</div>
+              </div>
+              <ChildSelector currentChildId={childId} redirectPath="portfolio" />
+            </div>
           </div>
         )}
         {!childId && (
           <div>
             <div className="text-center mb-6">
-              <div className="text-lg font-bold mb-2" data-testid="text-portfolio-value">
+              <div className="text-3xl font-bold mb-2" data-testid="text-portfolio-value">
                 ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="flex items-center justify-center gap-2">
                 <span 
-                  className="text-sm font-semibold"
-                  style={{ color: '#AAAAAA' }}
+                  className="text-sm font-medium text-muted-foreground"
                   data-testid="text-portfolio-gain"
                 >
                   {totalGain >= 0 ? '+' : ''}${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Total Gain
@@ -315,10 +324,10 @@ export default function Portfolio() {
 
         {/* Action Buttons - Only for parents/custodians */}
         {user && childId && (
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 -mt-2 mb-2">
+          <div className="flex gap-3 -mt-2 mb-2">
             <Button 
               onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
-              className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
+              className="flex-1 text-white font-semibold text-sm hover:opacity-90 py-3"
               style={{ backgroundColor: '#328956' }}
             >
               <Gift className="w-4 h-4 mr-2" />
@@ -360,8 +369,8 @@ export default function Portfolio() {
                 };
                 generateLink();
               }}
-              className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
-              style={{ backgroundColor: '#8A3324' }}
+              className="flex-1 text-white font-semibold text-sm hover:opacity-90 py-3"
+              style={{ backgroundColor: '#2563eb' }}
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Sprout Request
@@ -383,7 +392,7 @@ export default function Portfolio() {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <h2 className="text-lg font-bold">Holdings</h2>
           {holdings.map((holding: EnrichedHolding) => {
             const currentValue = parseFloat(holding.currentValue || "0");
@@ -392,9 +401,9 @@ export default function Portfolio() {
             const gainPercent = cost > 0 ? (gain / cost) * 100 : 0;
 
             return (
-              <Card key={holding.id} data-testid={`card-holding-${holding.id}`} className="border-0 shadow-none">
-                <CardContent className="p-0">
-                  <div className="flex items-center justify-between py-3 px-2">
+              <Card key={holding.id} data-testid={`card-holding-${holding.id}`} className="border border-border shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1">
                       {holding.investment?.symbol ? (
                         <>
@@ -410,7 +419,7 @@ export default function Portfolio() {
                           <div className="flex-1 min-w-0">
                             <div className="font-bold text-lg">{holding.investment.symbol}</div>
                             <div className="text-sm text-muted-foreground">
-                              {parseFloat(holding.shares).toFixed(2)} shares
+                              {parseFloat(holding.shares).toFixed(0)} shares
                             </div>
                           </div>
                         </>
@@ -431,13 +440,13 @@ export default function Portfolio() {
                       <div className="font-bold text-lg">
                         ${currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        +${gain.toFixed(2)}
+                      <div className={`text-sm font-medium ${gain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {gain >= 0 ? '+' : ''}${gain.toFixed(2)}
                       </div>
                     </div>
 
                     <div 
-                      className="ml-4 px-4 py-2 rounded-lg font-bold text-lg text-white"
+                      className="ml-4 px-3 py-1.5 rounded-lg font-bold text-sm text-white"
                       style={{ 
                         backgroundColor: gain >= 0 ? '#34A853' : '#EF5252'
                       }}

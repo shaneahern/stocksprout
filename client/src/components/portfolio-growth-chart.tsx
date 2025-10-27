@@ -172,25 +172,25 @@ export default function PortfolioGrowthChart({ currentValue, ytdReturn }: Portfo
     let increment: number;
     let ticks: number[] = [];
     
-    if (range <= 100) {
-      // For small ranges, use $10 increments
-      increment = 10;
+    if (range <= 1000) {
+      // For small ranges, use $5K increments
+      increment = 5000;
       const startTick = Math.floor(min / increment) * increment;
       const endTick = Math.ceil(max / increment) * increment;
       for (let i = startTick; i <= endTick; i += increment) {
         ticks.push(i);
       }
-    } else if (range <= 1000) {
-      // For medium ranges, use $100 increments
-      increment = 100;
+    } else if (range <= 10000) {
+      // For medium ranges, use $10K increments
+      increment = 10000;
       const startTick = Math.floor(min / increment) * increment;
       const endTick = Math.ceil(max / increment) * increment;
       for (let i = startTick; i <= endTick; i += increment) {
         ticks.push(i);
       }
     } else {
-      // For large ranges, use $1000 increments
-      increment = 1000;
+      // For large ranges, use $10K increments
+      increment = 10000;
       const startTick = Math.floor(min / increment) * increment;
       const endTick = Math.ceil(max / increment) * increment;
       for (let i = startTick; i <= endTick; i += increment) {
@@ -218,8 +218,8 @@ export default function PortfolioGrowthChart({ currentValue, ytdReturn }: Portfo
             >
               <defs>
                 <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(210, 70%, 60%)" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="hsl(210, 70%, 60%)" stopOpacity={0.1}/>
+                  <stop offset="5%" stopColor="hsl(120, 50%, 35%)" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="hsl(120, 50%, 35%)" stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
               <CartesianGrid 
