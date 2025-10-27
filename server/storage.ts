@@ -18,6 +18,8 @@ import {
   type InsertSproutRequest,
   type RecurringContribution,
   type InsertRecurringContribution,
+  type Notification,
+  type InsertNotification,
   users,
   children,
   investments,
@@ -26,7 +28,8 @@ import {
   thankYouMessages,
   contributors,
   sproutRequests,
-  recurringContributions
+  recurringContributions,
+  notifications
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -101,6 +104,13 @@ export interface IStorage {
   createRecurringContribution(contribution: InsertRecurringContribution): Promise<RecurringContribution>;
   updateRecurringContribution(id: string, updates: Partial<RecurringContribution>): Promise<RecurringContribution | undefined>;
   cancelRecurringContribution(id: string): Promise<void>;
+
+  // Notifications
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotificationsByUser(userId: string): Promise<Notification[]>;
+  getNotificationsByContributor(contributorId: string): Promise<Notification[]>;
+  getNotificationsByEmail(email: string): Promise<Notification[]>;
+  markNotificationAsRead(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -661,6 +671,36 @@ export class DatabaseStorage implements IStorage {
         profileImageUrl: row.childProfileImageUrl,
       }
     }));
+  }
+
+  // Notifications
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db.insert(notifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async getNotificationsByUser(userId: string): Promise<Notification[]> {
+    return await db.select().from(notifications)
+      .where(eq(notifications.recipientUserId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getNotificationsByContributor(contributorId: string): Promise<Notification[]> {
+    return await db.select().from(notifications)
+      .where(eq(notifications.recipientContributorId, contributorId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getNotificationsByEmail(email: string): Promise<Notification[]> {
+    return await db.select().from(notifications)
+      .where(eq(notifications.recipientEmail, email))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async markNotificationAsRead(id: string): Promise<void> {
+    await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id));
   }
 }
 

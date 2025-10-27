@@ -324,6 +324,26 @@ export function registerGiftRoutes(app: Express) {
     try {
       const validatedData = insertThankYouMessageSchema.parse(req.body);
       const message = await storage.createThankYouMessage(validatedData);
+      
+      // Create notification for gift giver
+      const gift = await storage.getGift(validatedData.giftId);
+      if (gift) {
+        const child = await storage.getChild(gift.childId);
+        const childName = child ? `${child.firstName} ${child.lastName}` : "a child";
+        
+        await storage.createNotification({
+          recipientUserId: gift.contributorId && !gift.giftGiverEmail ? gift.contributorId : null,
+          recipientContributorId: gift.contributorId,
+          recipientEmail: gift.giftGiverEmail,
+          type: 'thank_you',
+          title: `Thank You from ${childName}!`,
+          message: validatedData.message,
+          relatedGiftId: gift.id,
+          relatedChildId: gift.childId,
+          isRead: false,
+        });
+      }
+      
       res.json(message);
     } catch (error) {
       console.error("Failed to create thank you message:", error);
