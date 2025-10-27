@@ -4,7 +4,17 @@
 
 StockSprout is a custodial investment platform that allows parents to manage investment portfolios for their children, while family and friends can contribute through gift links and recurring contributions. The application features a mobile-first design with a growing sprout visualization, gift-giving workflow, portfolio tracking, educational activities, and interactive timeline functionality.
 
-## Recent Changes (October 26, 2025)
+## Recent Changes (October 27, 2025)
+
+- **Inbox Notification System**: Gift givers now receive inbox alerts when recipients send thank you messages
+  - New `notifications` table stores inbox notifications with support for multiple notification types
+  - Thank you messages trigger automatic notifications to gift givers (both authenticated and guest users)
+  - Notification bell badge shows combined count of unread gifts and thank you messages
+  - Notification dropdown displays thank you alerts with purple heart icon alongside gift notifications
+  - Click-to-navigate: thank you notifications link to the child's timeline
+  - Mark as read: notifications automatically marked as read when clicked
+
+## Previous Changes (October 26, 2025)
 
 - **Photo Selection UX Ultra-Simplified**: Removed dropdown menus in favor of direct file picker:
   - Click camera icon → native file picker opens immediately
