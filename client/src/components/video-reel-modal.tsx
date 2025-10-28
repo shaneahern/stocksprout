@@ -28,11 +28,11 @@ export function VideoReelModal({ isOpen, onClose, videos }: VideoReelModalProps)
 
   // Handle video end and auto-advance
   const handleVideoEnd = () => {
-    if (isAutoPlay && currentIndex < videos.length - 1) {
+    if (currentIndex < videos.length - 1) {
+      // Auto-advance to next video
       setCurrentIndex(prev => prev + 1);
-    } else if (isAutoPlay && currentIndex === videos.length - 1) {
-      // Reached the end, stop auto-play
-      setIsAutoPlay(false);
+    } else {
+      // Reached the end, stop playing
       setIsPlaying(false);
     }
   };
@@ -54,7 +54,6 @@ export function VideoReelModal({ isOpen, onClose, videos }: VideoReelModalProps)
   const goToPrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
-      setIsAutoPlay(false);
       setIsPlaying(true);
     }
   };
@@ -62,7 +61,6 @@ export function VideoReelModal({ isOpen, onClose, videos }: VideoReelModalProps)
   const goToNext = () => {
     if (currentIndex < videos.length - 1) {
       setCurrentIndex(prev => prev + 1);
-      setIsAutoPlay(false);
       setIsPlaying(true);
     }
   };
@@ -76,12 +74,40 @@ export function VideoReelModal({ isOpen, onClose, videos }: VideoReelModalProps)
     }
   }, [isOpen]);
 
-  // Auto-play when video changes
+  // Auto-play when video changes and set volume
   useEffect(() => {
-    if (videoRef.current && isPlaying) {
-      videoRef.current.play().catch(console.error);
+    if (videoRef.current) {
+      // Set volume to medium (0.5) and unmute
+      videoRef.current.volume = 0.5;
+      videoRef.current.muted = false;
+      
+      // Auto-play if playing state is true
+      if (isPlaying) {
+        videoRef.current.play().catch(console.error);
+      }
     }
   }, [currentIndex, isPlaying]);
+  
+  // Set volume when video loads
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      const handleLoadedMetadata = () => {
+        video.volume = 0.5;
+        video.muted = false;
+      };
+      
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+      
+      // Also set it immediately in case metadata is already loaded
+      video.volume = 0.5;
+      video.muted = false;
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      };
+    }
+  }, [currentIndex]);
 
   if (!currentVideo) return null;
 
@@ -108,7 +134,6 @@ export function VideoReelModal({ isOpen, onClose, videos }: VideoReelModalProps)
               onEnded={handleVideoEnd}
               onClick={togglePlayPause}
               autoPlay
-              muted
               crossOrigin="anonymous"
             />
             
@@ -190,7 +215,9 @@ export function VideoReelModal({ isOpen, onClose, videos }: VideoReelModalProps)
             {/* Auto-play Status */}
             <div className="text-center">
               <p className="text-xs text-gray-500">
-                {isAutoPlay ? 'Auto-playing videos' : 'Manual control'}
+                {currentIndex < videos.length - 1 
+                  ? `Auto-playing... ${videos.length - currentIndex - 1} more` 
+                  : 'Last video'}
               </p>
             </div>
           </div>
