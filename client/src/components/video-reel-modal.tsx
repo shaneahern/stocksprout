@@ -109,6 +109,7 @@ export function VideoReelModal({ isOpen, onClose, videos }: VideoReelModalProps)
               onClick={togglePlayPause}
               autoPlay
               muted
+              crossOrigin="anonymous"
             />
             
             {/* Play/Pause Overlay */}

@@ -7,25 +7,40 @@ import { storage } from "../storage";
 import { db } from "../db";
 import { authenticate, getAuthUser, type AuthenticatedRequest } from "../middleware/auth.middleware";
 import { or } from "drizzle-orm";
+import { uploadVideoToCloudinary, isCloudinaryUrl } from "../cloudinary";
 
 export function registerMiscRoutes(app: Express) {
-  // Create uploads directory if it doesn't exist
-  try {
-    mkdirSync('uploads/videos', { recursive: true });
-  } catch (err) {
-    // Directory might already exist
+  // Check if Cloudinary is configured
+  const isCloudinaryConfigured = !!(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+
+  // Create uploads directory for fallback local storage (if Cloudinary not configured)
+  if (!isCloudinaryConfigured) {
+    try {
+      mkdirSync('uploads/videos', { recursive: true });
+      console.warn('[Video Upload] Cloudinary not configured. Using local file storage (files may be lost on Replit restarts).');
+    } catch (err) {
+      // Directory might already exist
+    }
   }
 
   // Configure multer for video uploads
-  const videoStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, 'uploads/videos/');
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      cb(null, 'video-' + uniqueSuffix + path.extname(file.originalname));
-    }
-  });
+  // Use memory storage when Cloudinary is configured (upload directly to cloud)
+  // Use disk storage as fallback when Cloudinary is not configured
+  const videoStorage = isCloudinaryConfigured
+    ? multer.memoryStorage()
+    : multer.diskStorage({
+        destination: (req, file, cb) => {
+          cb(null, 'uploads/videos/');
+        },
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          cb(null, 'video-' + uniqueSuffix + path.extname(file.originalname));
+        }
+      });
 
   const uploadVideo = multer({
     storage: videoStorage,
@@ -61,8 +76,29 @@ export function registerMiscRoutes(app: Express) {
         return res.status(400).json({ error: "No video file provided" });
       }
 
-      // Return the URL where the video can be accessed
-      const videoUrl = `/uploads/videos/${req.file.filename}`;
+      let videoUrl: string;
+
+      if (isCloudinaryConfigured) {
+        // Upload to Cloudinary
+        try {
+          const result = await uploadVideoToCloudinary(req.file, req.file.originalname);
+          videoUrl = result.secure_url; // Use secure HTTPS URL
+          console.log(`[Video Upload] Successfully uploaded to Cloudinary: ${result.public_id}`);
+        } catch (cloudinaryError) {
+          console.error("Cloudinary upload error:", cloudinaryError);
+          // Fallback to local storage if Cloudinary upload fails
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const filename = 'video-' + uniqueSuffix + path.extname(req.file.originalname);
+          const fs = await import('fs/promises');
+          await fs.writeFile(`uploads/videos/${filename}`, req.file.buffer);
+          videoUrl = `/uploads/videos/${filename}`;
+          console.warn(`[Video Upload] Cloudinary upload failed, saved locally: ${videoUrl}`);
+        }
+      } else {
+        // Fallback to local storage
+        videoUrl = `/uploads/videos/${req.file.filename}`;
+      }
+
       res.json({ videoUrl });
     } catch (error) {
       console.error("Video upload error:", error);

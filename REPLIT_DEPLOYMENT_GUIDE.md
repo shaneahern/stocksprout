@@ -11,11 +11,19 @@
 ### Step 2: Set Up Environment Variables
 Click on "Tools" → "Secrets" (or the lock icon 🔒) and add:
 
+**Required:**
 ```
 DATABASE_URL = postgresql://username:password@host:port/database
 JWT_SECRET = your-super-secret-random-key-at-least-32-characters-long
 NODE_ENV = production
 PORT = 3000
+```
+
+**Recommended (for video storage):**
+```
+CLOUDINARY_CLOUD_NAME = your-cloud-name
+CLOUDINARY_API_KEY = your-api-key
+CLOUDINARY_API_SECRET = your-api-secret
 ```
 
 #### Getting a Database URL (Free Options):
@@ -38,6 +46,31 @@ Run this in your terminal or use online generator:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+#### Setting Up Cloudinary (Required for Video Storage)
+
+**Why Cloudinary?**
+- Replit's file system is ephemeral - files disappear on restart/redeploy
+- Cloudinary provides persistent cloud storage for videos
+- Free tier: 25GB storage + 25GB monthly bandwidth
+- Automatic video optimization and CDN delivery
+
+**Steps:**
+1. Go to https://cloudinary.com/users/register_free
+2. Sign up for a free account (takes 2 minutes)
+3. After signup, go to your Dashboard
+4. Copy your credentials:
+   - **Cloud Name** (found in Dashboard URL: `https://console.cloudinary.com/[your-cloud-name]/`)
+   - **API Key** (under "API Keys" section)
+   - **API Secret** (click "Reveal" to see it)
+5. Add all three to Replit Secrets:
+   ```
+   CLOUDINARY_CLOUD_NAME = your-cloud-name
+   CLOUDINARY_API_KEY = 123456789012345
+   CLOUDINARY_API_SECRET = abcdefghijklmnopqrstuvwxyz123456
+   ```
+
+**Note:** Without Cloudinary, videos will be stored locally and will be lost when Replit restarts/redeploys. The app will still work but video messages won't persist.
 
 ### Step 3: Install Dependencies
 Replit should auto-detect and install. If not, click "Shell" and run:
@@ -83,8 +116,17 @@ The app should start on port 3000.
 ### Issue: Port already in use
 **Solution:** Replit handles this automatically, but make sure PORT=3000 in secrets
 
-### Issue: File uploads not working
-**Solution:** Replit supports file uploads! The `uploads/` directory will work fine.
+### Issue: Videos disappear after upload
+**Solution:** 
+- Set up Cloudinary (see Step 2 above)
+- Replit's file system is ephemeral - local files are lost on restart
+- Cloudinary provides persistent storage that survives restarts
+
+### Issue: Video uploads fail
+**Solution:**
+- Verify Cloudinary credentials are set correctly in Replit Secrets
+- Check Cloudinary dashboard for upload limits/quota
+- App will fallback to local storage if Cloudinary fails (but files won't persist)
 
 ## 🎯 Post-Deployment Setup
 

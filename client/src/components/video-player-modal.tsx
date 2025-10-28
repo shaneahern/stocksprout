@@ -10,8 +10,11 @@ interface VideoPlayerModalProps {
 }
 
 export function VideoPlayerModal({ isOpen, onClose, videoUrl, giftGiverName }: VideoPlayerModalProps) {
-  // Check if it's a real uploaded video (new system) vs old mock URLs
-  const isRealVideo = videoUrl?.startsWith('/uploads/');
+  // Check if it's a real uploaded video (local uploads or Cloudinary URLs)
+  const isRealVideo = videoUrl?.startsWith('/uploads/') || 
+                       videoUrl?.includes('cloudinary.com') ||
+                       videoUrl?.startsWith('http://') ||
+                       videoUrl?.startsWith('https://');
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -24,13 +27,14 @@ export function VideoPlayerModal({ isOpen, onClose, videoUrl, giftGiverName }: V
         
         <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
           {isRealVideo ? (
-            // Real video player
+            // Real video player (handles both local and Cloudinary URLs)
             <video
               controls
               autoPlay
               playsInline
               className="w-full h-full"
               src={videoUrl}
+              crossOrigin="anonymous"
             >
               <source src={videoUrl} type="video/mp4" />
               <source src={videoUrl} type="video/webm" />
