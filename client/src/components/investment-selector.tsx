@@ -33,8 +33,41 @@ export default function InvestmentSelector({
     enabled: searchQuery.length > 2,
   });
 
-  const popularInvestments = investments.slice(0, 6);
-  const displayInvestments = searchQuery.length > 2 ? searchResults : popularInvestments;
+  // Deduplicate popular investments by ID or symbol
+  const deduplicatedPopular = investments
+    .filter((inv, index, self) => {
+      const firstIndex = self.findIndex(i => 
+        (i.id === inv.id && inv.id) || (i.symbol === inv.symbol)
+      );
+      return index === firstIndex;
+    })
+    .slice(0, 6);
+
+  // Create a Set of popular investment identifiers for fast lookup
+  const popularIdentifiers = new Set<string>();
+  deduplicatedPopular.forEach(inv => {
+    if (inv.id) popularIdentifiers.add(inv.id);
+    popularIdentifiers.add(inv.symbol);
+  });
+
+  // Deduplicate search results by ID or symbol
+  // Also remove any that are already in popular investments
+  const deduplicatedSearchResults = searchResults
+    .filter((inv, index, self) => {
+      const firstIndex = self.findIndex(i => 
+        (i.id === inv.id && inv.id) || (i.symbol === inv.symbol)
+      );
+      return index === firstIndex;
+    })
+    .filter(inv => {
+      // Remove if it's already in popular investments (match by ID or symbol)
+      const isInPopular = (inv.id && popularIdentifiers.has(inv.id)) || 
+                          popularIdentifiers.has(inv.symbol);
+      return !isInPopular;
+    });
+
+  const popularInvestments = deduplicatedPopular;
+  const displayInvestments = searchQuery.length > 2 ? deduplicatedSearchResults : popularInvestments;
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, symbol: string) => {
     const target = e.currentTarget;
