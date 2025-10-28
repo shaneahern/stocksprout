@@ -21,7 +21,9 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -32,6 +34,13 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
   useEffect(() => {
     setIsMobile(isMobileDevice());
   }, []);
+
+  // Reset poster when videoUrl changes
+  useEffect(() => {
+    if (videoUrl) {
+      setPosterUrl(null);
+    }
+  }, [videoUrl]);
 
   // ========== Native Camera (Mobile) ==========
   const handleVideoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -269,6 +278,7 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
       }
 
       const data = await uploadResponse.json();
+      setPosterUrl(null); // Reset poster to regenerate thumbnail for new video
       onVideoRecorded(data.videoUrl);
 
       setIsModalOpen(false);
@@ -292,6 +302,7 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
   };
 
   const handleRemoveVideo = () => {
+    setPosterUrl(null);
     onVideoRecorded('');
   };
 
@@ -321,10 +332,43 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
         <Card className="border-2 border-border overflow-hidden">
           <CardContent className="p-0 relative">
             <video
+              ref={previewVideoRef}
               src={videoUrl}
               className="w-full h-48 sm:h-64 bg-black object-cover"
               controls
               playsInline
+              preload="metadata"
+              poster={posterUrl || undefined}
+              onLoadedMetadata={(e) => {
+                // Generate thumbnail from first frame
+                const video = e.currentTarget;
+                if (video && !posterUrl && video.videoWidth > 0 && video.videoHeight > 0) {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = video.videoWidth;
+                  canvas.height = video.videoHeight;
+                  const ctx = canvas.getContext('2d');
+                  if (ctx) {
+                    // Capture first frame by seeking to beginning
+                    const currentTime = video.currentTime;
+                    video.currentTime = Math.min(0.1, video.duration * 0.01 || 0.1);
+                    
+                    const captureFrame = () => {
+                      try {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        setPosterUrl(thumbnailUrl);
+                      } catch (err) {
+                        console.error('Error capturing video frame:', err);
+                      }
+                      // Reset video position
+                      video.currentTime = currentTime;
+                      video.removeEventListener('seeked', captureFrame);
+                    };
+                    
+                    video.addEventListener('seeked', captureFrame, { once: true });
+                  }
+                }
+              }}
             />
             <Button
               size="sm"
