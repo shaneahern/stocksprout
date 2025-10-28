@@ -191,29 +191,71 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
       // Create form data with the video file
       const formData = new FormData();
       
-      // Determine filename and extension
+      // Determine filename and extension based on file type and MIME type
       let filename = `video-${Date.now()}`;
-      let extension = 'webm';
+      let mimeType = fileOrBlob.type;
       
       if (fileOrBlob instanceof File) {
-        filename = fileOrBlob.name;
-        const mimeType = fileOrBlob.type;
-        if (mimeType.includes('mp4')) {
-          extension = 'mp4';
-        } else if (mimeType.includes('webm')) {
-          extension = 'webm';
+        // Use the original filename if it exists and has an extension
+        const originalName = fileOrBlob.name;
+        const hasExtension = originalName.includes('.');
+        
+        if (hasExtension) {
+          // Keep the original filename
+          filename = originalName;
+        } else {
+          // No extension in original name, infer from MIME type or default to mp4
+          if (mimeType) {
+            if (mimeType.includes('mp4') || mimeType.includes('quicktime')) {
+              filename = `${filename}.mp4`;
+            } else if (mimeType.includes('webm')) {
+              filename = `${filename}.webm`;
+            } else if (mimeType.includes('mov')) {
+              filename = `${filename}.mov`;
+            } else {
+              // Default to mp4 for mobile videos (common format)
+              filename = `${filename}.mp4`;
+              mimeType = 'video/mp4';
+            }
+          } else {
+            // No MIME type, default to mp4 (common for mobile)
+            filename = `${filename}.mp4`;
+            mimeType = 'video/mp4';
+          }
+        }
+        
+        // Ensure MIME type is set if missing
+        if (!mimeType) {
+          // Try to infer from filename extension
+          const ext = originalName.toLowerCase().split('.').pop();
+          if (ext === 'mp4') mimeType = 'video/mp4';
+          else if (ext === 'webm') mimeType = 'video/webm';
+          else if (ext === 'mov') mimeType = 'video/quicktime';
+          else mimeType = 'video/mp4'; // Default
         }
       } else {
-        const mimeType = fileOrBlob.type;
+        // Blob from MediaRecorder
         if (mimeType.includes('mp4')) {
-          extension = 'mp4';
+          filename = `${filename}.mp4`;
         } else if (mimeType.includes('webm')) {
-          extension = 'webm';
+          filename = `${filename}.webm`;
+        } else {
+          filename = `${filename}.webm`;
+          mimeType = 'video/webm';
         }
-        filename = `${filename}.${extension}`;
       }
       
-      formData.append('video', fileOrBlob, filename);
+      // Create a new File from Blob with proper MIME type if needed
+      let fileToUpload: File | Blob = fileOrBlob;
+      if (fileOrBlob instanceof Blob && !(fileOrBlob instanceof File)) {
+        // Convert Blob to File with proper name and MIME type
+        fileToUpload = new File([fileOrBlob], filename, { type: mimeType || 'video/mp4' });
+      } else if (fileOrBlob instanceof File && !fileOrBlob.type) {
+        // If File has no MIME type, create a new one with MIME type
+        fileToUpload = new File([fileOrBlob], filename, { type: mimeType || 'video/mp4' });
+      }
+      
+      formData.append('video', fileToUpload, filename);
 
       // Upload to server
       const uploadResponse = await fetch('/api/upload-video', {
@@ -222,7 +264,8 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Upload failed');
+        const errorData = await uploadResponse.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(errorData.error || `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
       }
 
       const data = await uploadResponse.json();
@@ -236,9 +279,10 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
       });
     } catch (error) {
       console.error('Video upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload video. Please try again.';
       toast({
         title: "Upload Failed",
-        description: "Failed to upload video. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       setIsModalOpen(false);

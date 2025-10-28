@@ -33,14 +33,23 @@ export function registerMiscRoutes(app: Express) {
       fileSize: 50 * 1024 * 1024, // 50MB max
     },
     fileFilter: (req, file, cb) => {
-      const allowedTypes = /webm|mp4|mov|avi/;
-      const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-      const mimetype = allowedTypes.test(file.mimetype);
-
-      if (extname && mimetype) {
+      const allowedExtensions = /\.(webm|mp4|mov|avi|m4v)$/i;
+      const allowedMimeTypes = /video\/(webm|mp4|quicktime|x-msvideo|mp4v-es|m4v)/i;
+      
+      const ext = path.extname(file.originalname).toLowerCase();
+      const extname = allowedExtensions.test(ext);
+      const mimetype = allowedMimeTypes.test(file.mimetype);
+      
+      // Accept if either extension OR mime type is valid (more lenient for mobile videos)
+      if (extname || mimetype) {
         return cb(null, true);
       } else {
-        cb(new Error('Only video files are allowed!'));
+        console.error('Invalid video file:', {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          ext: ext
+        });
+        cb(new Error(`Only video files are allowed! Received: ${file.mimetype || 'unknown type'}, extension: ${ext || 'none'}`));
       }
     }
   });
@@ -57,7 +66,8 @@ export function registerMiscRoutes(app: Express) {
       res.json({ videoUrl });
     } catch (error) {
       console.error("Video upload error:", error);
-      res.status(500).json({ error: "Failed to upload video" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload video";
+      res.status(500).json({ error: errorMessage });
     }
   });
 
