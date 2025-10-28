@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Video, Square, Upload, X } from "lucide-react";
+import { Video, Square, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface VideoRecorderProps {
@@ -10,73 +10,100 @@ interface VideoRecorderProps {
   videoUrl?: string;
 }
 
+// Detect if device is mobile
+const isMobileDevice = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (typeof window !== 'undefined' && window.innerWidth <= 768);
+};
+
 export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecorderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
-  const [recordedVideoType, setRecordedVideoType] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const startPreview = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user', // Use front camera on mobile
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }, 
-        audio: true 
-      });
-      
-      console.log('Camera stream obtained:', mediaStream.active);
-      setStream(mediaStream);
-      setIsPreviewing(true);
-      
-      // Display live video feed - use a timeout to ensure DOM is ready
-      setTimeout(() => {
-        if (liveVideoRef.current) {
-          console.log('Setting stream on video element');
-          liveVideoRef.current.srcObject = mediaStream;
-          
-          // Wait for metadata to load, then play
-          liveVideoRef.current.onloadedmetadata = async () => {
-            try {
-              console.log('Video metadata loaded, starting playback');
-              await liveVideoRef.current?.play();
-              console.log('Live video preview started successfully');
-            } catch (err) {
-              console.error('Error playing video stream:', err);
-            }
-          };
-        } else {
-          console.error('liveVideoRef.current is null');
-        }
-      }, 100);
-    } catch (error) {
-      console.error('Video preview error:', error);
+  // Detect mobile on mount
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+  }, []);
+
+  // ========== Native Camera (Mobile) ==========
+  const handleVideoSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate it's a video file
+    if (!file.type.startsWith('video/')) {
       toast({
-        title: "Camera Access Denied",
-        description: "Please allow camera access to record a video message.",
+        title: "Invalid File",
+        description: "Please select a video file.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Automatically upload the video
+    await uploadVideo(file);
+
+    // Reset the input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const startRecording = async () => {
-    if (!stream) {
-      console.error('No stream available');
+  const handleNativeCameraClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // ========== Web-Based Recording (Desktop) ==========
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user', // Front-facing camera (selfie mode)
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: true
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      toast({
+        title: "Camera Error",
+        description: "Could not access camera. Please check permissions.",
+        variant: "destructive",
+      });
+      setIsModalOpen(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  const startRecording = () => {
+    if (!streamRef.current) {
+      toast({
+        title: "Camera Not Ready",
+        description: "Please wait for the camera to initialize.",
+        variant: "destructive",
+      });
       return;
     }
-    
-    try {
 
+    try {
       // Detect supported MIME type for mobile compatibility
       let mimeType = 'video/webm;codecs=vp8,opus';
       if (MediaRecorder.isTypeSupported('video/mp4')) {
@@ -88,8 +115,8 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
       } else if (MediaRecorder.isTypeSupported('video/webm')) {
         mimeType = 'video/webm';
       }
-      
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
+
+      mediaRecorderRef.current = new MediaRecorder(streamRef.current, { mimeType });
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -98,24 +125,20 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
         }
       };
 
-      mediaRecorderRef.current.onstop = () => {
-        console.log('Recording stopped, chunks count:', chunksRef.current.length);
+      mediaRecorderRef.current.onstop = async () => {
         const finalType = chunksRef.current[0]?.type || mediaRecorderRef.current?.mimeType || '';
         const blob = new Blob(chunksRef.current, { type: finalType });
-        console.log('Blob created, size:', blob.size, 'type:', blob.type);
-        const url = URL.createObjectURL(blob);
-        console.log('Video URL created:', url);
-        setRecordedVideoUrl(url);
-        setRecordedVideoType(finalType);
 
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-        setIsPreviewing(false);
+        // Stop camera stream
+        stopCamera();
+
+        // Automatically upload the video
+        await uploadVideo(blob);
       };
 
       mediaRecorderRef.current.start(100);
       setIsRecording(true);
-      
+
       toast({
         title: "Recording Started",
         description: "Recording your video message...",
@@ -134,90 +157,79 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
-      toast({
-        title: "Recording Stopped",
-        description: "Your video message has been recorded.",
-      });
     }
   };
 
-  useEffect(() => {
-    if (recordedVideoUrl && videoRef.current) {
-      console.log('Video URL changed, loading video');
+  const handleModalOpen = () => {
+    setIsModalOpen(true);
+  };
 
-      const video = videoRef.current;
-
-      const handleLoadStart = () => console.log('Video load started');
-      const handleLoadedMetadata = () => console.log('Video metadata loaded');
-      const handleLoadedData = () => console.log('Video data loaded');
-      const handleCanPlay = () => console.log('Video can play');
-      const handleError = (e: Event) => {
-        console.error('Video error:', e);
-        const videoElement = e.target as HTMLVideoElement;
-        if (videoElement.error) {
-          console.error('Video error code:', videoElement.error.code);
-          console.error('Video error message:', videoElement.error.message);
-        }
-      };
-
-      video.addEventListener('loadstart', handleLoadStart);
-      video.addEventListener('loadedmetadata', handleLoadedMetadata);
-      video.addEventListener('loadeddata', handleLoadedData);
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('error', handleError);
-
-      video.pause();
-      video.srcObject = null;
-      video.load();
-
-      return () => {
-        video.removeEventListener('loadstart', handleLoadStart);
-        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        video.removeEventListener('loadeddata', handleLoadedData);
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('error', handleError);
-      };
+  const handleClose = () => {
+    // Stop recording if in progress
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
     }
-  }, [recordedVideoUrl]);
+    stopCamera();
+    setIsRecording(false);
+    setIsModalOpen(false);
+  };
 
-  const uploadVideo = async () => {
-    if (!recordedVideoUrl) return;
+  // Start camera when dialog opens (desktop only)
+  useEffect(() => {
+    if (isModalOpen && !isUploading && !isMobile) {
+      startCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isModalOpen, isMobile]);
 
+  // ========== Upload Function (shared) ==========
+  const uploadVideo = async (fileOrBlob: File | Blob) => {
     setIsUploading(true);
     try {
-      // Convert blob URL to actual blob
-      const response = await fetch(recordedVideoUrl);
-      const blob = await response.blob();
-      
-      // Determine file extension based on MIME type
-      const mimeType = blob.type;
-      let extension = 'webm';
-      if (mimeType.includes('mp4')) {
-        extension = 'mp4';
-      } else if (mimeType.includes('webm')) {
-        extension = 'webm';
-      }
-      
       // Create form data with the video file
       const formData = new FormData();
-      formData.append('video', blob, `video-${Date.now()}.${extension}`);
       
+      // Determine filename and extension
+      let filename = `video-${Date.now()}`;
+      let extension = 'webm';
+      
+      if (fileOrBlob instanceof File) {
+        filename = fileOrBlob.name;
+        const mimeType = fileOrBlob.type;
+        if (mimeType.includes('mp4')) {
+          extension = 'mp4';
+        } else if (mimeType.includes('webm')) {
+          extension = 'webm';
+        }
+      } else {
+        const mimeType = fileOrBlob.type;
+        if (mimeType.includes('mp4')) {
+          extension = 'mp4';
+        } else if (mimeType.includes('webm')) {
+          extension = 'webm';
+        }
+        filename = `${filename}.${extension}`;
+      }
+      
+      formData.append('video', fileOrBlob, filename);
+
       // Upload to server
       const uploadResponse = await fetch('/api/upload-video', {
         method: 'POST',
         body: formData,
       });
-      
+
       if (!uploadResponse.ok) {
         throw new Error('Upload failed');
       }
-      
+
       const data = await uploadResponse.json();
       onVideoRecorded(data.videoUrl);
-      
+
       setIsModalOpen(false);
-      
+
       toast({
         title: "Video Uploaded",
         description: "Your video message has been attached to the gift.",
@@ -229,48 +241,38 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
         description: "Failed to upload video. Please try again.",
         variant: "destructive",
       });
+      setIsModalOpen(false);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const playRecording = () => {
-    if (videoRef.current && recordedVideoUrl) {
-      console.log('Playing video:', recordedVideoUrl);
-      videoRef.current.load();
-      videoRef.current.play().catch(err => {
-        console.error('Error playing video:', err);
-      });
-    }
-  };
-
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    setIsPreviewing(false);
-    setIsRecording(false);
-    setRecordedVideoUrl(null);
-    setIsModalOpen(false);
-  };
-
-  useEffect(() => {
-    if (isModalOpen && !isPreviewing && !recordedVideoUrl) {
-      startPreview();
-    }
-  }, [isModalOpen]);
-
   const handleRemoveVideo = () => {
     onVideoRecorded('');
   };
 
+  const handleCardClick = () => {
+    if (isMobile) {
+      handleNativeCameraClick();
+    } else {
+      handleModalOpen();
+    }
+  };
+
   return (
     <>
+      {/* Native file input for mobile */}
+      {isMobile && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          capture="user" // Opens front-facing camera on mobile
+          onChange={handleVideoSelect}
+          className="hidden"
+        />
+      )}
+      
       {videoUrl ? (
         <Card className="border-2 border-border overflow-hidden">
           <CardContent className="p-0 relative">
@@ -292,119 +294,104 @@ export default function VideoRecorder({ onVideoRecorded, videoUrl }: VideoRecord
           </CardContent>
         </Card>
       ) : (
-        <Card 
+        <Card
           className="border-2 border-dashed border-border hover:border-primary/50 transition-colors cursor-pointer"
-          onClick={handleOpenModal}
+          onClick={handleCardClick}
         >
           <CardContent className="p-8 text-center">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Video className="w-8 h-8 text-primary" />
+            {isUploading ? (
+              <div className="flex flex-col items-center space-y-4">
+                <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                <p className="text-muted-foreground">Uploading your video...</p>
               </div>
-              <div>
-                <p className="font-semibold text-foreground mb-1">Add a Video Message</p>
-                <p className="text-sm text-muted-foreground">Click to record a personal video</p>
+            ) : (
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Video className="w-8 h-8 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground mb-1">Add a Video Message</p>
+                  <p className="text-sm text-muted-foreground">
+                    {isMobile ? "Tap to record a personal video" : "Click to record a personal video"}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      <Dialog open={isModalOpen} onOpenChange={handleCloseModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Record Video Message</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {recordedVideoUrl ? (
-              <div className="space-y-4">
-                <video
-                  ref={videoRef}
-                  src={recordedVideoUrl}
-                  className="w-full h-64 sm:h-96 bg-black rounded-lg"
-                  controls
-                  playsInline
-                  preload="metadata"
-                  data-testid="video-preview"
-                />
-                <div className="flex gap-2 items-stretch">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
-                      setRecordedVideoUrl(null);
-                      setRecordedVideoType("");
-                      setIsPreviewing(false);
-                      setIsRecording(false);
-                    }}
-                    className="flex-1 h-12 bg-white hover:bg-gray-100 text-gray-900 border border-gray-300"
-                    data-testid="button-record-again"
-                  >
-                    Re-record
-                  </Button>
-                  <Button
-                    onClick={uploadVideo}
-                    disabled={isUploading}
-                    className="flex-1 h-12 bg-green-700 hover:bg-green-800 text-white"
-                    data-testid="button-upload-video"
-                  >
-                    <Upload className="w-5 h-5 mr-2" />
-                    {isUploading ? "Uploading..." : "Save Video"}
-                  </Button>
+      {/* Web-based recording modal for desktop */}
+      {!isMobile && (
+        <Dialog open={isModalOpen} onOpenChange={(open) => {
+          if (!open) {
+            handleClose();
+          }
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Record Video Message</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {isUploading ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                  <p className="text-muted-foreground">Uploading your video...</p>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <video
-                  ref={liveVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-64 sm:h-96 bg-black rounded-lg"
-                  data-testid="video-live-feed"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (stream) {
-                        stream.getTracks().forEach(track => track.stop());
-                        setStream(null);
-                      }
-                      setIsPreviewing(false);
-                      setIsRecording(false);
-                    }}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  {isRecording ? (
+              ) : (
+                <>
+                  <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                    />
+                    {isRecording && (
+                      <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-600 text-white px-3 py-1 rounded-full">
+                        <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        <span className="text-sm font-medium">Recording</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
                     <Button
-                      onClick={stopRecording}
-                      variant="destructive"
+                      variant="outline"
+                      onClick={handleClose}
                       className="flex-1"
-                      data-testid="button-stop-recording"
+                      disabled={isUploading}
                     >
-                      <Square className="w-4 h-4 mr-2" />
-                      Stop Recording
+                      Cancel
                     </Button>
-                  ) : (
-                    <Button
-                      onClick={startRecording}
-                      className="flex-1 bg-green-700 hover:bg-green-800"
-                      data-testid="button-start-recording"
-                    >
-                      <Video className="w-4 h-4 mr-2" />
-                      Start Recording
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+                    {!isRecording ? (
+                      <Button
+                        onClick={startRecording}
+                        className="flex-1 bg-green-700 hover:bg-green-800 flex items-center justify-center gap-2"
+                        disabled={isUploading || !streamRef.current}
+                      >
+                        <Video className="h-5 w-5" />
+                        Record
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={stopRecording}
+                        variant="destructive"
+                        className="flex-1 flex items-center justify-center gap-2"
+                        disabled={isUploading}
+                      >
+                        <Square className="h-5 w-5" />
+                        Stop & Upload
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
