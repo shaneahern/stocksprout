@@ -266,8 +266,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 handleViewPortfolio();
               }}
             >
-              <h3 className="font-bold text-lg text-foreground">{fullName}</h3>
-              <p className="text-muted-foreground text-sm">Age {age}</p>
+              <h3 className="font-semibold text-[13px] text-foreground leading-tight" style={{ letterSpacing: '0.97%' }}>{fullName}</h3>
+              <p className="text-muted-foreground text-xs">Age {age}</p>
             </div>
             
             {/* Stats area - CLICKABLE to view portfolio */}
@@ -281,7 +281,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
               className="text-right cursor-pointer hover:opacity-80 transition-opacity"
             >
               <div className="flex items-center justify-end gap-2">
-                <p className="text-2xl font-bold text-foreground" data-testid={`text-child-value-${child.id}`}>
+                <p className="text-[20px] font-semibold text-foreground" data-testid={`text-child-value-${child.id}`}>
                   ${(isContributedChild ? child.totalValue : portfolioStats.totalValue).toLocaleString()}
                 </p>
                 {isContributedChild && child.pendingCount > 0 && (
@@ -291,7 +291,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 )}
               </div>
               <div className="flex items-center justify-end mt-1">
-                <span className="text-sm font-medium" style={{ color: '#328956' }}>
+                <span className="text-[13px] font-semibold" style={{ color: '#328956' }}>
                   +{portfolioStats.monthlyGrowth}% growth
                 </span>
               </div>
@@ -310,8 +310,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                 e.stopPropagation();
                 handleSendGift();
               }}
-              className="w-full text-white font-semibold text-sm hover:opacity-90 py-2"
-              style={{ backgroundColor: '#328956' }}
+              className="w-full text-white font-semibold text-[15px] hover:opacity-90 rounded-[5px]"
+              style={{ backgroundColor: '#328956', height: '29px' }}
               data-testid={`button-send-gift-${child.id}`}
             >
               <Gift className="w-4 h-4 mr-2" />
@@ -324,8 +324,8 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                   handleShareGiftLink();
                 }}
                 disabled={generateLinkMutation.isPending}
-                className="w-full text-white font-semibold text-sm hover:opacity-90 py-2"
-                style={{ backgroundColor: '#2563eb' }}
+                className="w-full text-[#FDFDFD] font-semibold text-[15px] hover:opacity-90 rounded-[5px]"
+                style={{ backgroundColor: '#265FDC', height: '29px' }}
                 data-testid={`button-sprout-request-${child.id}`}
               >
                 <UserPlus className="w-4 h-4 mr-2" />

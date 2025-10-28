@@ -9,6 +9,34 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        pill: "20px",
+        badge: "var(--badge-radius)",
+      },
+      fontSize: {
+        'xs-7': '7px',
+        'xs-8': '8px',
+        'xs-9': '9px',
+        'xs-10': '10px',
+        'xs-11': '11px',
+        'xs': '12px',
+        'sm-13': '13px',
+        'sm': '14px',
+        'base-15': '15px',
+        'base': '16px',
+        'lg-20': '20px',
+        'xl-40': '40px',
+      },
+      height: {
+        'button': 'var(--button-height)',
+        'form-field': 'var(--form-field-height)',
+        'progress': 'var(--progress-height)',
+      },
+      spacing: {
+        '8px': '8px',
+        '12px': '12px',
+        '16px': '16px',
+        '20px': '20px',
+        '24px': '24px',
       },
       colors: {
         background: "var(--background)",
@@ -40,6 +68,34 @@ export default {
         success: {
           DEFAULT: "var(--success)",
           foreground: "var(--success-foreground)",
+        },
+        figma: {
+          green: {
+            timeline: "var(--green-timeline)",
+            light: "var(--green-light)",
+            dark: "var(--green-dark)",
+            primary: "var(--green-primary)",
+          },
+          blue: {
+            primary: "var(--blue-primary)",
+            light: "var(--blue-light)",
+          },
+          yellow: {
+            gold: "var(--yellow-gold)",
+          },
+          gray: {
+            light: "var(--gray-light)",
+            medium: "var(--gray-medium)",
+            background: "var(--gray-background)",
+            "background-alt": "var(--gray-background-alt)",
+            "background-light": "var(--gray-background-light)",
+            border: "var(--gray-border)",
+            "border-alt": "var(--gray-border-alt)",
+            "border-light": "var(--gray-border-light)",
+          },
+          indicator: {
+            green: "var(--green-indicator)",
+          },
         },
         destructive: {
           DEFAULT: "var(--destructive)",

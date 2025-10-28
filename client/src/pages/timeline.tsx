@@ -305,8 +305,8 @@ export default function Timeline() {
                 </div>
               </button>
 
-              {/* Connecting line from button to timeline - same thickness as timeline */}
-              <div className="absolute left-3 top-full w-1.5 h-10 bg-green-700" />
+              {/* Connecting line from button to timeline - same thickness as timeline (5px) */}
+              <div className="absolute left-3 top-full w-[5px] h-10" style={{ backgroundColor: '#295235' }} />
             </div>
           )}
 
@@ -346,8 +346,8 @@ export default function Timeline() {
           </Card>
         ) : (
           <div className="relative max-w-full overflow-hidden">
-            {/* Timeline Line */}
-            <div className="absolute left-3 top-0 bottom-0 w-1.5 bg-green-700" />
+            {/* Timeline Line - Figma spec: 5px width, #295235 color */}
+            <div className="absolute left-3 top-0 bottom-0 w-[5px]" style={{ backgroundColor: '#295235' }} />
 
             {/* Timeline Items */}
             <div className="space-y-6">
@@ -441,7 +441,7 @@ export default function Timeline() {
                           <Button
                             size="sm"
                             onClick={() => handlePlayVideo(gift.videoMessageUrl!, gift.giftGiverName)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white border-0 flex items-center gap-1 rounded-full py-1 px-3"
+                            className="bg-[#265FDC] hover:bg-[#1e4db8] text-white border-0 flex items-center gap-1 rounded-[20px] py-1 px-3 text-[11px] font-semibold"
                           >
                             <div className="w-4 h-4 border border-white rounded-full flex items-center justify-center">
                               <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -455,12 +455,12 @@ export default function Timeline() {
                       
                       {/* Investment Details */}
                       <div className="flex flex-wrap gap-1 mb-3">
-                        <Badge variant="outline" className="text-xs bg-white text-gray-600 border-2 border-gray-200 rounded-full px-1.5 py-0.5">
+                        <Badge variant="outline" className="text-[8px] bg-white text-gray-600 border border-gray-200 rounded-[20px] px-1.5 py-0.5 font-light">
                           {formatDistanceToNow(new Date(gift.createdAt), { addSuffix: true })}
                         </Badge>
                         <Badge 
                           variant="outline" 
-                          className="text-xs border-2 rounded-full px-1.5 py-0.5"
+                          className="text-[8px] border rounded-[20px] px-1.5 py-0.5 font-light"
                           style={{ 
                             backgroundColor: '#EEFFF5',
                             borderColor: '#328956',
@@ -471,7 +471,7 @@ export default function Timeline() {
                         </Badge>
                         <Badge 
                           variant="outline" 
-                          className="text-xs border-2 rounded-full px-1.5 py-0.5"
+                          className="text-[8px] border rounded-[20px] px-1.5 py-0.5 font-light"
                           style={{ 
                             backgroundColor: '#EEFFF5',
                             borderColor: '#328956',
@@ -495,7 +495,7 @@ export default function Timeline() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleSendThankYou(gift.id, gift.giftGiverName)}
-                          className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300 flex items-center justify-center gap-2"
+                          className="w-full bg-[#F5F5F5] hover:bg-gray-200 text-gray-700 border border-[#C0C0C0] rounded-[5px] flex items-center justify-center gap-2 text-[9px] font-normal"
                           data-testid={`button-thank-you-${gift.id}`}
                         >
                           <Heart className="w-4 h-4 text-black font-bold" />

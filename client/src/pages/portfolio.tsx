@@ -316,8 +316,8 @@ export default function Portfolio() {
           <div className="flex flex-col gap-2 -mt-2 mb-2">
             <Button 
               onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
-              className="w-full text-white font-semibold text-sm hover:opacity-90 py-2"
-              style={{ backgroundColor: '#328956' }}
+              className="w-full text-white font-semibold text-[15px] hover:opacity-90 rounded-[5px]"
+              style={{ backgroundColor: '#328956', height: '29px' }}
             >
               <Gift className="w-4 h-4 mr-2" />
               Send Gift
@@ -358,8 +358,8 @@ export default function Portfolio() {
                 };
                 generateLink();
               }}
-              className="w-full text-white font-semibold text-sm hover:opacity-90 py-2"
-              style={{ backgroundColor: '#2563eb' }}
+              className="w-full text-[#FDFDFD] font-semibold text-[15px] hover:opacity-90 rounded-[5px]"
+              style={{ backgroundColor: '#265FDC', height: '29px' }}
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Sprout Request
@@ -372,8 +372,8 @@ export default function Portfolio() {
           <div className="flex flex-col gap-2 -mt-2 mb-2">
             <Button
               onClick={() => setLocation(`/gift/${child?.giftLinkCode}`)}
-              className="flex-1 text-white font-semibold text-sm sm:text-base hover:opacity-90 py-1"
-              style={{ backgroundColor: '#328956' }}
+              className="flex-1 text-white font-semibold text-[15px] hover:opacity-90 rounded-[5px]"
+              style={{ backgroundColor: '#328956', height: '29px' }}
             >
               <Gift className="w-4 h-4 mr-2" />
               Send Another Gift to {child?.firstName && child?.lastName ? `${child.firstName} ${child.lastName}` : 'Child'}
@@ -382,7 +382,7 @@ export default function Portfolio() {
         )}
 
         <div className="space-y-3">
-          <h2 className="text-lg font-bold">Holdings</h2>
+          <h2 className="text-[15px] font-semibold">Holdings</h2>
           {holdings.map((holding: EnrichedHolding) => {
             const currentValue = parseFloat(holding.currentValue || "0");
             const cost = parseFloat(holding.shares || "0") * parseFloat(holding.averageCost || "0");

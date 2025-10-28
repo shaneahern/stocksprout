@@ -41,7 +41,7 @@ export default function AuthPage() {
               className="h-28 w-auto sm:h-36 md:h-40"
             />
           </div>
-          <p className="text-base text-gray-600">
+          <p className="text-[10px] font-normal text-black">
             {isLogin ? "Grow the future our kids deserve" : "Growing the future our kids deserve"}
           </p>
         </div>

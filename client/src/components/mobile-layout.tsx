@@ -154,7 +154,7 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
                 <img
                   src="/stocksprout-logo.png"
                   alt="StockSprout logo"
-                  className="block w-full h-auto max-h-20 sm:max-h-20 md:max-h-16 lg:max-h-14 max-w-48 sm:max-w-48 md:max-w-40 lg:max-w-36 object-contain flex-shrink-0"
+                  className="block w-full h-auto max-h-16 sm:max-h-16 md:max-h-12 lg:max-h-10 max-w-32 sm:max-w-32 md:max-w-28 lg:max-w-24 object-contain flex-shrink-0"
                   data-testid="img-logo"
                 />
               </div>
@@ -359,63 +359,65 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       </div>
 
       {/* Tab Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-[#F9F9F9] border-t border-[#DEDEDE] shadow-lg z-40">
         <div className="flex">
           <Link href="/" className="flex-1">
             <button 
               className={`w-full py-4 text-center ${
-                currentTab === "home" ? "text-primary" : "text-muted-foreground"
+                currentTab === "home" ? "text-black" : "text-black"
               }`}
               data-testid="tab-home"
             >
               <Home className="w-6 h-6 mx-auto mb-1" />
-              <span className="text-sm font-medium">Home</span>
+              <span className="text-xs font-normal">Home</span>
             </button>
           </Link>
           
           <button 
             onClick={handlePortfolioClick}
             className={`flex-1 py-4 text-center ${
-              currentTab === "portfolio" ? "text-primary" : "text-muted-foreground"
+              currentTab === "portfolio" ? "text-black" : "text-black"
             }`}
             data-testid="tab-portfolio"
           >
             <TrendingUp className="w-6 h-6 mx-auto mb-1" />
-            <span className="text-sm font-medium">Portfolio</span>
+            <span className="text-xs font-normal">Portfolio</span>
           </button>
           
           <button 
             onClick={handleTimelineClick}
             className={`flex-1 py-4 text-center ${
-              currentTab === "timeline" ? "text-primary" : "text-muted-foreground"
+              currentTab === "timeline" ? "text-black" : "text-black"
             }`}
             data-testid="tab-timeline"
           >
             <History className="w-6 h-6 mx-auto mb-1" />
-            <span className="text-sm font-medium">Timeline</span>
+            <span className="text-xs font-normal">Timeline</span>
           </button>
           
           <Link href="/activities" className="flex-1">
             <button 
-              className={`w-full py-4 text-center ${
-                currentTab === "activities" ? "text-primary" : "text-muted-foreground"
+              className={`w-full py-4 text-center transition-colors ${
+                currentTab === "activities" 
+                  ? "text-black bg-[#F1FFF7]" 
+                  : "text-black"
               }`}
               data-testid="tab-activities"
             >
               <Gamepad2 className="w-6 h-6 mx-auto mb-1" />
-              <span className="text-sm font-medium">Activities</span>
+              <span className="text-xs font-normal">Activities</span>
             </button>
           </Link>
           
           <Link href="/profile" className="flex-1">
             <button 
               className={`w-full py-4 text-center ${
-                currentTab === "profile" ? "text-primary" : "text-muted-foreground"
+                currentTab === "profile" ? "text-black" : "text-black"
               }`}
               data-testid="tab-profile"
             >
               <User className="w-6 h-6 mx-auto mb-1" />
-              <span className="text-sm font-medium">Profile</span>
+              <span className="text-xs font-normal">Profile</span>
             </button>
           </Link>
         </div>

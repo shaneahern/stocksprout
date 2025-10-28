@@ -91,7 +91,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
     <div className="w-full max-w-md mx-auto">
       <Card className="border border-gray-200 shadow-lg rounded-xl bg-white">
         <CardHeader className="text-center pb-6">
-          <CardTitle className="text-2xl font-semibold text-gray-800">Welcome In</CardTitle>
+          <CardTitle className="text-[15px] font-semibold text-black">Welcome In</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -102,7 +102,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="username" className="text-gray-700 font-medium">Username</Label>
+          <Label htmlFor="username" className="text-[12px] font-medium text-black">Username</Label>
           <Input
             id="username"
             name="username"
@@ -111,12 +111,12 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
             onChange={handleChange}
             required
             placeholder="Enter your username"
-            className="bg-gray-50 border-gray-200 rounded-lg h-12"
+            className="pr-12"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+          <Label htmlFor="password" className="text-[12px] font-medium text-black">Password</Label>
           <div className="relative">
             <Input
               id="password"
@@ -126,7 +126,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               onChange={handleChange}
               required
               placeholder="Enter your password"
-              className="bg-gray-50 border-gray-200 rounded-lg h-12 pr-12"
+              className="pr-12"
             />
             <Button
               type="button"
@@ -144,7 +144,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
           </div>
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg h-12 font-medium" disabled={isLoading}>
+        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-[10px] font-semibold" style={{ height: '30.19px' }} disabled={isLoading}>
           {isLoading ? 'Signing In...' : 'Sign In'}
         </Button>
 
@@ -157,7 +157,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               onCheckedChange={(checked) => setRememberMe(checked === true)}
               className="w-4 h-4"
             />
-            <Label htmlFor="remember-me" className="text-sm text-gray-600 cursor-pointer">
+            <Label htmlFor="remember-me" className="text-[10px] font-light text-black cursor-pointer">
               Remember me
             </Label>
           </div>
@@ -194,7 +194,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               size="sm"
               onClick={handleBiometricAuth}
               disabled={!isBiometricSupported || isBiometricLoading}
-              className="p-0 h-auto text-blue-500 font-normal hover:text-blue-600 disabled:text-gray-400 text-base font-sans"
+              className="p-0 h-auto text-[#265FDC] font-light hover:text-[#1e4db8] disabled:text-gray-400 text-[10px]"
             >
               {isBiometricLoading ? 'Authenticating...' : isBiometricSupported ? 'Face ID' : 'Face ID'}
             </Button>
@@ -207,25 +207,25 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
       
       {/* Links below card */}
       <div className="space-y-4 pt-6">
-        <div className="flex items-center justify-center space-x-2 text-sm">
+        <div className="flex items-center justify-center space-x-2 text-[14px]">
           <User className="w-4 h-4 text-gray-600" />
-          <span className="text-gray-600">Don't have an account? </span>
+          <span className="text-black">Don't have an account? </span>
           <Button
             type="button"
             variant="link"
-            className="p-0 h-auto text-blue-600 font-medium"
+            className="p-0 h-auto text-[#265FDC] font-medium text-[14px]"
             onClick={onSwitchToSignup}
           >
             Sign up
           </Button>
         </div>
-        <div className="flex items-center justify-center space-x-2 text-sm">
+        <div className="flex items-center justify-center space-x-2 text-[14px]">
           <Lock className="w-4 h-4 text-gray-600" />
           <Link href="/forgot-password">
             <Button
               type="button"
               variant="link"
-              className="p-0 h-auto text-blue-600 font-medium"
+              className="p-0 h-auto text-[#265FDC] font-medium text-[14px]"
             >
               Forgot username or password?
             </Button>

@@ -69,7 +69,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     <div className="w-full max-w-md mx-auto">
       <Card className="border border-gray-200 shadow-lg rounded-xl bg-white">
         <CardHeader className="text-center pb-6">
-          <CardTitle className="text-2xl font-semibold text-gray-800">Create Account</CardTitle>
+          <CardTitle className="text-[15px] font-semibold text-black">Create Account</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,7 +80,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-gray-700 font-medium">First Name</Label>
+          <Label htmlFor="firstName" className="text-[12px] font-medium text-black">First Name</Label>
           <Input
             id="firstName"
             name="firstName"
@@ -89,12 +89,12 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
             onChange={handleChange}
             required
             placeholder="Enter your first name"
-            className="bg-gray-50 border-gray-200 rounded-lg h-12"
+            className="pr-12"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-gray-700 font-medium">Last Name</Label>
+          <Label htmlFor="lastName" className="text-[12px] font-medium text-black">Last Name</Label>
           <Input
             id="lastName"
             name="lastName"
@@ -103,12 +103,12 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
             onChange={handleChange}
             required
             placeholder="Enter your last name"
-            className="bg-gray-50 border-gray-200 rounded-lg h-12"
+            className="pr-12"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="username" className="text-gray-700 font-medium">Username</Label>
+          <Label htmlFor="username" className="text-[12px] font-medium text-black">Username</Label>
           <Input
             id="username"
             name="username"
@@ -117,12 +117,12 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
             onChange={handleChange}
             required
             placeholder="Enter your username"
-            className="bg-gray-50 border-gray-200 rounded-lg h-12"
+            className="pr-12"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+          <Label htmlFor="password" className="text-[12px] font-medium text-black">Password</Label>
           <div className="relative">
             <Input
               id="password"
@@ -132,7 +132,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
               onChange={handleChange}
               required
               placeholder="Create your password"
-              className="bg-gray-50 border-gray-200 rounded-lg h-12 pr-12"
+              className="pr-12"
             />
             <Button
               type="button"
@@ -151,7 +151,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
+          <Label htmlFor="confirmPassword" className="text-[12px] font-medium text-black">Confirm Password</Label>
           <div className="relative">
             <Input
               id="confirmPassword"
@@ -161,7 +161,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
               onChange={handleChange}
               required
               placeholder="Confirm your password"
-              className="bg-gray-50 border-gray-200 rounded-lg h-12 pr-12"
+              className="pr-12"
             />
             <Button
               type="button"
@@ -179,7 +179,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
           </div>
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 rounded-lg h-12 font-medium" disabled={isLoading}>
+        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-[10px] font-semibold" style={{ height: '30.19px' }} disabled={isLoading}>
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </Button>
           </form>

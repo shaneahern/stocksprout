@@ -228,7 +228,7 @@ export default function Activities() {
         {/* Progress Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold">Activity Center</h1>
+            <h1 className="text-[15px] font-semibold">Activity Center</h1>
             <ChildSelector 
               currentChildId={selectedChildId || ''} 
               onChildChange={handleChildChange}
@@ -240,15 +240,15 @@ export default function Activities() {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm sm:text-base font-semibold">
+                    <h3 className="text-xs font-semibold">
                       Level {currentChildProgress.level} - Money Explorer
                     </h3>
-                    <span className="text-xs sm:text-sm font-medium">
+                    <span className="text-xs font-normal">
                       {currentChildProgress.points}/2000 pts
                     </span>
                   </div>
                   <div className="mb-1">
-                    <div className="relative h-3 w-full overflow-hidden rounded-full">
+                    <div className="relative h-[8px] w-full overflow-hidden rounded-[20px]">
                       {/* Completed progress - Blue */}
                       <div 
                         className="h-full transition-all duration-300 ease-in-out absolute left-0 top-0"
@@ -272,25 +272,25 @@ export default function Activities() {
                 
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-2">
                   <div className="text-center">
-                    <div className="text-3xl sm:text-4xl font-bold text-blue-600">
+                    <div className="text-[40px] font-semibold" style={{ color: '#265FDC' }}>
                       {currentChildProgress.gamesPlayed}
                     </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">Games Played</div>
+                    <div className="text-[10px] font-light text-muted-foreground">Games Played</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl sm:text-4xl font-bold text-green-600">
+                    <div className="text-[40px] font-semibold" style={{ color: '#265FDC' }}>
                       {currentChildProgress.achievements}
                     </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">Achievements</div>
+                    <div className="text-[10px] font-light text-muted-foreground">Achievements</div>
                   </div>
                   <div className="text-center">
                     <div 
-                      className="text-3xl sm:text-4xl font-bold"
+                      className="text-[40px] font-semibold"
                       style={{ color: '#E2B25E' }}
                     >
                       {currentChildProgress.badgesEarned}
                     </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">Badges Earned</div>
+                    <div className="text-[10px] font-light text-muted-foreground">Badges Earned</div>
                   </div>
                 </div>
               </div>

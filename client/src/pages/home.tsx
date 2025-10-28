@@ -109,7 +109,7 @@ export default function Home() {
         {/* Your Children Section - Only show if user is logged in */}
         {user && <div>
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-bold text-foreground">
+            <h2 className="text-[15px] font-semibold text-foreground">
               Your Sprouts
             </h2>
             {user && (
@@ -149,7 +149,7 @@ export default function Home() {
         {user && (
           <div>
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-foreground">Sprouts You've Helped</h2>
+              <h2 className="text-[15px] font-semibold text-foreground">Sprouts You've Helped</h2>
               <p className="text-sm text-muted-foreground">
                 {contributedChildren.length > 0 
                   ? "View and send more gifts to these children" 
