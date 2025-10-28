@@ -1,23 +1,31 @@
 {
-  "include": ["client/src/**/*", "shared/**/*", "server/**/*"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
-    "incremental": true,
-    "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
-    "noEmit": true,
+    "target": "ES2022",
     "module": "ESNext",
+    "lib": ["ES2022"],
+    "moduleResolution": "bundler",
     "strict": true,
-    "lib": ["esnext", "dom", "dom.iterable"],
-    "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true,
-    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "incremental": true,
+    "composite": true,
     "baseUrl": ".",
-    "types": ["node", "vite/client"],
     "paths": {
+      "@stocksprout/shared": ["./packages/shared/src"],
+      "@stocksprout/shared/*": ["./packages/shared/src/*"],
+      "@stocksprout/hooks": ["./packages/hooks/src"],
+      "@stocksprout/components": ["./packages/components/src"],
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"]
     }
-  }
+  },
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/hooks" },
+    { "path": "./packages/components" }
+  ]
 }

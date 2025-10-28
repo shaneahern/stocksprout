@@ -1,8 +1,17 @@
 import type { Config } from "tailwindcss";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default {
   darkMode: ["class"],
-  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    resolve(__dirname, "client/index.html"), 
+    resolve(__dirname, "client/src/**/*.{js,jsx,ts,tsx}"),
+    resolve(__dirname, "client/**/*.html")
+  ],
   theme: {
     extend: {
       borderRadius: {

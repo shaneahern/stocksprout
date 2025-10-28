@@ -116,7 +116,10 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   constructor() {
     // Removed mock data seeding - use only real data entered through UI
-    this.seedInvestments();
+    // Run in background, don't block server startup
+    this.seedInvestments().catch((error) => {
+      console.warn("[Storage] Could not seed investments (database may not be running):", error.message);
+    });
   }
 
   private async updateExistingInvestments() {
@@ -175,17 +178,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async seedInvestments() {
-    // Check if investments already exist
-    const existingInvestments = await db.select().from(investments).limit(1);
-    if (existingInvestments.length > 0) {
-      // For development: update existing investments with new YTD returns
-      console.log("Updating existing investments with new YTD returns...");
-      return this.updateExistingInvestments();
-    }
-    
-    console.log("Seeding investment options...");
-    
     try {
+      // Check if investments already exist
+      const existingInvestments = await db.select().from(investments).limit(1);
+      if (existingInvestments.length > 0) {
+        // For development: update existing investments with new YTD returns
+        console.log("Updating existing investments with new YTD returns...");
+        return this.updateExistingInvestments();
+      }
+      
+      console.log("Seeding investment options...");
     // Investment options (real market data for selection)
     const mockInvestments: Investment[] = [
       {

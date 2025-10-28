@@ -1,0 +1,19 @@
+{
+  "name": "@stocksprout/desktop",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Desktop dev will be implemented in Phase 1.3' && exit 0",
+    "build": "echo 'Desktop build will be implemented in Phase 1.3'",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@stocksprout/shared": "*",
+    "@stocksprout/hooks": "*",
+    "@stocksprout/components": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "typescript": "5.6.3"
+  }
+}
