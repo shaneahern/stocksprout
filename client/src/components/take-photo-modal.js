@@ -1,0 +1,83 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useEffect, useRef, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Camera } from "lucide-react";
+export default function TakePhotoModal({ isOpen, onClose, onPhotoTaken, title = "Add Profile Photo" }) {
+    const { toast } = useToast();
+    const [capturedImage, setCapturedImage] = useState(null);
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        }
+        catch (error) {
+            toast({
+                title: "Camera Error",
+                description: "Could not access camera. Please check permissions.",
+                variant: "destructive",
+            });
+        }
+    };
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+    };
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(videoRef.current, 0, 0);
+                const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                setCapturedImage(imageData);
+                stopCamera();
+            }
+        }
+    };
+    const retakePhoto = () => {
+        setCapturedImage(null);
+        startCamera();
+    };
+    const handleUsePhoto = () => {
+        if (capturedImage) {
+            onPhotoTaken(capturedImage);
+            handleClose();
+        }
+    };
+    const handleClose = () => {
+        stopCamera();
+        setCapturedImage(null);
+        onClose();
+    };
+    // Start camera when dialog opens
+    useEffect(() => {
+        if (isOpen && !capturedImage) {
+            startCamera();
+        }
+        return () => {
+            stopCamera();
+        };
+    }, [isOpen]);
+    return (_jsx(Dialog, { open: isOpen, onOpenChange: (open) => {
+            if (!open) {
+                handleClose();
+            }
+        }, children: _jsxs(DialogContent, { className: "sm:max-w-md", children: [_jsx(DialogHeader, { children: _jsx(DialogTitle, { children: title }) }), _jsx("div", { className: "space-y-4", children: !capturedImage ? (_jsxs(_Fragment, { children: [_jsx("div", { className: "relative aspect-square rounded-lg overflow-hidden bg-muted", children: _jsx("video", { ref: videoRef, autoPlay: true, playsInline: true, muted: true, className: "w-full h-full object-cover" }) }), _jsxs("div", { className: "flex gap-2", children: [_jsx(Button, { variant: "outline", onClick: handleClose, className: "flex-1", children: "Cancel" }), _jsxs(Button, { onClick: capturePhoto, className: "flex-1 bg-green-700 hover:bg-green-800 flex items-center justify-center gap-2", children: [_jsx(Camera, { className: "h-5 w-5" }), "Take Photo"] })] })] })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: "relative aspect-square rounded-lg overflow-hidden bg-muted", children: _jsx("img", { src: capturedImage, alt: "Captured", className: "w-full h-full object-cover" }) }), _jsxs("div", { className: "flex gap-2", children: [_jsx(Button, { variant: "outline", onClick: retakePhoto, className: "flex-1", children: "Retake" }), _jsx(Button, { onClick: handleUsePhoto, className: "flex-1 bg-green-700 hover:bg-green-800", children: "Use This Photo" })] })] })) })] }) }));
+}

@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "composite": true,
+    "declaration": false,
+    "jsx": "react-jsx",
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"],
+      "@stocksprout/shared": ["./packages/shared/src"],
+      "@stocksprout/shared/*": ["./packages/shared/src/*"],
+      "@stocksprout/hooks": ["./packages/hooks/src"],
+      "@stocksprout/components": ["./packages/components/src"]
+    },
+    "skipLibCheck": true
+  },
+  "include": [
+    "../../client/**/*",
+    "../../shared/**/*",
+    "vite.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", "../../client/node_modules"]
+}
