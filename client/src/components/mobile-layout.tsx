@@ -359,70 +359,70 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
       </div>
 
       {/* Tab Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#F9F9F9] border-t border-[#DEDEDE] shadow-lg z-40">
-        <div className="flex">
+      <div className="fixed bottom-0 left-0 right-0 h-[92px] flex flex-col justify-between bg-[#F9F9F9] border-t border-[#DEDEDE] shadow-lg z-40">
+        <div className="flex flex-1">
           <Link href="/" className="flex-1">
             <button 
-              className={`w-full py-4 text-center ${
+              className={`w-full h-full flex flex-col items-center justify-center ${
                 currentTab === "home" ? "text-black" : "text-black"
               }`}
               data-testid="tab-home"
             >
-              <Home className="w-6 h-6 mx-auto mb-1" />
+              <Home className="w-8 h-8 mb-1" />
               <span className="text-xs font-normal">Home</span>
             </button>
           </Link>
           
           <button 
             onClick={handlePortfolioClick}
-            className={`flex-1 py-4 text-center ${
+            className={`flex-1 h-full flex flex-col items-center justify-center ${
               currentTab === "portfolio" ? "text-black" : "text-black"
             }`}
             data-testid="tab-portfolio"
           >
-            <TrendingUp className="w-6 h-6 mx-auto mb-1" />
+            <TrendingUp className="w-8 h-8 mb-1" />
             <span className="text-xs font-normal">Portfolio</span>
           </button>
           
           <button 
             onClick={handleTimelineClick}
-            className={`flex-1 py-4 text-center ${
+            className={`flex-1 h-full flex flex-col items-center justify-center ${
               currentTab === "timeline" ? "text-black" : "text-black"
             }`}
             data-testid="tab-timeline"
           >
-            <History className="w-6 h-6 mx-auto mb-1" />
+            <History className="w-8 h-8 mb-1" />
             <span className="text-xs font-normal">Timeline</span>
           </button>
           
           <Link href="/activities" className="flex-1">
             <button 
-              className={`w-full py-4 text-center transition-colors ${
+              className={`w-full h-full flex flex-col items-center justify-center transition-colors ${
                 currentTab === "activities" 
                   ? "text-black bg-[#F1FFF7]" 
                   : "text-black"
               }`}
               data-testid="tab-activities"
             >
-              <Gamepad2 className="w-6 h-6 mx-auto mb-1" />
+              <Gamepad2 className="w-8 h-8 mb-1" />
               <span className="text-xs font-normal">Activities</span>
             </button>
           </Link>
           
           <Link href="/profile" className="flex-1">
             <button 
-              className={`w-full py-4 text-center ${
+              className={`w-full h-full flex flex-col items-center justify-center ${
                 currentTab === "profile" ? "text-black" : "text-black"
               }`}
               data-testid="tab-profile"
             >
-              <User className="w-6 h-6 mx-auto mb-1" />
+              <User className="w-8 h-8 mb-1" />
               <span className="text-xs font-normal">Profile</span>
             </button>
           </Link>
         </div>
         {/* Home indicator */}
-        <div className="w-32 h-1 bg-black rounded-full mx-auto mb-1"></div>
+        <div className="w-32 h-[5px] bg-black rounded-full mx-auto mb-[6px]"></div>
       </div>
     </div>
   );
