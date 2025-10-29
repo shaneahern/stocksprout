@@ -153,9 +153,12 @@ config.resolver.resolveRequest = (context, realModuleName, platform, moduleName)
 config.resolver.blockList = config.resolver.blockList || [];
 
 // Block lucide-react (web version uses styled-components which causes .S errors)
-const lucideReactBlock = new RegExp(
-  path.resolve(__dirname, '../../node_modules/lucide-react').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '.*'
-);
+// Use path boundary to avoid matching lucide-react-native
+const lucideReactPath = path.resolve(__dirname, '../../node_modules/lucide-react');
+const escapedLucideReactPath = lucideReactPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Only match the lucide-react directory (and files within it), not lucide-react-native
+// The (?:$|/) ensures we match either end of string or a path separator after lucide-react
+const lucideReactBlock = new RegExp(`${escapedLucideReactPath}(?:$|/).*`);
 config.resolver.blockList.push(lucideReactBlock);
 
 // Block Radix UI packages (web-only, use styled-components)
