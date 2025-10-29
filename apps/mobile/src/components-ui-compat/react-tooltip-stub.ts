@@ -10,3 +10,12 @@ export const Portal = ({ children }: { children?: React.ReactNode }) => <>{child
 export const Provider = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
 export const Content = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
 export const Arrow = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
+
+export default {
+  Root,
+  Trigger,
+  Portal,
+  Provider,
+  Content,
+  Arrow,
+};

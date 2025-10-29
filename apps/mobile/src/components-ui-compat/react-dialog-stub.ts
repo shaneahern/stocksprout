@@ -15,3 +15,14 @@ export const Content = ({ children }: { children?: React.ReactNode }) => React.c
 export const Close = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
 export const Title = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
 export const Description = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+
+export default {
+  Root,
+  Trigger,
+  Portal,
+  Overlay,
+  Content,
+  Close,
+  Title,
+  Description,
+};

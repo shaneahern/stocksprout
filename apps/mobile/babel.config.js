@@ -14,7 +14,7 @@ module.exports = function(api) {
             '@stocksprout/components': '../../packages/components/src',
             'wouter': '../../apps/mobile/src/navigation/wouter-compat',
             'lucide-react': '../../apps/mobile/src/lucide-react-compat',
-            '@tanstack/react-query': '../../apps/mobile/src/shims/tanstack-react-query',
+            '@tanstack/react-query': '../../apps/mobile/src/shims/tanstack-react-query.cjs',
             '@radix-ui/react-label': '../../apps/mobile/src/components-ui-compat/react-label-stub',
             '@/components/ui/dialog': '../../apps/mobile/src/components-ui-compat/dialog',
             '@/components/ui/card': '../../apps/mobile/src/components-ui-compat/card',

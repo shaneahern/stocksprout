@@ -25,3 +25,12 @@ export const Fallback = ({ children, className, ...props }: any) => {
 };
 
 export const AvatarFallback = Fallback;
+
+export default {
+  Root,
+  Avatar,
+  AvatarImage,
+  Image,
+  Fallback,
+  AvatarFallback,
+};

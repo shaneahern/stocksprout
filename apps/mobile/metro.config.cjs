@@ -47,9 +47,10 @@ const radixUiStubs = {
 // Metro will automatically try .ts, .tsx, .js, .jsx extensions when resolving
 Object.assign(config.resolver.alias, radixUiStubs);
 
-// Force @tanstack/react-query to use our shim which re-exports from legacy build
+// Force @tanstack/react-query to use our CommonJS shim which re-exports from legacy build
 // The modern ESM build has issues with .js extensions in imports (files missing)
-config.resolver.alias['@tanstack/react-query'] = path.resolve(__dirname, 'src/shims/tanstack-react-query');
+// Using .cjs to avoid ESM/CJS interop issues
+config.resolver.alias['@tanstack/react-query'] = path.resolve(__dirname, 'src/shims/tanstack-react-query.cjs');
 
 // Add alias for UI components to redirect to React Native compatible versions
 // This prevents the web-only versions from being loaded
@@ -70,18 +71,6 @@ const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, realModuleName, platform, moduleName) => {
   // Use realModuleName (the actual import path) not moduleName (which may be transformed)
   const moduleToResolve = realModuleName || moduleName;
-  
-  // Handle @tanstack/react-query - force it to use the react-native source
-  if (moduleToResolve === '@tanstack/react-query') {
-    const reactQueryPath = path.resolve(__dirname, '../../node_modules/@tanstack/react-query/src/index.ts');
-    const fs = require('fs');
-    if (fs.existsSync(reactQueryPath)) {
-      return {
-        filePath: reactQueryPath,
-        type: 'sourceFile',
-      };
-    }
-  }
   
   // Check if this is a Radix UI import and we have an alias for it
   if (moduleToResolve && moduleToResolve.startsWith('@radix-ui/')) {

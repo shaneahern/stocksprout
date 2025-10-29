@@ -7,3 +7,7 @@ import React from 'react';
 export const Root = React.forwardRef<any, { children?: React.ReactNode; [key: string]: any }>(
   ({ children, ...props }, ref) => <>{children}</>
 );
+
+export default {
+  Root,
+};

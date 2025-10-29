@@ -20,3 +20,7 @@ export const Slot = React.forwardRef<any, SlotProps>(
 );
 
 Slot.displayName = 'Slot';
+
+export default {
+  Slot,
+};
