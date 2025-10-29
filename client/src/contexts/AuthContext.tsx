@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { crossPlatformStorage } from '@stocksprout/shared/storage';
 
 export interface User {
   id: string;
@@ -16,7 +17,7 @@ interface AuthContextType {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateProfile: (data: UpdateProfileData) => Promise<void>;
   isLoading: boolean;
 }
@@ -46,15 +47,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for stored token on mount
-    const storedToken = localStorage.getItem('token');
+    const loadStoredToken = async () => {
+      try {
+        const storedToken = await crossPlatformStorage.getItem('token');
+        
+        if (storedToken) {
+          setToken(storedToken);
+          fetchProfile(storedToken);
+        } else {
+          console.log('AuthContext: No stored token found');
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Failed to load stored token:', error);
+        setIsLoading(false);
+      }
+    };
     
-    if (storedToken) {
-      setToken(storedToken);
-      fetchProfile(storedToken);
-    } else {
-      console.log('AuthContext: No stored token found');
-      setIsLoading(false);
-    }
+    loadStoredToken();
   }, []);
 
   const fetchProfile = async (authToken: string) => {
@@ -66,41 +76,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       if (response.ok) {
-        const userData = await response.json();
+        const userData = await response.json() as User;
         setUser(userData);
       } else {
         // Token is invalid, remove it
-        localStorage.removeItem('token');
+        await crossPlatformStorage.removeItem('token');
         setToken(null);
       }
     } catch (error) {
       console.error('Failed to fetch profile:', error);
-      localStorage.removeItem('token');
+      await crossPlatformStorage.removeItem('token');
       setToken(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (emailOrUsername: string, password: string) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ 
+          // Support both email and username for login
+          email: emailOrUsername,
+          username: emailOrUsername,
+          password 
+        }),
       });
 
-      const data = await response.json();
+      // Check if response has content before parsing JSON
+      const text = await response.text();
+      
+      if (!text) {
+        throw new Error(`Login failed: ${response.status} ${response.statusText}. Server returned empty response.`);
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse login response:', text);
+        throw new Error(`Server error: Invalid response format. ${text.substring(0, 100)}`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.error || data.message || 'Login failed');
       }
 
       setToken(data.token);
       setUser(data.user);
-      localStorage.setItem('token', data.token);
+      await crossPlatformStorage.setItem('token', data.token);
     } catch (error) {
       console.error('AuthContext: login error', error);
       throw error;
@@ -117,25 +145,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(signupData),
       });
 
-      const data = await response.json();
+      // Check if response has content before parsing JSON
+      const text = await response.text();
+      
+      if (!text) {
+        throw new Error(`Signup failed: ${response.status} ${response.statusText}. Server returned empty response.`);
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse signup response:', text);
+        throw new Error(`Server error: Invalid response format. ${text.substring(0, 100)}`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Signup failed');
+        throw new Error(data.error || data.message || 'Signup failed');
       }
 
       setToken(data.token);
       setUser(data.user);
-      localStorage.setItem('token', data.token);
+      await crossPlatformStorage.setItem('token', data.token);
     } catch (error) {
       console.error('AuthContext: signup error', error);
       throw error;
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
+    await crossPlatformStorage.removeItem('token');
   };
 
   const updateProfile = async (updates: UpdateProfileData) => {
@@ -154,11 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as { message?: string };
         throw new Error(error.message || 'Failed to update profile');
       }
 
-      const updatedUser = await response.json();
+      const updatedUser = await response.json() as User;
       setUser(updatedUser);
     } catch (error) {
       console.error('AuthContext: updateProfile error', error);

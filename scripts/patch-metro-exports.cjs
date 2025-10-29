@@ -33,6 +33,25 @@ function patchMetroPackage(packageName) {
     if (originalExports['./private/*']) {
       packageJson.exports['./private/*'] = originalExports['./private/*'];
     }
+    // For metro-runtime, remove exports entirely to allow any path access
+    // Metro-runtime needs to access paths like ./src/polyfills/require.js
+    // which don't match the ./private/* pattern
+    if (packageJson.name === 'metro-runtime') {
+      delete packageJson.exports;
+      console.log(`✅ Removed exports from ${packageName} (allows all paths)`);
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+      return true;
+    }
+    // For root metro, remove exports entirely
+    // getDefaultConfig and other Metro internals access paths like
+    // ./src/DeltaBundler/Serializers/sourceMapString directly
+    // which don't match the ./private/* pattern
+    if (packageJson.name === 'metro') {
+      delete packageJson.exports;
+      console.log(`✅ Removed exports from ${packageName} (allows all paths)`);
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+      return true;
+    }
     console.log(`✅ Patched ${packageName} - kept minimal exports with ./private/* pattern`);
   }
 
@@ -63,7 +82,24 @@ if (fs.existsSync(expoMetroPath)) {
   packages.forEach(pkg => {
     const nestedPath = path.join(expoMetroPath, 'node_modules', pkg);
     if (fs.existsSync(nestedPath)) {
-      patchMetroPackage(path.join('@expo', 'metro', 'node_modules', pkg));
+      // Patch nested packages - metro in nested location needs exports removed
+      const packageJsonPath = path.join(nestedPath, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+        const backupPath = packageJsonPath + '.backup';
+        if (!fs.existsSync(backupPath)) {
+          fs.copyFileSync(packageJsonPath, backupPath);
+        }
+        // Remove exports for metro in @expo/metro to allow all paths
+        if (pkg === 'metro' && packageJson.exports) {
+          delete packageJson.exports;
+          fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+          console.log(`✅ Removed exports from @expo/metro/node_modules/${pkg} (allows all paths)`);
+        } else {
+          // Use regular patch function for other packages
+          patchMetroPackage(path.join('@expo', 'metro', 'node_modules', pkg));
+        }
+      }
     }
   });
 }

@@ -1,15 +1,95 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  View, 
+  Text, 
+  StyleSheet,
+  Button,
+  TextInput,
+  Label,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Alert,
+  AlertDescription,
+} from '@stocksprout/components';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface SignupFormProps {
   onSwitchToLogin: () => void;
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    maxWidth: 448,
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+  },
+  cardHeader: {
+    alignItems: 'center',
+    paddingBottom: 24,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  form: {
+    gap: 24,
+  },
+  errorAlert: {
+    marginBottom: 16,
+  },
+  formField: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  inputContainer: {
+    position: 'relative',
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    height: '100%',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
+  },
+  submitButton: {
+    width: '100%',
+    backgroundColor: '#265FDC',
+    borderRadius: 5,
+    height: 30.19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  icon: {
+    width: 16,
+    height: 16,
+  },
+});
 
 export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   const { signup } = useAuth();
@@ -25,17 +105,14 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError('');
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
       return;
@@ -46,7 +123,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     try {
       await signup({
         username: formData.username,
-        email: `${formData.username}@example.com`, // Generate email from username for now
+        email: `${formData.username}@example.com`,
         password: formData.password,
         name: `${formData.firstName} ${formData.lastName}`.trim(),
         bankAccountNumber: undefined,
@@ -58,133 +135,119 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
   return (
-    <div className="w-full max-w-md mx-auto">
-      <Card className="border border-gray-200 shadow-lg rounded-xl bg-white">
-        <CardHeader className="text-center pb-6">
-          <CardTitle className="text-[15px] font-semibold text-black">Create Account</CardTitle>
+    <View style={styles.container}>
+      <Card style={styles.card}>
+        <CardHeader style={styles.cardHeader}>
+          <CardTitle style={styles.cardTitle}>Create Account</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-[12px] font-medium text-black">First Name</Label>
-          <Input
-            id="firstName"
-            name="firstName"
-            type="text"
-            value={formData.firstName}
-            onChange={handleChange}
-            required
-            placeholder="Enter your first name"
-            className="pr-12"
-          />
-        </div>
+          <View style={styles.form}>
+            {error && (
+              <Alert variant="destructive" style={styles.errorAlert}>
+                <AlertDescription style={{ color: '#dc2626' }}>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <View style={styles.formField}>
+              <Label htmlFor="firstName" style={styles.label}>First Name</Label>
+              <TextInput
+                id="firstName"
+                value={formData.firstName}
+                onChangeText={(text: string) => setFormData(prev => ({ ...prev, firstName: text }))}
+                placeholder="Enter your first name"
+                style={{ paddingRight: 48 }}
+              />
+            </View>
 
-        <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-[12px] font-medium text-black">Last Name</Label>
-          <Input
-            id="lastName"
-            name="lastName"
-            type="text"
-            value={formData.lastName}
-            onChange={handleChange}
-            required
-            placeholder="Enter your last name"
-            className="pr-12"
-          />
-        </div>
+            <View style={styles.formField}>
+              <Label htmlFor="lastName" style={styles.label}>Last Name</Label>
+              <TextInput
+                id="lastName"
+                value={formData.lastName}
+                onChangeText={(text: string) => setFormData(prev => ({ ...prev, lastName: text }))}
+                placeholder="Enter your last name"
+                style={{ paddingRight: 48 }}
+              />
+            </View>
 
-        <div className="space-y-2">
-          <Label htmlFor="username" className="text-[12px] font-medium text-black">Username</Label>
-          <Input
-            id="username"
-            name="username"
-            type="text"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            placeholder="Enter your username"
-            className="pr-12"
-          />
-        </div>
+            <View style={styles.formField}>
+              <Label htmlFor="username" style={styles.label}>Username</Label>
+              <TextInput
+                id="username"
+                value={formData.username}
+                onChangeText={(text: string) => setFormData(prev => ({ ...prev, username: text }))}
+                placeholder="Enter your username"
+                style={{ paddingRight: 48 }}
+              />
+            </View>
 
-        <div className="space-y-2">
-          <Label htmlFor="password" className="text-[12px] font-medium text-black">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              value={formData.password}
-              onChange={handleChange}
-              required
-              placeholder="Create your password"
-              className="pr-12"
-            />
+            <View style={styles.formField}>
+              <Label htmlFor="password" style={styles.label}>Password</Label>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  id="password"
+                  value={formData.password}
+                  onChangeText={(text: string) => setFormData(prev => ({ ...prev, password: text }))}
+                  placeholder="Create your password"
+                  secureTextEntry={!showPassword}
+                  style={{ paddingRight: 48 }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff style={styles.icon} />
+                  ) : (
+                    <Eye style={styles.icon} />
+                  )}
+                </Button>
+              </View>
+            </View>
+
+            <View style={styles.formField}>
+              <Label htmlFor="confirmPassword" style={styles.label}>Confirm Password</Label>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  id="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChangeText={(text: string) => setFormData(prev => ({ ...prev, confirmPassword: text }))}
+                  placeholder="Confirm your password"
+                  secureTextEntry={!showConfirmPassword}
+                  style={{ paddingRight: 48 }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  style={styles.passwordToggle}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff style={styles.icon} />
+                  ) : (
+                    <Eye style={styles.icon} />
+                  )}
+                </Button>
+              </View>
+            </View>
+
             <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
-              onClick={() => setShowPassword(!showPassword)}
+              variant="default"
+              onPress={handleSubmit}
+              disabled={isLoading}
+              loading={isLoading}
+              style={styles.submitButton}
             >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
+              <Text style={styles.submitButtonText}>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
+              </Text>
             </Button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-[12px] font-medium text-black">Confirm Password</Label>
-          <div className="relative">
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type={showConfirmPassword ? "text" : "password"}
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              placeholder="Confirm your password"
-              className="pr-12"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-[10px] font-semibold" style={{ height: '30.19px' }} disabled={isLoading}>
-          {isLoading ? 'Creating Account...' : 'Create Account'}
-        </Button>
-          </form>
+          </View>
         </CardContent>
       </Card>
-    </div>
+    </View>
   );
 }

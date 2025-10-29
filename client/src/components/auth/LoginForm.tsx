@@ -1,18 +1,172 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff, User, Lock, Smartphone } from 'lucide-react';
+import { 
+  View, 
+  Text, 
+  StyleSheet,
+  Button,
+  TextInput,
+  Label,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Alert,
+  AlertDescription,
+  Checkbox,
+} from '@stocksprout/components';
+import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import { webAuthnService } from '@/lib/webauthn';
 
 interface LoginFormProps {
   onSwitchToSignup: () => void;
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    maxWidth: 448, // max-w-md = 28rem = 448px
+    marginLeft: 'auto',
+    marginRight: 'auto',
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+  },
+  cardHeader: {
+    alignItems: 'center',
+    paddingBottom: 24,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  form: {
+    gap: 24, // space-y-6
+  },
+  errorAlert: {
+    marginBottom: 16,
+  },
+  formField: {
+    gap: 8, // space-y-2
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  inputContainer: {
+    position: 'relative',
+  },
+  passwordToggle: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    height: '100%',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
+  },
+  submitButton: {
+    width: '100%',
+    backgroundColor: '#265FDC',
+    borderRadius: 5,
+    height: 30.19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  rememberMeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8, // space-x-2
+  },
+  rememberMeLabel: {
+    fontSize: 10,
+    fontWeight: '300',
+    color: '#000000',
+  },
+  biometricContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4, // space-x-1
+  },
+  biometricButton: {
+    padding: 4,
+    height: 'auto',
+    backgroundColor: 'transparent',
+  },
+  biometricIconContainer: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  biometricIcon: {
+    width: 24,
+    height: 24,
+  },
+  biometricIconDisabled: {
+    opacity: 0.4,
+  },
+  biometricText: {
+    padding: 0,
+    height: 'auto',
+    color: '#265FDC',
+    fontWeight: '300',
+    fontSize: 10,
+    backgroundColor: 'transparent',
+  },
+  biometricTextDisabled: {
+    color: '#9ca3af',
+  },
+  linksContainer: {
+    gap: 16, // space-y-4
+    paddingTop: 24,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8, // space-x-2
+    fontSize: 14,
+  },
+  linkText: {
+    color: '#000000',
+    fontSize: 14,
+  },
+  linkButton: {
+    padding: 0,
+    height: 'auto',
+    color: '#265FDC',
+    fontWeight: '500',
+    fontSize: 14,
+    backgroundColor: 'transparent',
+  },
+  icon: {
+    width: 16,
+    height: 16,
+    color: '#6b7280',
+  },
+});
 
 export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
   const { login } = useAuth();
@@ -27,7 +181,6 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
   const [isBiometricSupported, setIsBiometricSupported] = useState(false);
   const [isBiometricLoading, setIsBiometricLoading] = useState(false);
 
-  // Check biometric support on component mount
   useEffect(() => {
     const checkBiometricSupport = async () => {
       try {
@@ -47,15 +200,10 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
     setError('');
 
     try {
-      // For now, we'll use a mock implementation since we don't have stored credentials yet
-      // In a real implementation, you'd fetch the user's registered credential IDs from the server
-      const mockCredentialIds = ['mock-credential-id']; // This would come from the server
-      
+      const mockCredentialIds = ['mock-credential-id'];
       const authResult = await webAuthnService.authenticateBiometric(mockCredentialIds);
       
       if (authResult.success) {
-        // In a real implementation, you'd send this to your server for verification
-        // For now, we'll show a success message and suggest using password
         setError('Biometric authentication successful! Please use your password to complete login.');
       }
     } catch (error: any) {
@@ -66,8 +214,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError('');
     setIsLoading(true);
 
@@ -80,158 +227,133 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
   return (
-    <div className="w-full max-w-md mx-auto">
-      <Card className="border border-gray-200 shadow-lg rounded-xl bg-white">
-        <CardHeader className="text-center pb-6">
-          <CardTitle className="text-[15px] font-semibold text-black">Welcome In</CardTitle>
+    <View style={styles.container}>
+      <Card style={styles.card}>
+        <CardHeader style={styles.cardHeader}>
+          <CardTitle style={styles.cardTitle}>Welcome In</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        <div className="space-y-2">
-          <Label htmlFor="username" className="text-[12px] font-medium text-black">Username</Label>
-          <Input
-            id="username"
-            name="username"
-            type="text"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            placeholder="Enter your username"
-            className="pr-12"
-          />
-        </div>
+          <View style={styles.form}>
+            {error && (
+              <Alert variant="destructive" style={styles.errorAlert}>
+                <AlertDescription style={{ color: '#dc2626' }}>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <View style={styles.formField}>
+              <Label htmlFor="username" style={styles.label}>Username</Label>
+              <TextInput
+                id="username"
+                value={formData.username}
+                onChangeText={(text: string) => setFormData(prev => ({ ...prev, username: text }))}
+                placeholder="Enter your username"
+                style={{ paddingRight: 48 }}
+              />
+            </View>
 
-        <div className="space-y-2">
-          <Label htmlFor="password" className="text-[12px] font-medium text-black">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              value={formData.password}
-              onChange={handleChange}
-              required
-              placeholder="Enter your password"
-              className="pr-12"
-            />
+            <View style={styles.formField}>
+              <Label htmlFor="password" style={styles.label}>Password</Label>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  id="password"
+                  value={formData.password}
+                  onChangeText={(text: string) => setFormData(prev => ({ ...prev, password: text }))}
+                  placeholder="Enter your password"
+                  secureTextEntry={!showPassword}
+                  style={{ paddingRight: 48 }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff style={styles.icon} />
+                  ) : (
+                    <Eye style={styles.icon} />
+                  )}
+                </Button>
+              </View>
+            </View>
+
             <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
-              onClick={() => setShowPassword(!showPassword)}
+              variant="default"
+              onPress={handleSubmit}
+              disabled={isLoading}
+              loading={isLoading}
+              style={styles.submitButton}
             >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
+              <Text style={styles.submitButtonText}>
+                {isLoading ? 'Signing In...' : 'Sign In'}
+              </Text>
             </Button>
-          </div>
-        </div>
 
-        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-[10px] font-semibold" style={{ height: '30.19px' }} disabled={isLoading}>
-          {isLoading ? 'Signing In...' : 'Sign In'}
-        </Button>
-
-        {/* Remember Me and Face ID */}
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="remember-me" 
-              checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked === true)}
-              className="w-4 h-4"
-            />
-            <Label htmlFor="remember-me" className="text-[10px] font-light text-black cursor-pointer">
-              Remember me
-            </Label>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleBiometricAuth}
-              disabled={!isBiometricSupported || isBiometricLoading}
-              className="p-1 h-auto hover:bg-transparent"
-            >
-              {isBiometricSupported ? (
-                <div className="w-7 h-7 flex items-center justify-center">
-                  <img 
-                    src="/faceid-icon.png" 
-                    alt="Face ID" 
-                    className="w-6 h-6"
-                  />
-                </div>
-              ) : (
-                <div className="w-7 h-7 flex items-center justify-center">
-                  <img 
-                    src="/faceid-icon.png" 
-                    alt="Face ID" 
-                    className="w-6 h-6 opacity-40"
-                  />
-                </div>
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              onClick={handleBiometricAuth}
-              disabled={!isBiometricSupported || isBiometricLoading}
-              className="p-0 h-auto text-[#265FDC] font-light hover:text-[#1e4db8] disabled:text-gray-400 text-[10px]"
-            >
-              {isBiometricLoading ? 'Authenticating...' : isBiometricSupported ? 'Face ID' : 'Face ID'}
-            </Button>
-          </div>
-        </div>
-
-          </form>
+            <View style={styles.rememberMeRow}>
+              <View style={styles.rememberMeContainer}>
+                <Checkbox 
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked === true)}
+                />
+                <Label htmlFor="remember-me" style={styles.rememberMeLabel} onPress={() => setRememberMe(!rememberMe)}>
+                  Remember me
+                </Label>
+              </View>
+              <View style={styles.biometricContainer}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={handleBiometricAuth}
+                  disabled={!isBiometricSupported || isBiometricLoading}
+                  style={styles.biometricButton}
+                >
+                  <View style={[styles.biometricIconContainer, (!isBiometricSupported || isBiometricLoading) && styles.biometricIconDisabled]}>
+                    {/* @ts-ignore - Using img for web compatibility */}
+                    <img 
+                      src="/faceid-icon.png" 
+                      alt="Face ID" 
+                      style={{
+                        width: 24,
+                        height: 24,
+                        ...((!isBiometricSupported || isBiometricLoading) && { opacity: 0.4 })
+                      }}
+                    />
+                  </View>
+                </Button>
+                <Button
+                  variant="link"
+                  size="sm"
+                  onPress={handleBiometricAuth}
+                  disabled={!isBiometricSupported || isBiometricLoading}
+                  style={[styles.biometricText, (!isBiometricSupported || isBiometricLoading) && styles.biometricTextDisabled]}
+                >
+                  {isBiometricLoading ? 'Authenticating...' : 'Face ID'}
+                </Button>
+              </View>
+            </View>
+          </View>
         </CardContent>
       </Card>
       
-      {/* Links below card */}
-      <div className="space-y-4 pt-6">
-        <div className="flex items-center justify-center space-x-2 text-[14px]">
-          <User className="w-4 h-4 text-gray-600" />
-          <span className="text-black">Don't have an account? </span>
-          <Button
-            type="button"
-            variant="link"
-            className="p-0 h-auto text-[#265FDC] font-medium text-[14px]"
-            onClick={onSwitchToSignup}
-          >
+      <View style={styles.linksContainer}>
+        <View style={styles.linkRow}>
+          <User style={styles.icon} />
+          <Text style={styles.linkText}>Don't have an account? </Text>
+          <Button variant="link" onPress={onSwitchToSignup} style={styles.linkButton}>
             Sign up
           </Button>
-        </div>
-        <div className="flex items-center justify-center space-x-2 text-[14px]">
-          <Lock className="w-4 h-4 text-gray-600" />
+        </View>
+        <View style={styles.linkRow}>
+          <Lock style={styles.icon} />
           <Link href="/forgot-password">
-            <Button
-              type="button"
-              variant="link"
-              className="p-0 h-auto text-[#265FDC] font-medium text-[14px]"
-            >
+            <Button variant="link" style={styles.linkButton}>
               Forgot username or password?
             </Button>
           </Link>
-        </div>
-      </div>
-    </div>
+        </View>
+      </View>
+    </View>
   );
 }

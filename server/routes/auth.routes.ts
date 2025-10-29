@@ -56,7 +56,8 @@ export function registerAuthRoutes(app: Express) {
       });
     } catch (error) {
       console.error("Signup error:", error);
-      res.status(400).json({ error: "Invalid signup data" });
+      const errorMessage = error instanceof Error ? error.message : "Invalid signup data";
+      res.status(400).json({ error: errorMessage });
     }
   });
 
@@ -99,7 +100,8 @@ export function registerAuthRoutes(app: Express) {
       });
     } catch (error) {
       console.error("Login error:", error);
-      res.status(400).json({ error: "Invalid login data" });
+      const errorMessage = error instanceof Error ? error.message : "Invalid login data";
+      res.status(401).json({ error: errorMessage });
     }
   });
 

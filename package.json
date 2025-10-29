@@ -17,7 +17,7 @@
     "check": "turbo run check",
     "db:push": "turbo run db:push",
     "clean": "turbo run clean && rm -rf node_modules",
-    "postinstall": "patch-package && node scripts/patch-metro-exports.cjs"
+    "postinstall": "patch-package && node scripts/patch-metro-exports.cjs && node scripts/patch-expo-metro-config.cjs"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.3.1",

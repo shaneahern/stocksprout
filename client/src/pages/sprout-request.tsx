@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Gift, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { calculateAge } from '@/lib/utils';
+import { crossPlatformStorage } from '@stocksprout/shared/storage';
 
 export default function SproutRequestPage() {
   const { requestCode } = useParams<{ requestCode: string }>();
@@ -54,15 +55,19 @@ export default function SproutRequestPage() {
 
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast({
         title: 'Welcome!',
         description: 'Your account has been created. Redirecting to gift page...',
       });
-      // Store token and redirect to gift giving page
-      localStorage.setItem('token', data.token);
+      // Store token using cross-platform storage
+      if (data.token) {
+        await crossPlatformStorage.setItem('token', data.token);
+      }
       // Reload the page to trigger AuthContext to pick up the new token
-      window.location.href = `/gift/${requestData?.child?.giftLinkCode}`;
+      if (typeof window !== 'undefined') {
+        window.location.href = `/gift/${requestData?.child?.giftLinkCode}`;
+      }
     },
     onError: (error: Error) => {
       toast({

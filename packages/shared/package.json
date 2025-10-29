@@ -8,12 +8,14 @@
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
     "./api": "./src/api/index.ts",
-    "./types": "./src/types/index.ts"
+    "./types": "./src/types/index.ts",
+    "./storage": "./src/storage.ts"
   },
   "scripts": {
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^1.23.1",
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.0",
     "zod": "^3.24.2"

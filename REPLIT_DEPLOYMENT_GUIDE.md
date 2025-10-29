@@ -72,6 +72,26 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 **Note:** Without Cloudinary, videos will be stored locally and will be lost when Replit restarts/redeploys. The app will still work but video messages won't persist.
 
+#### ⚠️ IMPORTANT: Autoscale Deployment Secrets
+
+If you're using **Autoscale deployments** (configured in `.replit`), you need to set secrets in **TWO places**:
+
+1. **Regular Secrets** (Tools → Secrets) - for running the app in the editor
+2. **Deployment Secrets** - specifically for Autoscale deployments
+
+**To set Deployment Secrets:**
+1. Click on the **"Deployments"** tab in the left sidebar (or go to your repl's Deployments page)
+2. Find your Autoscale deployment
+3. Click on **"Environment Variables"** or **"Secrets"** section
+4. Add the same secrets you added in Step 2:
+   - `DATABASE_URL`
+   - `JWT_SECRET`
+   - `NODE_ENV=production`
+   - `PORT=3000`
+   - (Optional) `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+
+**Why both?** Regular Secrets work for development/testing in the repl editor. Deployment Secrets are required for Autoscale to access environment variables in production.
+
 ### Step 3: Install Dependencies
 Replit should auto-detect and install. If not, click "Shell" and run:
 ```bash
@@ -101,8 +121,13 @@ The app should start on port 3000.
 
 ## 📋 Troubleshooting
 
-### Issue: "DATABASE_URL must be set"
-**Solution:** Make sure you added DATABASE_URL in Replit Secrets (not just environment variables in .env file)
+### Issue: "DATABASE_URL must be set" or "DATABASE_URL environment variable is not set"
+**Solution:** 
+- If using Autoscale: Make sure you added `DATABASE_URL` in **BOTH**:
+  1. Regular Secrets (Tools → Secrets) - for development
+  2. Deployment Secrets (Deployments → Environment Variables) - for Autoscale production
+- Verify the secret is set correctly (no extra spaces, correct format)
+- Make sure you're not relying on a `.env` file in production (Autoscale doesn't load `.env` files)
 
 ### Issue: Database connection error
 **Solution:** 
