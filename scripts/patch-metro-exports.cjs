@@ -24,15 +24,6 @@ function patchMetroPackage(packageName) {
   // Keep minimal exports but preserve ./private/* pattern that Metro relies on
   if (packageJson.exports && typeof packageJson.exports === 'object') {
     const originalExports = packageJson.exports;
-    // Keep essential exports and preserve ./private/* pattern if it exists
-    packageJson.exports = {
-      '.': originalExports['.'] || packageJson.main || './src/index.js',
-      './package.json': './package.json'
-    };
-    // Preserve ./private/* pattern (Metro uses this extensively)
-    if (originalExports['./private/*']) {
-      packageJson.exports['./private/*'] = originalExports['./private/*'];
-    }
     // For metro-runtime, remove exports entirely to allow any path access
     // Metro-runtime needs to access paths like ./src/polyfills/require.js
     // which don't match the ./private/* pattern
@@ -42,17 +33,28 @@ function patchMetroPackage(packageName) {
       fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
       return true;
     }
-    // For root metro, remove exports entirely
+    // For root metro, add permissive exports that allow nested paths
     // getDefaultConfig and other Metro internals access paths like
     // ./src/DeltaBundler/Serializers/sourceMapString directly
-    // which don't match the ./private/* pattern
     if (packageJson.name === 'metro') {
-      delete packageJson.exports;
-      console.log(`✅ Removed exports from ${packageName} (allows all paths)`);
+      packageJson.exports = {
+        '.': originalExports['.'] || packageJson.main || './src/index.js',
+        './package.json': './package.json',
+        './private/*': './src/*.js',
+        './src/*': './src/*.js'
+      };
+      console.log(`✅ Patched ${packageName} - added permissive exports for nested paths`);
       fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
       return true;
     }
-    console.log(`✅ Patched ${packageName} - kept minimal exports with ./private/* pattern`);
+    // For other Metro packages, add permissive exports that allow nested paths
+    packageJson.exports = {
+      '.': originalExports['.'] || packageJson.main || './src/index.js',
+      './package.json': './package.json',
+      './private/*': './src/*.js',
+      './src/*': './src/*.js'
+    };
+    console.log(`✅ Patched ${packageName} - added permissive exports for nested paths`);
   }
 
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
