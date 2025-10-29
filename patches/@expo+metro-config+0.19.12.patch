@@ -1,0 +1,3171 @@
+diff --git a/node_modules/@expo/metro-config/build/ExpoMetroConfig.js b/node_modules/@expo/metro-config/build/ExpoMetroConfig.js
+index df2030a..7c04164 100644
+--- a/node_modules/@expo/metro-config/build/ExpoMetroConfig.js
++++ b/node_modules/@expo/metro-config/build/ExpoMetroConfig.js
+@@ -57,7 +57,7 @@ function getAssetPlugins(projectRoot) {
+     }
+     return [
+         // Use relative path to ensure maximum cache hits.
+-        // This is resolved here https://github.com/facebook/metro/blob/ec584b9cc2b8356356a4deacb7e1d5c83f243c3a/packages/metro/src/Assets.js#L271
++        // This is resolved here https://github.com/facebook/metro/blob/ec584b9cc2b8356356a4deacb7e1d5c83f243c3a/packages/metro/private/Assets.js#L271
+         'expo-asset/tools/hashAssetFiles',
+     ];
+ }
+@@ -65,7 +65,7 @@ let hasWarnedAboutExotic = false;
+ // Patch Metro's graph to support always parsing certain modules. This enables
+ // things like Tailwind CSS which update based on their own heuristics.
+ function patchMetroGraphToSupportUncachedModules() {
+-    const { Graph } = require('metro/src/DeltaBundler/Graph');
++    const { Graph } = require('metro/private/DeltaBundler/Graph');
+     const original_traverseDependencies = Graph.prototype.traverseDependencies;
+     if (!original_traverseDependencies.__patched) {
+         original_traverseDependencies.__patched = true;
+diff --git a/node_modules/@expo/metro-config/build/ExpoMetroConfig.js.backup b/node_modules/@expo/metro-config/build/ExpoMetroConfig.js.backup
+new file mode 100644
+index 0000000..df2030a
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/ExpoMetroConfig.js.backup
+@@ -0,0 +1,356 @@
++"use strict";
++var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    var desc = Object.getOwnPropertyDescriptor(m, k);
++    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
++      desc = { enumerable: true, get: function() { return m[k]; } };
++    }
++    Object.defineProperty(o, k2, desc);
++}) : (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    o[k2] = m[k];
++}));
++var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
++    Object.defineProperty(o, "default", { enumerable: true, value: v });
++}) : function(o, v) {
++    o["default"] = v;
++});
++var __importStar = (this && this.__importStar) || function (mod) {
++    if (mod && mod.__esModule) return mod;
++    var result = {};
++    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
++    __setModuleDefault(result, mod);
++    return result;
++};
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.EXPO_DEBUG = exports.INTERNAL_CALLSITES_REGEX = exports.getDefaultConfig = exports.createStableModuleIdFactory = void 0;
++// Copyright 2023-present 650 Industries (Expo). All rights reserved.
++const config_1 = require("@expo/config");
++const paths_1 = require("@expo/config/paths");
++const runtimeEnv = __importStar(require("@expo/env"));
++const json_file_1 = __importDefault(require("@expo/json-file"));
++const chalk_1 = __importDefault(require("chalk"));
++const metro_cache_1 = require("metro-cache");
++const os_1 = __importDefault(require("os"));
++const path_1 = __importDefault(require("path"));
++const resolve_from_1 = __importDefault(require("resolve-from"));
++const customizeFrame_1 = require("./customizeFrame");
++Object.defineProperty(exports, "INTERNAL_CALLSITES_REGEX", { enumerable: true, get: function () { return customizeFrame_1.INTERNAL_CALLSITES_REGEX; } });
++const env_1 = require("./env");
++const file_store_1 = require("./file-store");
++const getModulesPaths_1 = require("./getModulesPaths");
++const getWatchFolders_1 = require("./getWatchFolders");
++const rewriteRequestUrl_1 = require("./rewriteRequestUrl");
++const sideEffects_1 = require("./serializer/sideEffects");
++const withExpoSerializers_1 = require("./serializer/withExpoSerializers");
++const postcss_1 = require("./transform-worker/postcss");
++const metro_config_1 = require("./traveling/metro-config");
++const filePath_1 = require("./utils/filePath");
++const debug = require('debug')('expo:metro:config');
++function getAssetPlugins(projectRoot) {
++    const hashAssetFilesPath = resolve_from_1.default.silent(projectRoot, 'expo-asset/tools/hashAssetFiles');
++    if (!hashAssetFilesPath) {
++        throw new Error(`The required package \`expo-asset\` cannot be found`);
++    }
++    return [
++        // Use relative path to ensure maximum cache hits.
++        // This is resolved here https://github.com/facebook/metro/blob/ec584b9cc2b8356356a4deacb7e1d5c83f243c3a/packages/metro/src/Assets.js#L271
++        'expo-asset/tools/hashAssetFiles',
++    ];
++}
++let hasWarnedAboutExotic = false;
++// Patch Metro's graph to support always parsing certain modules. This enables
++// things like Tailwind CSS which update based on their own heuristics.
++function patchMetroGraphToSupportUncachedModules() {
++    const { Graph } = require('metro/src/DeltaBundler/Graph');
++    const original_traverseDependencies = Graph.prototype.traverseDependencies;
++    if (!original_traverseDependencies.__patched) {
++        original_traverseDependencies.__patched = true;
++        Graph.prototype.traverseDependencies = function (paths, options) {
++            this.dependencies.forEach((dependency) => {
++                // Find any dependencies that have been marked as `skipCache` and ensure they are invalidated.
++                // `skipCache` is set when a CSS module is found by PostCSS.
++                if (dependency.output.find((file) => file.data.css?.skipCache) &&
++                    !paths.includes(dependency.path)) {
++                    // Ensure we invalidate the `unstable_transformResultKey` (input hash) so the module isn't removed in
++                    // the Graph._processModule method.
++                    dependency.unstable_transformResultKey = dependency.unstable_transformResultKey + '.';
++                    // Add the path to the list of modified paths so it gets run through the transformer again,
++                    // this will ensure it is passed to PostCSS -> Tailwind.
++                    paths.push(dependency.path);
++                }
++            });
++            // Invoke the original method with the new paths to ensure the standard behavior is preserved.
++            return original_traverseDependencies.call(this, paths, options);
++        };
++        // Ensure we don't patch the method twice.
++        Graph.prototype.traverseDependencies.__patched = true;
++    }
++}
++function createNumericModuleIdFactory() {
++    const fileToIdMap = new Map();
++    let nextId = 0;
++    return (modulePath) => {
++        let id = fileToIdMap.get(modulePath);
++        if (typeof id !== 'number') {
++            id = nextId++;
++            fileToIdMap.set(modulePath, id);
++        }
++        return id;
++    };
++}
++function memoize(fn) {
++    const cache = new Map();
++    return ((...args) => {
++        const key = JSON.stringify(args);
++        if (cache.has(key)) {
++            return cache.get(key);
++        }
++        const result = fn(...args);
++        cache.set(key, result);
++        return result;
++    });
++}
++function createStableModuleIdFactory(root) {
++    const getModulePath = (modulePath, scope) => {
++        // NOTE: Metro allows this but it can lead to confusing errors when dynamic requires cannot be resolved, e.g. `module 456 cannot be found`.
++        if (modulePath == null) {
++            return 'MODULE_NOT_FOUND';
++        }
++        else if ((0, sideEffects_1.isVirtualModule)(modulePath)) {
++            // Virtual modules should be stable.
++            return modulePath;
++        }
++        else if (path_1.default.isAbsolute(modulePath)) {
++            return (0, filePath_1.toPosixPath)(path_1.default.relative(root, modulePath)) + scope;
++        }
++        else {
++            return (0, filePath_1.toPosixPath)(modulePath) + scope;
++        }
++    };
++    const memoizedGetModulePath = memoize(getModulePath);
++    // This is an absolute file path.
++    // TODO: We may want a hashed version for production builds in the future.
++    return (modulePath, context) => {
++        const env = context?.environment ?? 'client';
++        if (env === 'client') {
++            // Only need scope for server bundles where multiple dimensions could run simultaneously.
++            // @ts-expect-error: we patch this to support being a string.
++            return memoizedGetModulePath(modulePath, '');
++        }
++        // Helps find missing parts to the patch.
++        if (!context?.platform) {
++            // context = { platform: 'web' };
++            throw new Error('createStableModuleIdFactory: `context.platform` is required');
++        }
++        // Only need scope for server bundles where multiple dimensions could run simultaneously.
++        const scope = env !== 'client' ? `?platform=${context?.platform}&env=${env}` : '';
++        // @ts-expect-error: we patch this to support being a string.
++        return memoizedGetModulePath(modulePath, scope);
++    };
++}
++exports.createStableModuleIdFactory = createStableModuleIdFactory;
++function getDefaultConfig(projectRoot, { mode, isCSSEnabled = true, unstable_beforeAssetSerializationPlugins } = {}) {
++    const { getDefaultConfig: getDefaultMetroConfig, mergeConfig } = (0, metro_config_1.importMetroConfig)(projectRoot);
++    if (isCSSEnabled) {
++        patchMetroGraphToSupportUncachedModules();
++    }
++    const isExotic = mode === 'exotic' || env_1.env.EXPO_USE_EXOTIC;
++    if (isExotic && !hasWarnedAboutExotic) {
++        hasWarnedAboutExotic = true;
++        console.log(chalk_1.default.gray(`\u203A Feature ${chalk_1.default.bold `EXPO_USE_EXOTIC`} has been removed in favor of the default transformer.`));
++    }
++    const reactNativePath = path_1.default.dirname((0, resolve_from_1.default)(projectRoot, 'react-native/package.json'));
++    const sourceExtsConfig = { isTS: true, isReact: true, isModern: true };
++    const sourceExts = (0, paths_1.getBareExtensions)([], sourceExtsConfig);
++    // Add support for cjs (without platform extensions).
++    sourceExts.push('cjs');
++    const reanimatedVersion = getPkgVersion(projectRoot, 'react-native-reanimated');
++    let sassVersion = null;
++    if (isCSSEnabled) {
++        sassVersion = getPkgVersion(projectRoot, 'sass');
++        // Enable SCSS by default so we can provide a better error message
++        // when sass isn't installed.
++        sourceExts.push('scss', 'sass', 'css');
++    }
++    const envFiles = runtimeEnv.getFiles(process.env.NODE_ENV, { silent: true });
++    const pkg = (0, config_1.getPackageJson)(projectRoot);
++    const watchFolders = (0, getWatchFolders_1.getWatchFolders)(projectRoot);
++    const nodeModulesPaths = (0, getModulesPaths_1.getModulesPaths)(projectRoot);
++    if (env_1.env.EXPO_DEBUG) {
++        console.log();
++        console.log(`Expo Metro config:`);
++        try {
++            console.log(`- Version: ${require('../package.json').version}`);
++        }
++        catch { }
++        console.log(`- Extensions: ${sourceExts.join(', ')}`);
++        console.log(`- React Native: ${reactNativePath}`);
++        console.log(`- Watch Folders: ${watchFolders.join(', ')}`);
++        console.log(`- Node Module Paths: ${nodeModulesPaths.join(', ')}`);
++        console.log(`- Env Files: ${envFiles}`);
++        console.log(`- Sass: ${sassVersion}`);
++        console.log(`- Reanimated: ${reanimatedVersion}`);
++        console.log();
++    }
++    const { 
++    // Remove the default reporter which metro always resolves to be the react-native-community/cli reporter.
++    // This prints a giant React logo which is less accessible to users on smaller terminals.
++    reporter, ...metroDefaultValues } = getDefaultMetroConfig.getDefaultValues(projectRoot);
++    const cacheStore = new file_store_1.FileStore({
++        root: path_1.default.join(os_1.default.tmpdir(), 'metro-cache'),
++    });
++    const serverRoot = (0, paths_1.getMetroServerRoot)(projectRoot);
++    // Merge in the default config from Metro here, even though loadConfig uses it as defaults.
++    // This is a convenience for getDefaultConfig use in metro.config.js, e.g. to modify assetExts.
++    const metroConfig = mergeConfig(metroDefaultValues, {
++        watchFolders,
++        resolver: {
++            unstable_conditionsByPlatform: {
++                ios: ['react-native'],
++                android: ['react-native'],
++                // This is removed for server platforms.
++                web: ['browser'],
++            },
++            unstable_conditionNames: ['require', 'import'],
++            resolverMainFields: ['react-native', 'browser', 'main'],
++            platforms: ['ios', 'android'],
++            assetExts: metroDefaultValues.resolver.assetExts
++                .concat(
++            // Add default support for `expo-image` file types.
++            ['heic', 'avif'], 
++            // Add default support for `expo-sqlite` file types.
++            ['db'])
++                .filter((assetExt) => !sourceExts.includes(assetExt)),
++            sourceExts,
++            nodeModulesPaths,
++        },
++        cacheStores: [cacheStore],
++        watcher: {
++            // strip starting dot from env files
++            additionalExts: envFiles.map((file) => file.replace(/^\./, '')),
++        },
++        serializer: {
++            isThirdPartyModule(module) {
++                // Block virtual modules from appearing in the source maps.
++                if ((0, sideEffects_1.isVirtualModule)(module.path))
++                    return true;
++                // Generally block node modules
++                if (/(?:^|[/\\])node_modules[/\\]/.test(module.path)) {
++                    // Allow the expo-router/entry and expo/AppEntry modules to be considered first party so the root of the app appears in the trace.
++                    return !module.path.match(/[/\\](expo-router[/\\]entry|expo[/\\]AppEntry)/);
++                }
++                return false;
++            },
++            createModuleIdFactory: env_1.env.EXPO_USE_METRO_REQUIRE
++                ? createStableModuleIdFactory.bind(null, serverRoot)
++                : createNumericModuleIdFactory,
++            getModulesRunBeforeMainModule: () => {
++                const preModules = [
++                    // MUST be first
++                    require.resolve(path_1.default.join(reactNativePath, 'Libraries/Core/InitializeCore')),
++                ];
++                const stdRuntime = resolve_from_1.default.silent(projectRoot, 'expo/src/winter');
++                if (stdRuntime) {
++                    preModules.push(stdRuntime);
++                }
++                // We need to shift this to be the first module so web Fast Refresh works as expected.
++                // This will only be applied if the module is installed and imported somewhere in the bundle already.
++                const metroRuntime = resolve_from_1.default.silent(projectRoot, '@expo/metro-runtime');
++                if (metroRuntime) {
++                    preModules.push(metroRuntime);
++                }
++                return preModules;
++            },
++            getPolyfills: ({ platform }) => {
++                // Do nothing for nullish platforms.
++                if (!platform) {
++                    return [];
++                }
++                if (platform === 'web') {
++                    return [
++                        // Ensure that the error-guard polyfill is included in the web polyfills to
++                        // make metro-runtime work correctly.
++                        require.resolve('@react-native/js-polyfills/error-guard'),
++                    ];
++                }
++                // Native behavior.
++                return require('@react-native/js-polyfills')();
++            },
++        },
++        server: {
++            rewriteRequestUrl: (0, rewriteRequestUrl_1.getRewriteRequestUrl)(projectRoot),
++            port: Number(env_1.env.RCT_METRO_PORT) || 8081,
++            // NOTE(EvanBacon): Moves the server root down to the monorepo root.
++            // This enables proper monorepo support for web.
++            unstable_serverRoot: serverRoot,
++        },
++        symbolicator: {
++            customizeFrame: (0, customizeFrame_1.getDefaultCustomizeFrame)(),
++        },
++        transformerPath: require.resolve('./transform-worker/transform-worker'),
++        // NOTE: All of these values are used in the cache key. They should not contain any absolute paths.
++        transformer: {
++            // Custom: These are passed to `getCacheKey` and ensure invalidation when the version changes.
++            unstable_renameRequire: false,
++            // @ts-expect-error: not on type.
++            postcssHash: (0, postcss_1.getPostcssConfigHash)(projectRoot),
++            browserslistHash: pkg.browserslist
++                ? (0, metro_cache_1.stableHash)(JSON.stringify(pkg.browserslist)).toString('hex')
++                : null,
++            sassVersion,
++            // Ensure invalidation when the version changes due to the Babel plugin.
++            reanimatedVersion,
++            // Ensure invalidation when using identical projects in monorepos
++            _expoRelativeProjectRoot: path_1.default.relative(serverRoot, projectRoot),
++            // `require.context` support
++            unstable_allowRequireContext: true,
++            allowOptionalDependencies: true,
++            babelTransformerPath: require.resolve('./babel-transformer'),
++            // See: https://github.com/facebook/react-native/blob/v0.73.0/packages/metro-config/index.js#L72-L74
++            // TODO: The absolute path breaks invalidates caching across devices.
++            asyncRequireModulePath: (0, resolve_from_1.default)(reactNativePath, metroDefaultValues.transformer.asyncRequireModulePath),
++            assetRegistryPath: '@react-native/assets-registry/registry',
++            assetPlugins: getAssetPlugins(projectRoot),
++            // hermesParser: true,
++            getTransformOptions: async () => ({
++                transform: {
++                    experimentalImportSupport: false,
++                    inlineRequires: false,
++                },
++            }),
++        },
++    });
++    return (0, withExpoSerializers_1.withExpoSerializers)(metroConfig, { unstable_beforeAssetSerializationPlugins });
++}
++exports.getDefaultConfig = getDefaultConfig;
++// re-export for legacy cases.
++exports.EXPO_DEBUG = env_1.env.EXPO_DEBUG;
++function getPkgVersion(projectRoot, pkgName) {
++    const targetPkg = resolve_from_1.default.silent(projectRoot, pkgName);
++    if (!targetPkg)
++        return null;
++    const targetPkgJson = findUpPackageJson(targetPkg);
++    if (!targetPkgJson)
++        return null;
++    const pkg = json_file_1.default.read(targetPkgJson);
++    debug(`${pkgName} package.json:`, targetPkgJson);
++    const pkgVersion = pkg.version;
++    if (typeof pkgVersion === 'string') {
++        return pkgVersion;
++    }
++    return null;
++}
++function findUpPackageJson(cwd) {
++    if (['.', path_1.default.sep].includes(cwd))
++        return null;
++    const found = resolve_from_1.default.silent(cwd, './package.json');
++    if (found) {
++        return found;
++    }
++    return findUpPackageJson(path_1.default.dirname(cwd));
++}
++//# sourceMappingURL=ExpoMetroConfig.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js b/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js
+index 6f8f966..aa22176 100644
+--- a/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js
++++ b/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js
+@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.getEnvVarDevString = exports.environmentVariableSerializerPlugin = exports.serverPreludeSerializerPlugin = exports.getTransformEnvironment = void 0;
+-const CountingSet_1 = __importDefault(require("metro/src/lib/CountingSet"));
+-const countLines_1 = __importDefault(require("metro/src/lib/countLines"));
++const CountingSet_1 = __importDefault(require("metro/private/lib/CountingSet"));
++const countLines_1 = __importDefault(require("metro/private/lib/countLines"));
+ const debug = require('debug')('expo:metro-config:serializer:env-var');
+ function getTransformEnvironment(url) {
+     const match = url.match(/[&?]transform\.environment=([^&]+)/);
+diff --git a/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js.backup b/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js.backup
+new file mode 100644
+index 0000000..6f8f966
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/serializer/environmentVariableSerializerPlugin.js.backup
+@@ -0,0 +1,118 @@
++"use strict";
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.getEnvVarDevString = exports.environmentVariableSerializerPlugin = exports.serverPreludeSerializerPlugin = exports.getTransformEnvironment = void 0;
++const CountingSet_1 = __importDefault(require("metro/src/lib/CountingSet"));
++const countLines_1 = __importDefault(require("metro/src/lib/countLines"));
++const debug = require('debug')('expo:metro-config:serializer:env-var');
++function getTransformEnvironment(url) {
++    const match = url.match(/[&?]transform\.environment=([^&]+)/);
++    return match ? match[1] : null;
++}
++exports.getTransformEnvironment = getTransformEnvironment;
++function getAllExpoPublicEnvVars(inputEnv = process.env) {
++    // Create an object containing all environment variables that start with EXPO_PUBLIC_
++    const env = {};
++    for (const key in inputEnv) {
++        if (key.startsWith('EXPO_PUBLIC_')) {
++            // @ts-expect-error: TS doesn't know that the key starts with EXPO_PUBLIC_
++            env[key] = inputEnv[key];
++        }
++    }
++    return env;
++}
++function isServerEnvironment(graph, options) {
++    // Requests from a dev server will use sourceUrl.
++    if (!graph.transformOptions.customTransformOptions) {
++        if (options.sourceUrl) {
++            const env = getTransformEnvironment(options.sourceUrl);
++            return env === 'node' || env === 'react-server';
++        }
++        return false;
++    }
++    // Other requests will use customTransformOptions.environment.
++    const env = graph.transformOptions.customTransformOptions.environment;
++    return env === 'node' || env === 'react-server';
++}
++/** Strips the process.env polyfill in server environments to allow for accessing environment variables off the global. */
++function serverPreludeSerializerPlugin(entryPoint, preModules, graph, options) {
++    if (isServerEnvironment(graph, options)) {
++        const prelude = preModules.find((module) => module.path === '__prelude__');
++        if (prelude) {
++            debug('Stripping environment variable polyfill in server environment.');
++            prelude.output[0].data.code = prelude.output[0].data.code
++                .replace(/process=this\.process\|\|{},/, '')
++                .replace(/process\.env=process\.env\|\|{};process\.env\.NODE_ENV=process\.env\.NODE_ENV\|\|"\w+";/, '');
++        }
++    }
++    return [entryPoint, preModules, graph, options];
++}
++exports.serverPreludeSerializerPlugin = serverPreludeSerializerPlugin;
++function environmentVariableSerializerPlugin(entryPoint, preModules, graph, options) {
++    // Skip replacement in Node.js environments.
++    if (isServerEnvironment(graph, options)) {
++        debug('Skipping environment variable inlining in Node.js environment.');
++        return [entryPoint, preModules, graph, options];
++    }
++    // In development, we need to add the process.env object to ensure it
++    // persists between Fast Refresh updates.
++    if (!options.dev) {
++        debug('Skipping environment variable inlining in production environment in favor of babel-preset-expo inlining with source maps.');
++        return [entryPoint, preModules, graph, options];
++    }
++    const code = getEnvVarDevString();
++    const prelude = preModules.find((module) => module.path === '\0polyfill:environment-variables');
++    if (prelude) {
++        debug('Injecting environment variables in virtual module.');
++        // !!MUST!! be one line in order to ensure Metro's asymmetric serializer system can handle it.
++        prelude.output[0].data.code = code;
++        return [entryPoint, preModules, graph, options];
++    }
++    // Old system which doesn't work very well since Metro doesn't serialize graphs the same way in all cases.
++    // e.g. the `.map` endpoint is serialized differently to error symbolication.
++    // Inject the new module at index 1
++    // @ts-expect-error: The preModules are mutable and we need to mutate them in order to ensure the changes are applied outside of the serializer.
++    preModules.splice(
++    // Inject at index 1 to ensure it runs after the prelude (which injects env vars).
++    1, 0, getEnvPrelude(code));
++    return [entryPoint, preModules, graph, options];
++}
++exports.environmentVariableSerializerPlugin = environmentVariableSerializerPlugin;
++function getEnvVarDevString(env = process.env) {
++    // Set the process.env object to the current environment variables object
++    // ensuring they aren't iterable, settable, or enumerable.
++    const str = `process.env=Object.defineProperties(process.env, {` +
++        Object.keys(getAllExpoPublicEnvVars(env))
++            .map((key) => `${JSON.stringify(key)}: { value: ${JSON.stringify(env[key])} }`)
++            .join(',') +
++        '});';
++    const code = '/* HMR env vars from Expo CLI (dev-only) */ ' + str;
++    const lineCount = (0, countLines_1.default)(code);
++    if (lineCount !== 1) {
++        throw new Error(`Virtual environment variable code must be one line, got "${lineCount}" lines.`);
++    }
++    return code;
++}
++exports.getEnvVarDevString = getEnvVarDevString;
++function getEnvPrelude(code) {
++    const name = `\0polyfill:environment-variables`;
++    return {
++        dependencies: new Map(),
++        getSource: () => Buffer.from(code),
++        inverseDependencies: new CountingSet_1.default(),
++        path: name,
++        output: [
++            {
++                type: 'js/script/virtual',
++                data: {
++                    code,
++                    lineCount: 1,
++                    map: [],
++                },
++            },
++        ],
++    };
++}
++//# sourceMappingURL=environmentVariableSerializerPlugin.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/serializer/fork/baseJSBundle.js b/node_modules/@expo/metro-config/build/serializer/fork/baseJSBundle.js
+index d96d965..afe6126 100644
+--- a/node_modules/@expo/metro-config/build/serializer/fork/baseJSBundle.js
++++ b/node_modules/@expo/metro-config/build/serializer/fork/baseJSBundle.js
+@@ -7,7 +7,7 @@
+  * LICENSE file in the root directory of this source tree.
+  *
+  * Fork with bundle splitting and better source map support.
+- * https://github.com/facebook/metro/blob/bbdd7d7c5e6e0feb50a9967ffae1f723c1d7c4e8/packages/metro/src/DeltaBundler/Serializers/baseJSBundle.js#L1
++ * https://github.com/facebook/metro/blob/bbdd7d7c5e6e0feb50a9967ffae1f723c1d7c4e8/packages/metro/private/DeltaBundler/Serializers/baseJSBundle.js#L1
+  */
+ var __importDefault = (this && this.__importDefault) || function (mod) {
+     return (mod && mod.__esModule) ? mod : { "default": mod };
+@@ -15,9 +15,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.baseJSBundleWithDependencies = exports.baseJSBundle = exports.getBaseUrlOption = exports.getPlatformOption = void 0;
+ const jsc_safe_url_1 = require("jsc-safe-url");
+-const CountingSet_1 = __importDefault(require("metro/src/lib/CountingSet"));
+-const countLines_1 = __importDefault(require("metro/src/lib/countLines"));
+-const getAppendScripts_1 = __importDefault(require("metro/src/lib/getAppendScripts"));
++const CountingSet_1 = __importDefault(require("metro/private/lib/CountingSet"));
++const countLines_1 = __importDefault(require("metro/private/lib/countLines"));
++const getAppendScripts_1 = __importDefault(require("metro/private/lib/getAppendScripts"));
+ const processModules_1 = require("./processModules");
+ function getPlatformOption(graph, options) {
+     if (graph.transformOptions?.platform != null) {
+diff --git a/node_modules/@expo/metro-config/build/serializer/fork/baseJSBundle.js.backup b/node_modules/@expo/metro-config/build/serializer/fork/baseJSBundle.js.backup
+new file mode 100644
+index 0000000..d96d965
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/serializer/fork/baseJSBundle.js.backup
+@@ -0,0 +1,143 @@
++"use strict";
++/**
++ * Copyright © 2022 650 Industries.
++ * Copyright (c) Meta Platforms, Inc. and affiliates.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ *
++ * Fork with bundle splitting and better source map support.
++ * https://github.com/facebook/metro/blob/bbdd7d7c5e6e0feb50a9967ffae1f723c1d7c4e8/packages/metro/src/DeltaBundler/Serializers/baseJSBundle.js#L1
++ */
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.baseJSBundleWithDependencies = exports.baseJSBundle = exports.getBaseUrlOption = exports.getPlatformOption = void 0;
++const jsc_safe_url_1 = require("jsc-safe-url");
++const CountingSet_1 = __importDefault(require("metro/src/lib/CountingSet"));
++const countLines_1 = __importDefault(require("metro/src/lib/countLines"));
++const getAppendScripts_1 = __importDefault(require("metro/src/lib/getAppendScripts"));
++const processModules_1 = require("./processModules");
++function getPlatformOption(graph, options) {
++    if (graph.transformOptions?.platform != null) {
++        return graph.transformOptions.platform;
++    }
++    if (!options.sourceUrl) {
++        return null;
++    }
++    const sourceUrl = (0, jsc_safe_url_1.isJscSafeUrl)(options.sourceUrl)
++        ? (0, jsc_safe_url_1.toNormalUrl)(options.sourceUrl)
++        : options.sourceUrl;
++    const url = new URL(sourceUrl, 'https://expo.dev');
++    return url.searchParams.get('platform') ?? null;
++}
++exports.getPlatformOption = getPlatformOption;
++function getBaseUrlOption(graph, options) {
++    const baseUrl = graph.transformOptions?.customTransformOptions?.baseUrl;
++    if (typeof baseUrl === 'string') {
++        // This tells us that the value came over a URL and may be encoded.
++        const mayBeEncoded = options.serializerOptions == null;
++        const option = mayBeEncoded ? decodeURIComponent(baseUrl) : baseUrl;
++        return option.replace(/\/+$/, '') + '/';
++    }
++    return '/';
++}
++exports.getBaseUrlOption = getBaseUrlOption;
++function baseJSBundle(entryPoint, preModules, graph, options) {
++    const platform = getPlatformOption(graph, options);
++    if (platform == null) {
++        throw new Error('platform could not be determined for Metro bundle');
++    }
++    return baseJSBundleWithDependencies(entryPoint, preModules, [...graph.dependencies.values()], {
++        ...options,
++        baseUrl: getBaseUrlOption(graph, options),
++        splitChunks: !!options.serializerOptions?.splitChunks,
++        platform,
++        skipWrapping: !!options.serializerOptions?.skipWrapping,
++        computedAsyncModulePaths: null,
++    });
++}
++exports.baseJSBundle = baseJSBundle;
++function baseJSBundleWithDependencies(entryPoint, preModules, dependencies, options) {
++    for (const module of dependencies) {
++        options.createModuleId(module.path);
++    }
++    const processModulesOptions = {
++        filter: options.processModuleFilter,
++        createModuleId: options.createModuleId,
++        dev: options.dev,
++        includeAsyncPaths: options.includeAsyncPaths,
++        projectRoot: options.projectRoot,
++        serverRoot: options.serverRoot,
++        sourceUrl: options.sourceUrl,
++        platform: options.platform,
++        baseUrl: options.baseUrl,
++        splitChunks: options.splitChunks,
++        skipWrapping: options.skipWrapping,
++        computedAsyncModulePaths: options.computedAsyncModulePaths,
++    };
++    // Do not prepend polyfills or the require runtime when only modules are requested
++    if (options.modulesOnly) {
++        preModules = [];
++    }
++    const preCode = (0, processModules_1.processModules)(preModules, processModulesOptions)
++        .map(([, code]) => code.src)
++        .join('\n');
++    const modules = [...dependencies].sort((a, b) => options.createModuleId(a.path) - options.createModuleId(b.path));
++    const sourceMapUrl = options.serializerOptions?.includeSourceMaps === false ? undefined : options.sourceMapUrl;
++    const modulesWithAnnotations = (0, getAppendScripts_1.default)(entryPoint, [...preModules, ...modules], {
++        asyncRequireModulePath: options.asyncRequireModulePath,
++        createModuleId: options.createModuleId,
++        getRunModuleStatement: options.getRunModuleStatement,
++        inlineSourceMap: options.inlineSourceMap,
++        runBeforeMainModule: options.runBeforeMainModule,
++        runModule: options.runModule,
++        shouldAddToIgnoreList: options.shouldAddToIgnoreList,
++        sourceMapUrl,
++        // This directive doesn't make a lot of sense in the context of a large single bundle that represent
++        // multiple files. It's usually used for things like TypeScript where you want the file name to appear with a
++        // different extension. Since it's unclear to me (Bacon) how it is used on native, I'm only disabling in web and native in production.
++        sourceUrl: options.platform === 'web' ? undefined : !options.dev ? undefined : options.sourceUrl,
++    });
++    // If the `debugId` annotation is available and we aren't inlining the source map, add it to the bundle.
++    // NOTE: We may want to move this assertion up further.
++    const hasExternalMaps = !options.inlineSourceMap && !!sourceMapUrl;
++    if (hasExternalMaps && options.debugId != null) {
++        const code = `//# debugId=${options.debugId}`;
++        modulesWithAnnotations.push({
++            path: 'debug-id-annotation',
++            dependencies: new Map(),
++            getSource: () => Buffer.from(''),
++            inverseDependencies: new CountingSet_1.default(),
++            output: [
++                {
++                    type: 'js/script/virtual',
++                    data: {
++                        code,
++                        lineCount: (0, countLines_1.default)(code),
++                        map: [],
++                    },
++                },
++            ],
++        });
++    }
++    const postCode = (0, processModules_1.processModules)(modulesWithAnnotations, processModulesOptions)
++        .map(([, code]) => code.src)
++        .join('\n');
++    const mods = (0, processModules_1.processModules)([...dependencies], processModulesOptions).map(([module, code]) => [
++        options.createModuleId(module.path),
++        code,
++    ]);
++    return {
++        pre: preCode,
++        post: postCode,
++        modules: mods.map(([id, code]) => [
++            id,
++            typeof code === 'number' ? code : code.src,
++        ]),
++        paths: Object.fromEntries(mods.filter(([id, code]) => typeof code !== 'number' && Object.keys(code.paths).length).map(([id, code]) => [id, code.paths])),
++    };
++}
++exports.baseJSBundleWithDependencies = baseJSBundleWithDependencies;
++//# sourceMappingURL=baseJSBundle.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/serializer/fork/js.js b/node_modules/@expo/metro-config/build/serializer/fork/js.js
+index b37cee2..6a1e091 100644
+--- a/node_modules/@expo/metro-config/build/serializer/fork/js.js
++++ b/node_modules/@expo/metro-config/build/serializer/fork/js.js
+@@ -7,7 +7,7 @@
+  * LICENSE file in the root directory of this source tree.
+  *
+  * Fork of the metro helper, but with bundle splitting support.
+- * https://github.com/facebook/metro/blob/bbdd7d7c5e6e0feb50a9967ffae1f723c1d7c4e8/packages/metro/src/DeltaBundler/Serializers/helpers/js.js#L1
++ * https://github.com/facebook/metro/blob/bbdd7d7c5e6e0feb50a9967ffae1f723c1d7c4e8/packages/metro/private/DeltaBundler/Serializers/helpers/js.js#L1
+  */
+ var __importDefault = (this && this.__importDefault) || function (mod) {
+     return (mod && mod.__esModule) ? mod : { "default": mod };
+diff --git a/node_modules/@expo/metro-config/build/serializer/fork/js.js.backup b/node_modules/@expo/metro-config/build/serializer/fork/js.js.backup
+new file mode 100644
+index 0000000..b37cee2
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/serializer/fork/js.js.backup
+@@ -0,0 +1,112 @@
++"use strict";
++/**
++ * Copyright © 2022 650 Industries.
++ * Copyright (c) Meta Platforms, Inc. and affiliates.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ *
++ * Fork of the metro helper, but with bundle splitting support.
++ * https://github.com/facebook/metro/blob/bbdd7d7c5e6e0feb50a9967ffae1f723c1d7c4e8/packages/metro/src/DeltaBundler/Serializers/helpers/js.js#L1
++ */
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.isJsOutput = exports.isJsModule = exports.getJsOutput = exports.getModuleParams = exports.wrapModule = void 0;
++const assert_1 = __importDefault(require("assert"));
++const jsc_safe_url_1 = __importDefault(require("jsc-safe-url"));
++const metro_transform_plugins_1 = require("metro-transform-plugins");
++const path_1 = __importDefault(require("path"));
++function wrapModule(module, options) {
++    const output = getJsOutput(module);
++    if (output.type.startsWith('js/script')) {
++        return { src: output.data.code, paths: {} };
++    }
++    const { params, paths } = getModuleParams(module, options);
++    const src = (0, metro_transform_plugins_1.addParamsToDefineCall)(output.data.code, ...params);
++    return { src, paths };
++}
++exports.wrapModule = wrapModule;
++function getModuleParams(module, options) {
++    const moduleId = options.createModuleId(module.path);
++    const paths = {};
++    let hasPaths = false;
++    const dependencyMapArray = Array.from(module.dependencies.values()).map((dependency) => {
++        let modulePath = dependency.absolutePath;
++        if (modulePath == null) {
++            if (dependency.data.data.isOptional) {
++                // For optional dependencies, that could not be resolved.
++                modulePath = dependency.data.name;
++            }
++            else {
++                throw new Error(`Module "${module.path}" has a dependency with missing absolutePath: ${(JSON.stringify(dependency), null, 2)}`);
++            }
++        }
++        const id = options.createModuleId(modulePath);
++        if (
++        // NOTE(EvanBacon): Disabled this to ensure that paths are provided even when the entire bundle
++        // is created. This is required for production bundle splitting.
++        // options.includeAsyncPaths &&
++        dependency.data.data.asyncType != null) {
++            if (options.includeAsyncPaths) {
++                if (options.sourceUrl) {
++                    hasPaths = true;
++                    // TODO: Only include path if the target is not in the bundle
++                    // Construct a server-relative URL for the split bundle, propagating
++                    // most parameters from the main bundle's URL.
++                    const { searchParams } = new URL(jsc_safe_url_1.default.toNormalUrl(options.sourceUrl));
++                    searchParams.set('modulesOnly', 'true');
++                    searchParams.set('runModule', 'false');
++                    const bundlePath = path_1.default.relative(options.serverRoot, dependency.absolutePath);
++                    paths[id] =
++                        '/' +
++                            path_1.default.join(path_1.default.dirname(bundlePath), 
++                            // Strip the file extension
++                            path_1.default.basename(bundlePath, path_1.default.extname(bundlePath))) +
++                            '.bundle?' +
++                            searchParams.toString();
++                }
++            }
++            else if (options.splitChunks && options.computedAsyncModulePaths != null) {
++                hasPaths = true;
++                // A template string that we'll match and replace later when we know the content hash for a given path.
++                paths[id] = options.computedAsyncModulePaths[dependency.absolutePath];
++            }
++        }
++        return id;
++    });
++    const params = [
++        moduleId,
++        hasPaths
++            ? {
++                ...dependencyMapArray,
++                paths,
++            }
++            : dependencyMapArray,
++    ];
++    if (options.dev) {
++        // Add the relative path of the module to make debugging easier.
++        // This is mapped to `module.verboseName` in `require.js`.
++        params.push(path_1.default.relative(options.projectRoot, module.path));
++    }
++    return { params, paths };
++}
++exports.getModuleParams = getModuleParams;
++function getJsOutput(module) {
++    const jsModules = module.output.filter(({ type }) => type.startsWith('js/'));
++    (0, assert_1.default)(jsModules.length === 1, `Modules must have exactly one JS output, but ${module.path ?? 'unknown module'} has ${jsModules.length} JS outputs.`);
++    const jsOutput = jsModules[0];
++    (0, assert_1.default)(Number.isFinite(jsOutput.data.lineCount), `JS output must populate lineCount, but ${module.path ?? 'unknown module'} has ${jsOutput.type} output with lineCount '${jsOutput.data.lineCount}'`);
++    return jsOutput;
++}
++exports.getJsOutput = getJsOutput;
++function isJsModule(module) {
++    return module.output.filter(isJsOutput).length > 0;
++}
++exports.isJsModule = isJsModule;
++function isJsOutput(output) {
++    return output.type.startsWith('js/');
++}
++exports.isJsOutput = isJsOutput;
++//# sourceMappingURL=js.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/serializer/getCssDeps.js b/node_modules/@expo/metro-config/build/serializer/getCssDeps.js
+index 728bfaa..cefc3d8 100644
+--- a/node_modules/@expo/metro-config/build/serializer/getCssDeps.js
++++ b/node_modules/@expo/metro-config/build/serializer/getCssDeps.js
+@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.getFileName = exports.fileNameFromContents = exports.getCssSerialAssets = void 0;
+-const js_1 = require("metro/src/DeltaBundler/Serializers/helpers/js");
++const js_1 = require("metro/private/DeltaBundler/Serializers/helpers/js");
+ const path_1 = __importDefault(require("path"));
+ const css_1 = require("../transform-worker/css");
+ const filePath_1 = require("../utils/filePath");
+diff --git a/node_modules/@expo/metro-config/build/serializer/getCssDeps.js.backup b/node_modules/@expo/metro-config/build/serializer/getCssDeps.js.backup
+new file mode 100644
+index 0000000..728bfaa
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/serializer/getCssDeps.js.backup
+@@ -0,0 +1,110 @@
++"use strict";
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.getFileName = exports.fileNameFromContents = exports.getCssSerialAssets = void 0;
++const js_1 = require("metro/src/DeltaBundler/Serializers/helpers/js");
++const path_1 = __importDefault(require("path"));
++const css_1 = require("../transform-worker/css");
++const filePath_1 = require("../utils/filePath");
++const hash_1 = require("../utils/hash");
++// s = static
++const STATIC_EXPORT_DIRECTORY = '_expo/static/css';
++function isTypeJSModule(module) {
++    return (0, js_1.isJsModule)(module);
++}
++function getCssSerialAssets(dependencies, { projectRoot, entryFile }) {
++    const assets = [];
++    const visited = new Set();
++    function pushCssModule(module) {
++        const cssMetadata = getCssMetadata(module);
++        if (cssMetadata) {
++            const contents = cssMetadata.code;
++            // NOTE(cedric): these relative paths are used as URL pathnames when serializing HTML
++            // Use POSIX-format to avoid urls like `_expo/static/css/some\\file\\name.css`
++            const originFilename = (0, filePath_1.toPosixPath)(path_1.default.relative(projectRoot, module.path));
++            const filename = (0, filePath_1.toPosixPath)(path_1.default.join(
++            // Consistent location
++            STATIC_EXPORT_DIRECTORY, 
++            // Hashed file contents + name for caching
++            fileNameFromContents({
++                // Stable filename for hashing in CI.
++                filepath: originFilename,
++                src: contents,
++            }) + '.css'));
++            if (cssMetadata.externalImports) {
++                for (const external of cssMetadata.externalImports) {
++                    let source = `<link rel="stylesheet" href="${external.url}"`;
++                    // TODO: How can we do this for local css imports?
++                    if (external.media) {
++                        source += `media="${external.media}"`;
++                    }
++                    // TODO: supports attribute
++                    source += '>';
++                    assets.push({
++                        type: 'css-external',
++                        originFilename,
++                        filename: external.url,
++                        // Link CSS file
++                        source,
++                        metadata: {
++                            hmrId: (0, css_1.pathToHtmlSafeName)(originFilename),
++                        },
++                    });
++                }
++            }
++            assets.push({
++                type: 'css',
++                originFilename,
++                filename,
++                source: contents,
++                metadata: {
++                    hmrId: (0, css_1.pathToHtmlSafeName)(originFilename),
++                },
++            });
++        }
++    }
++    function checkDep(absolutePath) {
++        if (visited.has(absolutePath)) {
++            return;
++        }
++        visited.add(absolutePath);
++        const next = dependencies.get(absolutePath);
++        if (!next) {
++            return;
++        }
++        next.dependencies.forEach((dep) => {
++            // Traverse the deps next to ensure the CSS is pushed in the correct order.
++            checkDep(dep.absolutePath);
++        });
++        // Then push the JS after the siblings.
++        if (getCssMetadata(next) && isTypeJSModule(next)) {
++            pushCssModule(next);
++        }
++    }
++    checkDep(entryFile);
++    return assets;
++}
++exports.getCssSerialAssets = getCssSerialAssets;
++function getCssMetadata(module) {
++    const data = module.output[0]?.data;
++    if (data && typeof data === 'object' && 'css' in data) {
++        if (typeof data.css !== 'object' || !('code' in data.css)) {
++            throw new Error(`Unexpected CSS metadata in Metro module (${module.path}): ${JSON.stringify(data.css)}`);
++        }
++        return data.css;
++    }
++    return null;
++}
++function fileNameFromContents({ filepath, src }) {
++    // Decode if the path is encoded from the Metro dev server, then normalize paths for Windows support.
++    const decoded = decodeURIComponent(filepath).replace(/\\/g, '/');
++    return getFileName(decoded) + '-' + (0, hash_1.hashString)(src);
++}
++exports.fileNameFromContents = fileNameFromContents;
++function getFileName(module) {
++    return path_1.default.basename(module).replace(/\.[^.]+$/, '');
++}
++exports.getFileName = getFileName;
++//# sourceMappingURL=getCssDeps.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/serializer/reconcileTransformSerializerPlugin.js b/node_modules/@expo/metro-config/build/serializer/reconcileTransformSerializerPlugin.js
+index a97e5d8..e850da0 100644
+--- a/node_modules/@expo/metro-config/build/serializer/reconcileTransformSerializerPlugin.js
++++ b/node_modules/@expo/metro-config/build/serializer/reconcileTransformSerializerPlugin.js
+@@ -35,7 +35,7 @@ exports.reconcileTransformSerializerPlugin = exports.isEnvBoolean = exports.sort
+  */
+ const generator_1 = __importDefault(require("@babel/generator"));
+ const assert_1 = __importDefault(require("assert"));
+-const JsFileWrapping_1 = __importDefault(require("metro/src/ModuleGraph/worker/JsFileWrapping"));
++const JsFileWrapping_1 = __importDefault(require("metro/private/ModuleGraph/worker/JsFileWrapping"));
+ const metro_source_map_1 = require("metro-source-map");
+ const metro_transform_plugins_1 = __importDefault(require("metro-transform-plugins"));
+ const jsOutput_1 = require("./jsOutput");
+diff --git a/node_modules/@expo/metro-config/build/serializer/reconcileTransformSerializerPlugin.js.backup b/node_modules/@expo/metro-config/build/serializer/reconcileTransformSerializerPlugin.js.backup
+new file mode 100644
+index 0000000..a97e5d8
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/serializer/reconcileTransformSerializerPlugin.js.backup
+@@ -0,0 +1,203 @@
++"use strict";
++var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    var desc = Object.getOwnPropertyDescriptor(m, k);
++    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
++      desc = { enumerable: true, get: function() { return m[k]; } };
++    }
++    Object.defineProperty(o, k2, desc);
++}) : (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    o[k2] = m[k];
++}));
++var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
++    Object.defineProperty(o, "default", { enumerable: true, value: v });
++}) : function(o, v) {
++    o["default"] = v;
++});
++var __importStar = (this && this.__importStar) || function (mod) {
++    if (mod && mod.__esModule) return mod;
++    var result = {};
++    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
++    __setModuleDefault(result, mod);
++    return result;
++};
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.reconcileTransformSerializerPlugin = exports.isEnvBoolean = exports.sortDependencies = void 0;
++/**
++ * Copyright © 2024 650 Industries.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ */
++const generator_1 = __importDefault(require("@babel/generator"));
++const assert_1 = __importDefault(require("assert"));
++const JsFileWrapping_1 = __importDefault(require("metro/src/ModuleGraph/worker/JsFileWrapping"));
++const metro_source_map_1 = require("metro-source-map");
++const metro_transform_plugins_1 = __importDefault(require("metro-transform-plugins"));
++const jsOutput_1 = require("./jsOutput");
++const sideEffects_1 = require("./sideEffects");
++const collect_dependencies_1 = __importStar(require("../transform-worker/collect-dependencies"));
++const count_lines_1 = require("../transform-worker/count-lines");
++const metro_transform_worker_1 = require("../transform-worker/metro-transform-worker");
++const debug = require('debug')('expo:treeshaking');
++const FORCE_REQUIRE_NAME_HINTS = false;
++// Some imports may change order during the transform, so we need to resort them.
++// Resort the dependencies to match the current order of the AST.
++function sortDependencies(dependencies, accordingTo) {
++    // Some imports may change order during the transform, so we need to resort them.
++    // Resort the dependencies to match the current order of the AST.
++    const nextDependencies = new Map();
++    // Metro uses this Map hack so we need to create a new map and add the items in the expected order/
++    dependencies.forEach((dep) => {
++        nextDependencies.set(dep.data.key, {
++            ...(accordingTo.get(dep.data.key) || {}),
++            // @ts-expect-error: Missing async types. This could be a problem for bundle splitting.
++            data: dep,
++        });
++    });
++    return nextDependencies;
++}
++exports.sortDependencies = sortDependencies;
++function isOptimizeEnabled(graph) {
++    return isEnvBoolean(graph, 'optimize');
++}
++function isEnvBoolean(graph, name) {
++    if (!graph.transformOptions.customTransformOptions)
++        return false;
++    return String(graph.transformOptions.customTransformOptions[name]) === 'true';
++}
++exports.isEnvBoolean = isEnvBoolean;
++// This is the insane step which reconciles the second half of the transformation process but it does it uncached at the end of the bundling process when we have tree shaking completed.
++async function reconcileTransformSerializerPlugin(entryPoint, preModules, graph, options) {
++    if (!isOptimizeEnabled(graph)) {
++        return [entryPoint, preModules, graph, options];
++    }
++    // Convert all remaining AST and dependencies to standard output that Metro expects.
++    // This is normally done in the transformer, but we skipped it so we could perform graph analysis (tree-shake).
++    for (const value of graph.dependencies.values()) {
++        for (const index in value.output) {
++            const output = value.output[index];
++            if ((0, jsOutput_1.isExpoJsOutput)(output)) {
++                // @ts-expect-error: Typed as readonly
++                value.output[index] =
++                    //
++                    await transformDependencyOutput(value, output);
++            }
++        }
++    }
++    return [entryPoint, preModules, graph, options];
++    async function transformDependencyOutput(value, outputItem) {
++        if (outputItem.type !== 'js/module' ||
++            value.path.endsWith('.json') ||
++            value.path.match(/\.(s?css|sass)$/)) {
++            debug('Skipping post transform for non-js/module: ' + value.path);
++            return outputItem;
++        }
++        // This should be cached by the transform worker for use here to ensure close to consistent
++        // results between the tree-shake and the final transform.
++        const reconcile = outputItem.data.reconcile;
++        (0, assert_1.default)(reconcile, 'reconcile settings are required in the module graph for post transform.');
++        let ast = outputItem.data.ast;
++        (0, assert_1.default)(ast, 'Missing AST for module: ' + value.path);
++        delete outputItem.data.ast;
++        const { importDefault, importAll } = reconcile;
++        const sideEffectReferences = () => [...value.dependencies.values()]
++            .filter((dep) => {
++            const fullDep = graph.dependencies.get(dep.absolutePath);
++            return fullDep && (0, sideEffects_1.hasSideEffectWithDebugTrace)(options, graph, fullDep)[0];
++        })
++            .map((dep) => dep.data.name);
++        ast = (0, metro_transform_worker_1.applyImportSupport)(ast, {
++            filename: value.path,
++            importAll,
++            importDefault,
++            options: {
++                // NOTE: This might not be needed...
++                ...graph.transformOptions,
++                experimentalImportSupport: true,
++                inlineRequires: reconcile.inlineRequires,
++                // Add side-effects to the ignore list.
++                nonInlinedRequires: reconcile.inlineRequires
++                    ? graph.transformOptions.nonInlinedRequires
++                        ? sideEffectReferences().concat(graph.transformOptions.nonInlinedRequires)
++                        : sideEffectReferences()
++                    : [],
++            },
++        });
++        let dependencyMapName = '';
++        let dependencies;
++        // This pass converts the modules to use the generated import names.
++        try {
++            // Rewrite the deps to use Metro runtime, collect the new dep positions.
++            ({ ast, dependencies, dependencyMapName } = (0, collect_dependencies_1.default)(ast, {
++                ...reconcile.collectDependenciesOptions,
++                collectOnly: false,
++                // This is here for debugging purposes.
++                keepRequireNames: FORCE_REQUIRE_NAME_HINTS,
++                // This setting shouldn't be shared + it can't be serialized and cached anyways.
++                dependencyTransformer: undefined,
++            }));
++        }
++        catch (error) {
++            if (error instanceof collect_dependencies_1.InvalidRequireCallError) {
++                throw new metro_transform_worker_1.InvalidRequireCallError(error, value.path);
++            }
++            throw error;
++        }
++        // @ts-expect-error: Mutating the value in place.
++        value.dependencies =
++            //
++            sortDependencies(dependencies, value.dependencies);
++        const { ast: wrappedAst } = JsFileWrapping_1.default.wrapModule(ast, reconcile.importDefault, reconcile.importAll, dependencyMapName, reconcile.globalPrefix, reconcile.unstable_renameRequire === false);
++        const reserved = [];
++        if (reconcile.unstable_dependencyMapReservedName != null) {
++            reserved.push(reconcile.unstable_dependencyMapReservedName);
++        }
++        if (reconcile.normalizePseudoGlobals) {
++            // This MUST run before `generate` as it mutates the ast out of place.
++            reserved.push(...metro_transform_plugins_1.default.normalizePseudoGlobals(wrappedAst, {
++                reservedNames: reserved,
++            }));
++        }
++        const result = (0, generator_1.default)(wrappedAst, {
++            // comments: true,
++            // https://github.com/facebook/metro/blob/6151e7eb241b15f3bb13b6302abeafc39d2ca3ad/packages/metro-config/src/defaults/index.js#L137
++            compact: reconcile.unstable_compactOutput,
++            filename: value.path,
++            retainLines: false,
++            sourceFileName: value.path,
++            sourceMaps: true,
++        }, outputItem.data.code);
++        // @ts-expect-error: incorrectly typed upstream
++        let map = result.rawMappings ? result.rawMappings.map(metro_source_map_1.toSegmentTuple) : [];
++        let code = result.code;
++        if (reconcile.minify) {
++            const source = value.getSource().toString('utf-8');
++            ({ map, code } = await (0, metro_transform_worker_1.minifyCode)(reconcile.minify, value.path, result.code, source, map, reserved));
++        }
++        let lineCount;
++        ({ lineCount, map } = (0, count_lines_1.countLinesAndTerminateMap)(code, map));
++        return {
++            ...outputItem,
++            data: {
++                ...outputItem.data,
++                code,
++                map,
++                lineCount,
++                functionMap: 
++                // @ts-expect-error: https://github.com/facebook/metro/blob/6151e7eb241b15f3bb13b6302abeafc39d2ca3ad/packages/metro-transform-worker/src/index.js#L508-L512
++                ast.metadata?.metro?.functionMap ??
++                    // @ts-expect-error: Fallback to deprecated explicitly-generated `functionMap`
++                    ast.functionMap ??
++                    outputItem.data.functionMap ??
++                    null,
++            },
++        };
++    }
++}
++exports.reconcileTransformSerializerPlugin = reconcileTransformSerializerPlugin;
++//# sourceMappingURL=reconcileTransformSerializerPlugin.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/serializer/serializeChunks.js b/node_modules/@expo/metro-config/build/serializer/serializeChunks.js
+index 447fe14..db90d07 100644
+--- a/node_modules/@expo/metro-config/build/serializer/serializeChunks.js
++++ b/node_modules/@expo/metro-config/build/serializer/serializeChunks.js
+@@ -11,8 +11,8 @@ exports.getSortedModules = exports.Chunk = exports.graphToSerialAssetsAsync = vo
+  * LICENSE file in the root directory of this source tree.
+  */
+ const assert_1 = __importDefault(require("assert"));
+-const sourceMapString_1 = __importDefault(require("metro/src/DeltaBundler/Serializers/sourceMapString"));
+-const bundleToString_1 = __importDefault(require("metro/src/lib/bundleToString"));
++const sourceMapString_1 = __importDefault(require("metro/private/DeltaBundler/Serializers/sourceMapString"));
++const bundleToString_1 = __importDefault(require("metro/private/lib/bundleToString"));
+ const path_1 = __importDefault(require("path"));
+ const debugId_1 = require("./debugId");
+ const exportHermes_1 = require("./exportHermes");
+@@ -30,9 +30,11 @@ function pathToRegex(path) {
+     // Create a RegExp object with the modified string
+     return new RegExp('^' + regexSafePath + '$');
+ }
+-const sourceMapString = typeof sourceMapString_1.default !== 'function'
++const sourceMapString = sourceMapString_1.default && typeof sourceMapString_1.default === 'function'
++    ? sourceMapString_1.default
++    : (sourceMapString_1.default && sourceMapString_1.default.sourceMapString)
+     ? sourceMapString_1.default.sourceMapString
+-    : sourceMapString_1.default;
++    : sourceMapString_1.sourceMapString;
+ async function graphToSerialAssetsAsync(config, serializeChunkOptions, ...props) {
+     const [entryFile, preModules, graph, options] = props;
+     const cssDeps = (0, getCssDeps_1.getCssSerialAssets)(graph.dependencies, {
+diff --git a/node_modules/@expo/metro-config/build/serializer/serializeChunks.js.backup b/node_modules/@expo/metro-config/build/serializer/serializeChunks.js.backup
+new file mode 100644
+index 0000000..447fe14
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/serializer/serializeChunks.js.backup
+@@ -0,0 +1,530 @@
++"use strict";
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.getSortedModules = exports.Chunk = exports.graphToSerialAssetsAsync = void 0;
++/**
++ * Copyright © 2023 650 Industries.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ */
++const assert_1 = __importDefault(require("assert"));
++const sourceMapString_1 = __importDefault(require("metro/src/DeltaBundler/Serializers/sourceMapString"));
++const bundleToString_1 = __importDefault(require("metro/src/lib/bundleToString"));
++const path_1 = __importDefault(require("path"));
++const debugId_1 = require("./debugId");
++const exportHermes_1 = require("./exportHermes");
++const exportPath_1 = require("./exportPath");
++const baseJSBundle_1 = require("./fork/baseJSBundle");
++const getCssDeps_1 = require("./getCssDeps");
++const getAssets_1 = __importDefault(require("../transform-worker/getAssets"));
++const filePath_1 = require("../utils/filePath");
++// Convert file paths to regex matchers.
++function pathToRegex(path) {
++    // Escape regex special characters, except for '*'
++    let regexSafePath = path.replace(/[-[\]{}()+?.,\\^$|#\s]/g, '\\$&');
++    // Replace '*' with '.*' to act as a wildcard in regex
++    regexSafePath = regexSafePath.replace(/\*/g, '.*');
++    // Create a RegExp object with the modified string
++    return new RegExp('^' + regexSafePath + '$');
++}
++const sourceMapString = typeof sourceMapString_1.default !== 'function'
++    ? sourceMapString_1.default.sourceMapString
++    : sourceMapString_1.default;
++async function graphToSerialAssetsAsync(config, serializeChunkOptions, ...props) {
++    const [entryFile, preModules, graph, options] = props;
++    const cssDeps = (0, getCssDeps_1.getCssSerialAssets)(graph.dependencies, {
++        entryFile,
++        projectRoot: options.projectRoot,
++    });
++    // Create chunks for splitting.
++    const chunks = new Set();
++    [
++        {
++            test: pathToRegex(entryFile),
++        },
++    ].map((chunkSettings) => gatherChunks(chunks, chunkSettings, preModules, graph, options, false));
++    // Get the common modules and extract them into a separate chunk.
++    const entryChunk = [...chunks.values()].find((chunk) => !chunk.isAsync && chunk.hasAbsolutePath(entryFile));
++    if (entryChunk) {
++        for (const chunk of chunks.values()) {
++            if (chunk !== entryChunk && chunk.isAsync) {
++                for (const dep of chunk.deps.values()) {
++                    if (entryChunk.deps.has(dep)) {
++                        // Remove the dependency from the async chunk since it will be loaded in the main chunk.
++                        chunk.deps.delete(dep);
++                    }
++                }
++            }
++        }
++        const toCompare = [...chunks.values()];
++        const commonDependencies = [];
++        while (toCompare.length) {
++            const chunk = toCompare.shift();
++            for (const chunk2 of toCompare) {
++                if (chunk !== chunk2 && chunk.isAsync && chunk2.isAsync) {
++                    const commonDeps = [...chunk.deps].filter((dep) => chunk2.deps.has(dep));
++                    for (const dep of commonDeps) {
++                        chunk.deps.delete(dep);
++                        chunk2.deps.delete(dep);
++                    }
++                    commonDependencies.push(...commonDeps);
++                }
++            }
++        }
++        // If common dependencies were found, extract them to the entry chunk.
++        // TODO: Extract the metro-runtime to a common chunk apart from the entry chunk then load the common dependencies before the entry chunk.
++        if (commonDependencies.length) {
++            for (const dep of commonDependencies) {
++                entryChunk.deps.add(dep);
++            }
++            // const commonDependenciesUnique = [...new Set(commonDependencies)];
++            // const commonChunk = new Chunk(
++            //   chunkIdForModules(commonDependenciesUnique),
++            //   commonDependenciesUnique,
++            //   graph,
++            //   options,
++            //   false,
++            //   true
++            // );
++            // entryChunk.requiredChunks.add(commonChunk);
++            // chunks.add(commonChunk);
++        }
++        // TODO: Optimize this pass more.
++        // Remove all dependencies from async chunks that are already in the common chunk.
++        for (const chunk of [...chunks.values()]) {
++            if (chunk !== entryChunk) {
++                for (const dep of chunk.deps) {
++                    if (entryChunk.deps.has(dep)) {
++                        chunk.deps.delete(dep);
++                    }
++                }
++            }
++        }
++    }
++    const jsAssets = await serializeChunksAsync(chunks, config.serializer ?? {}, serializeChunkOptions);
++    // TODO: Can this be anything besides true?
++    const isExporting = true;
++    const baseUrl = (0, baseJSBundle_1.getBaseUrlOption)(graph, { serializerOptions: serializeChunkOptions });
++    const assetPublicUrl = (baseUrl.replace(/\/+$/, '') ?? '') + '/assets';
++    const publicPath = isExporting
++        ? graph.transformOptions.platform === 'web'
++            ? `/assets?export_path=${assetPublicUrl}`
++            : assetPublicUrl
++        : '/assets/?unstable_path=.';
++    // TODO: Convert to serial assets
++    // TODO: Disable this call dynamically in development since assets are fetched differently.
++    const metroAssets = (await (0, getAssets_1.default)(graph.dependencies, {
++        processModuleFilter: options.processModuleFilter,
++        assetPlugins: config.transformer?.assetPlugins ?? [],
++        platform: (0, baseJSBundle_1.getPlatformOption)(graph, options) ?? 'web',
++        projectRoot: options.projectRoot,
++        publicPath,
++    }));
++    return {
++        artifacts: [...jsAssets, ...cssDeps],
++        assets: metroAssets,
++    };
++}
++exports.graphToSerialAssetsAsync = graphToSerialAssetsAsync;
++class Chunk {
++    name;
++    entries;
++    graph;
++    options;
++    isAsync;
++    isVendor;
++    deps = new Set();
++    preModules = new Set();
++    // Chunks that are required to be loaded synchronously before this chunk.
++    // These are included in the HTML as <script> tags.
++    requiredChunks = new Set();
++    constructor(name, entries, graph, options, isAsync = false, isVendor = false) {
++        this.name = name;
++        this.entries = entries;
++        this.graph = graph;
++        this.options = options;
++        this.isAsync = isAsync;
++        this.isVendor = isVendor;
++        this.deps = new Set(entries);
++    }
++    getPlatform() {
++        (0, assert_1.default)(this.graph.transformOptions.platform, "platform is required to be in graph's transformOptions");
++        return this.graph.transformOptions.platform;
++    }
++    getFilename(src) {
++        return this.options.dev
++            ? this.name
++            : (0, exportPath_1.getExportPathForDependencyWithOptions)(this.name, {
++                platform: this.getPlatform(),
++                src,
++                serverRoot: this.options.serverRoot,
++            });
++    }
++    getStableChunkSource(serializerConfig) {
++        return this.options.dev
++            ? ''
++            : this.serializeToCodeWithTemplates(serializerConfig, {
++                // Disable source maps when creating a sha to reduce the number of possible changes that could
++                // influence the cache hit.
++                serializerOptions: {
++                    includeSourceMaps: false,
++                },
++                sourceMapUrl: undefined,
++                debugId: undefined,
++            }).code;
++    }
++    getFilenameForConfig(serializerConfig) {
++        return this.getFilename(this.getStableChunkSource(serializerConfig));
++    }
++    serializeToCodeWithTemplates(serializerConfig, options = {}) {
++        const entryFile = this.name;
++        // TODO: Disable all debugId steps when a dev server is enabled. This is an export-only feature.
++        const preModules = [...(options.preModules ?? this.preModules).values()];
++        const dependencies = [...this.deps];
++        const jsSplitBundle = (0, baseJSBundle_1.baseJSBundleWithDependencies)(entryFile, preModules, dependencies, {
++            ...this.options,
++            runBeforeMainModule: serializerConfig?.getModulesRunBeforeMainModule?.(path_1.default.relative(this.options.projectRoot, entryFile)) ?? [],
++            runModule: this.options.runModule && !this.isVendor && !this.isAsync,
++            modulesOnly: this.options.modulesOnly || preModules.length === 0,
++            platform: this.getPlatform(),
++            baseUrl: (0, baseJSBundle_1.getBaseUrlOption)(this.graph, this.options),
++            splitChunks: !!this.options.serializerOptions?.splitChunks,
++            skipWrapping: true,
++            computedAsyncModulePaths: null,
++            ...options,
++        });
++        return { code: (0, bundleToString_1.default)(jsSplitBundle).code, paths: jsSplitBundle.paths };
++    }
++    hasAbsolutePath(absolutePath) {
++        return [...this.deps].some((module) => module.path === absolutePath);
++    }
++    getComputedPathsForAsyncDependencies(serializerConfig, chunks) {
++        const baseUrl = (0, baseJSBundle_1.getBaseUrlOption)(this.graph, this.options);
++        // Only calculate production paths when all chunks are being exported.
++        if (this.options.includeAsyncPaths) {
++            return null;
++        }
++        const computedAsyncModulePaths = {};
++        this.deps.forEach((module) => {
++            module.dependencies.forEach((dependency) => {
++                if (dependency.data.data.asyncType) {
++                    const chunkContainingModule = chunks.find((chunk) => chunk.hasAbsolutePath(dependency.absolutePath));
++                    (0, assert_1.default)(chunkContainingModule, 'Chunk containing module not found: ' + dependency.absolutePath);
++                    // NOTE(kitten): We shouldn't have any async imports on non-async chunks
++                    // However, due to how chunks merge, some async imports may now be pointing
++                    // at entrypoint (or vendor) chunks. We omit the path so that the async import
++                    // helper doesn't reload and reevaluate the entrypoint.
++                    if (chunkContainingModule.isAsync) {
++                        const moduleIdName = chunkContainingModule.getFilenameForConfig(serializerConfig);
++                        computedAsyncModulePaths[dependency.absolutePath] = (baseUrl ?? '/') + moduleIdName;
++                    }
++                }
++            });
++        });
++        return computedAsyncModulePaths;
++    }
++    getAdjustedSourceMapUrl(serializerConfig) {
++        // Metro really only accounts for development, so we'll use the defaults here.
++        if (this.options.dev) {
++            return this.options.sourceMapUrl ?? null;
++        }
++        if (this.options.serializerOptions?.includeSourceMaps !== true) {
++            return null;
++        }
++        if (this.options.inlineSourceMap || !this.options.sourceMapUrl) {
++            return this.options.sourceMapUrl ?? null;
++        }
++        const platform = this.getPlatform();
++        const isAbsolute = platform !== 'web';
++        const baseUrl = (0, baseJSBundle_1.getBaseUrlOption)(this.graph, this.options);
++        const filename = this.getFilenameForConfig(serializerConfig);
++        const isAbsoluteBaseUrl = !!baseUrl?.match(/https?:\/\//);
++        const pathname = (isAbsoluteBaseUrl ? '' : baseUrl.replace(/\/+$/, '')) +
++            '/' +
++            filename.replace(/^\/+$/, '') +
++            '.map';
++        let adjustedSourceMapUrl = this.options.sourceMapUrl;
++        // Metro has lots of issues...
++        if (this.options.sourceMapUrl.startsWith('//localhost')) {
++            adjustedSourceMapUrl = 'http:' + this.options.sourceMapUrl;
++        }
++        try {
++            const parsed = new URL(pathname, isAbsoluteBaseUrl ? baseUrl : adjustedSourceMapUrl);
++            if (isAbsoluteBaseUrl || isAbsolute) {
++                return parsed.href;
++            }
++            return parsed.pathname;
++        }
++        catch (error) {
++            // NOTE: export:embed that don't use baseUrl will use file paths instead of URLs.
++            if (!this.options.dev && isAbsolute) {
++                return adjustedSourceMapUrl;
++            }
++            console.error(`Failed to link source maps because the source map URL "${this.options.sourceMapUrl}" is corrupt:`, error);
++            return null;
++        }
++    }
++    serializeToCode(serializerConfig, { debugId, chunks, preModules }) {
++        return this.serializeToCodeWithTemplates(serializerConfig, {
++            skipWrapping: false,
++            sourceMapUrl: this.getAdjustedSourceMapUrl(serializerConfig) ?? undefined,
++            computedAsyncModulePaths: this.getComputedPathsForAsyncDependencies(serializerConfig, chunks),
++            debugId,
++            preModules,
++        });
++    }
++    boolishTransformOption(name) {
++        const value = this.graph.transformOptions?.customTransformOptions?.[name];
++        return value === true || value === 'true' || value === '1';
++    }
++    async serializeToAssetsAsync(serializerConfig, chunks, { includeSourceMaps, unstable_beforeAssetSerializationPlugins }) {
++        // Create hash without wrapping to prevent it changing when the wrapping changes.
++        const outputFile = this.getFilenameForConfig(serializerConfig);
++        // We already use a stable hash for the output filename, so we'll reuse that for the debugId.
++        const debugId = (0, debugId_1.stringToUUID)(path_1.default.basename(outputFile, path_1.default.extname(outputFile)));
++        let finalPreModules = [...this.preModules];
++        if (unstable_beforeAssetSerializationPlugins) {
++            for (const plugin of unstable_beforeAssetSerializationPlugins) {
++                finalPreModules = plugin({
++                    graph: this.graph,
++                    premodules: finalPreModules,
++                    debugId,
++                });
++            }
++        }
++        const jsCode = this.serializeToCode(serializerConfig, {
++            chunks,
++            debugId,
++            preModules: new Set(finalPreModules),
++        });
++        const relativeEntry = path_1.default.relative(this.options.projectRoot, this.name);
++        const jsAsset = {
++            filename: outputFile,
++            originFilename: relativeEntry,
++            type: 'js',
++            metadata: {
++                isAsync: this.isAsync,
++                requires: [...this.requiredChunks.values()].map((chunk) => chunk.getFilenameForConfig(serializerConfig)),
++                // Provide a list of module paths that can be used for matching chunks to routes.
++                // TODO: Move HTML serializing closer to this code so we can reduce passing this much data around.
++                modulePaths: [...this.deps].map((module) => module.path),
++                paths: jsCode.paths,
++                expoDomComponentReferences: [
++                    ...new Set([...this.deps]
++                        .map((module) => {
++                        return module.output.map((output) => {
++                            if ('expoDomComponentReference' in output.data &&
++                                typeof output.data.expoDomComponentReference === 'string') {
++                                return output.data.expoDomComponentReference;
++                            }
++                            return undefined;
++                        });
++                    })
++                        .flat()),
++                ].filter((value) => typeof value === 'string'),
++                reactClientReferences: [
++                    ...new Set([...this.deps]
++                        .map((module) => {
++                        return module.output.map((output) => {
++                            if ('reactClientReference' in output.data &&
++                                typeof output.data.reactClientReference === 'string') {
++                                return output.data.reactClientReference;
++                            }
++                            return undefined;
++                        });
++                    })
++                        .flat()),
++                ].filter((value) => typeof value === 'string'),
++                reactServerReferences: [
++                    ...new Set([...this.deps]
++                        .map((module) => {
++                        return module.output.map((output) => {
++                            if ('reactServerReference' in output.data &&
++                                typeof output.data.reactServerReference === 'string') {
++                                return output.data.reactServerReference;
++                            }
++                            return undefined;
++                        });
++                    })
++                        .flat()),
++                ].filter((value) => typeof value === 'string'),
++            },
++            source: jsCode.code,
++        };
++        const assets = [jsAsset];
++        const mutateSourceMapWithDebugId = (sourceMap) => {
++            // TODO: Upstream this so we don't have to parse the source map back and forth.
++            if (!debugId) {
++                return sourceMap;
++            }
++            // NOTE: debugId isn't required for inline source maps because the source map is included in the same file, therefore
++            // we don't need to disambiguate between multiple source maps.
++            const sourceMapObject = JSON.parse(sourceMap);
++            sourceMapObject.debugId = debugId;
++            // NOTE: Sentry does this, but bun does not.
++            // sourceMapObject.debug_id = debugId;
++            return JSON.stringify(sourceMapObject);
++        };
++        if (
++        // Only include the source map if the `options.sourceMapUrl` option is provided and we are exporting a static build.
++        includeSourceMaps &&
++            !this.options.inlineSourceMap &&
++            this.options.sourceMapUrl) {
++            const modules = [
++                ...finalPreModules,
++                ...getSortedModules([...this.deps], {
++                    createModuleId: this.options.createModuleId,
++                }),
++            ].map((module) => {
++                // TODO: Make this user-configurable.
++                // Make all paths relative to the server root to prevent the entire user filesystem from being exposed.
++                if (path_1.default.isAbsolute(module.path)) {
++                    return {
++                        ...module,
++                        path: '/' +
++                            (0, filePath_1.toPosixPath)(path_1.default.relative(this.options.serverRoot ?? this.options.projectRoot, module.path)),
++                    };
++                }
++                return module;
++            });
++            // TODO: We may not need to mutate the original source map with a `debugId` when hermes is enabled since we'll have different source maps.
++            const sourceMap = mutateSourceMapWithDebugId(sourceMapString(modules, {
++                excludeSource: false,
++                ...this.options,
++            }));
++            assets.push({
++                filename: this.options.dev ? jsAsset.filename + '.map' : outputFile + '.map',
++                originFilename: jsAsset.originFilename,
++                type: 'map',
++                metadata: {},
++                source: sourceMap,
++            });
++        }
++        if (this.boolishTransformOption('bytecode') && this.isHermesEnabled()) {
++            const adjustedSource = jsAsset.source.replace(/^\/\/# (sourceMappingURL)=(.*)$/gm, (...props) => {
++                if (props[1] === 'sourceMappingURL') {
++                    const mapName = props[2].replace(/\.js\.map$/, '.hbc.map');
++                    return `//# ${props[1]}=` + mapName;
++                }
++                return '';
++            });
++            // TODO: Generate hbc for each chunk
++            const hermesBundleOutput = await (0, exportHermes_1.buildHermesBundleAsync)({
++                filename: this.name,
++                code: adjustedSource,
++                map: assets[1] ? assets[1].source : null,
++                // TODO: Maybe allow prod + no minify.
++                minify: true, //!this.options.dev,
++            });
++            if (hermesBundleOutput.hbc) {
++                // TODO: Unclear if we should add multiple assets, link the assets, or mutate the first asset.
++                // jsAsset.metadata.hbc = hermesBundleOutput.hbc;
++                // @ts-expect-error: TODO
++                jsAsset.source = hermesBundleOutput.hbc;
++                jsAsset.filename = jsAsset.filename.replace(/\.js$/, '.hbc');
++                // Replace mappings with hbc
++                if (jsAsset.metadata.paths) {
++                    jsAsset.metadata.paths = Object.fromEntries(Object.entries(jsAsset.metadata.paths).map(([key, value]) => [
++                        key,
++                        Object.fromEntries(Object.entries(value).map(([key, value]) => [
++                            key,
++                            value ? value.replace(/\.js$/, '.hbc') : value,
++                        ])),
++                    ]));
++                }
++            }
++            if (assets[1] && hermesBundleOutput.sourcemap) {
++                assets[1].source = mutateSourceMapWithDebugId(hermesBundleOutput.sourcemap);
++                assets[1].filename = assets[1].filename.replace(/\.js\.map$/, '.hbc.map');
++            }
++        }
++        return assets;
++    }
++    supportsBytecode() {
++        return this.getPlatform() !== 'web';
++    }
++    isHermesEnabled() {
++        // TODO: Revisit.
++        // TODO: There could be an issue with having the serializer for export:embed output hermes since the native scripts will
++        // also create hermes bytecode. We may need to disable in one of the two places.
++        return (!this.options.dev &&
++            this.supportsBytecode() &&
++            this.graph.transformOptions.customTransformOptions?.engine === 'hermes');
++    }
++}
++exports.Chunk = Chunk;
++function getEntryModulesForChunkSettings(graph, settings) {
++    return [...graph.dependencies.entries()]
++        .filter(([path]) => settings.test.test(path))
++        .map(([, module]) => module);
++}
++function chunkIdForModules(modules) {
++    return modules
++        .map((module) => module.path)
++        .sort()
++        .join('=>');
++}
++function gatherChunks(chunks, settings, preModules, graph, options, isAsync = false) {
++    let entryModules = getEntryModulesForChunkSettings(graph, settings);
++    const existingChunks = [...chunks.values()];
++    entryModules = entryModules.filter((module) => {
++        return !existingChunks.find((chunk) => chunk.entries.includes(module));
++    });
++    // Prevent processing the same entry file twice.
++    if (!entryModules.length) {
++        return chunks;
++    }
++    const entryChunk = new Chunk(chunkIdForModules(entryModules), entryModules, graph, options, isAsync);
++    // Add all the pre-modules to the first chunk.
++    if (preModules.length) {
++        // On native, use the preModules in insert code in the entry chunk.
++        for (const module of preModules.values()) {
++            entryChunk.preModules.add(module);
++        }
++    }
++    chunks.add(entryChunk);
++    function includeModule(entryModule) {
++        for (const dependency of entryModule.dependencies.values()) {
++            if (dependency.data.data.asyncType &&
++                // Support disabling multiple chunks.
++                entryChunk.options.serializerOptions?.splitChunks !== false) {
++                gatherChunks(chunks, { test: pathToRegex(dependency.absolutePath) }, [], graph, options, true);
++            }
++            else {
++                const module = graph.dependencies.get(dependency.absolutePath);
++                if (module) {
++                    // Prevent circular dependencies from creating infinite loops.
++                    if (!entryChunk.deps.has(module)) {
++                        entryChunk.deps.add(module);
++                        includeModule(module);
++                    }
++                }
++            }
++        }
++    }
++    for (const entryModule of entryModules) {
++        includeModule(entryModule);
++    }
++    return chunks;
++}
++async function serializeChunksAsync(chunks, serializerConfig, options) {
++    const jsAssets = [];
++    const chunksArray = [...chunks.values()];
++    await Promise.all(chunksArray.map(async (chunk) => {
++        jsAssets.push(...(await chunk.serializeToAssetsAsync(serializerConfig, chunksArray, options)));
++    }));
++    return jsAssets;
++}
++function getSortedModules(modules, { createModuleId, }) {
++    // Assign IDs to modules in a consistent order
++    for (const module of modules) {
++        createModuleId(module.path);
++    }
++    // Sort by IDs
++    return modules.sort((a, b) => createModuleId(a.path) - createModuleId(b.path));
++}
++exports.getSortedModules = getSortedModules;
++//# sourceMappingURL=serializeChunks.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/serializer/withExpoSerializers.js b/node_modules/@expo/metro-config/build/serializer/withExpoSerializers.js
+index e9f4e2d..cab3509 100644
+--- a/node_modules/@expo/metro-config/build/serializer/withExpoSerializers.js
++++ b/node_modules/@expo/metro-config/build/serializer/withExpoSerializers.js
+@@ -11,8 +11,8 @@ exports.createSerializerFromSerialProcessors = exports.createDefaultExportCustom
+  * LICENSE file in the root directory of this source tree.
+  */
+ const jsc_safe_url_1 = require("jsc-safe-url");
+-const sourceMapString_1 = __importDefault(require("metro/src/DeltaBundler/Serializers/sourceMapString"));
+-const bundleToString_1 = __importDefault(require("metro/src/lib/bundleToString"));
++const sourceMapString_1 = __importDefault(require("metro/private/DeltaBundler/Serializers/sourceMapString"));
++const bundleToString_1 = __importDefault(require("metro/private/lib/bundleToString"));
+ const debugId_1 = require("./debugId");
+ const environmentVariableSerializerPlugin_1 = require("./environmentVariableSerializerPlugin");
+ const baseJSBundle_1 = require("./fork/baseJSBundle");
+@@ -20,9 +20,11 @@ const reconcileTransformSerializerPlugin_1 = require("./reconcileTransformSerial
+ const serializeChunks_1 = require("./serializeChunks");
+ const treeShakeSerializerPlugin_1 = require("./treeShakeSerializerPlugin");
+ const env_1 = require("../env");
+-const sourceMapString = typeof sourceMapString_1.default !== 'function'
++const sourceMapString = sourceMapString_1.default && typeof sourceMapString_1.default === 'function'
++    ? sourceMapString_1.default
++    : (sourceMapString_1.default && sourceMapString_1.default.sourceMapString)
+     ? sourceMapString_1.default.sourceMapString
+-    : sourceMapString_1.default;
++    : sourceMapString_1.sourceMapString;
+ function withExpoSerializers(config, options = {}) {
+     const processors = [];
+     processors.push(environmentVariableSerializerPlugin_1.serverPreludeSerializerPlugin);
+diff --git a/node_modules/@expo/metro-config/build/serializer/withExpoSerializers.js.backup b/node_modules/@expo/metro-config/build/serializer/withExpoSerializers.js.backup
+new file mode 100644
+index 0000000..e9f4e2d
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/serializer/withExpoSerializers.js.backup
+@@ -0,0 +1,244 @@
++"use strict";
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.createSerializerFromSerialProcessors = exports.createDefaultExportCustomSerializer = exports.withSerializerPlugins = exports.withExpoSerializers = void 0;
++/**
++ * Copyright © 2022 650 Industries.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ */
++const jsc_safe_url_1 = require("jsc-safe-url");
++const sourceMapString_1 = __importDefault(require("metro/src/DeltaBundler/Serializers/sourceMapString"));
++const bundleToString_1 = __importDefault(require("metro/src/lib/bundleToString"));
++const debugId_1 = require("./debugId");
++const environmentVariableSerializerPlugin_1 = require("./environmentVariableSerializerPlugin");
++const baseJSBundle_1 = require("./fork/baseJSBundle");
++const reconcileTransformSerializerPlugin_1 = require("./reconcileTransformSerializerPlugin");
++const serializeChunks_1 = require("./serializeChunks");
++const treeShakeSerializerPlugin_1 = require("./treeShakeSerializerPlugin");
++const env_1 = require("../env");
++const sourceMapString = typeof sourceMapString_1.default !== 'function'
++    ? sourceMapString_1.default.sourceMapString
++    : sourceMapString_1.default;
++function withExpoSerializers(config, options = {}) {
++    const processors = [];
++    processors.push(environmentVariableSerializerPlugin_1.serverPreludeSerializerPlugin);
++    if (!env_1.env.EXPO_NO_CLIENT_ENV_VARS) {
++        processors.push(environmentVariableSerializerPlugin_1.environmentVariableSerializerPlugin);
++    }
++    // Then tree-shake the modules.
++    processors.push(treeShakeSerializerPlugin_1.treeShakeSerializer);
++    // Then finish transforming the modules from AST to JS.
++    processors.push(reconcileTransformSerializerPlugin_1.reconcileTransformSerializerPlugin);
++    return withSerializerPlugins(config, processors, options);
++}
++exports.withExpoSerializers = withExpoSerializers;
++// There can only be one custom serializer as the input doesn't match the output.
++// Here we simply run
++function withSerializerPlugins(config, processors, options = {}) {
++    const originalSerializer = config.serializer?.customSerializer;
++    return {
++        ...config,
++        serializer: {
++            ...config.serializer,
++            customSerializer: createSerializerFromSerialProcessors(config, processors, originalSerializer ?? null, options),
++        },
++    };
++}
++exports.withSerializerPlugins = withSerializerPlugins;
++function createDefaultExportCustomSerializer(config, configOptions = {}) {
++    return async (entryPoint, preModules, graph, inputOptions) => {
++        const isPossiblyDev = graph.transformOptions.hot;
++        // TODO: This is a temporary solution until we've converged on using the new serializer everywhere.
++        const enableDebugId = inputOptions.inlineSourceMap !== true && !isPossiblyDev;
++        const context = {
++            platform: graph.transformOptions?.platform,
++            environment: graph.transformOptions?.customTransformOptions?.environment ?? 'client',
++        };
++        const options = {
++            ...inputOptions,
++            createModuleId: (moduleId, ...props) => {
++                if (props.length > 0) {
++                    return inputOptions.createModuleId(moduleId, ...props);
++                }
++                return inputOptions.createModuleId(moduleId, 
++                // @ts-expect-error: context is added by Expo and not part of the upstream Metro implementation.
++                context);
++            },
++        };
++        let debugId;
++        const loadDebugId = () => {
++            if (!enableDebugId || debugId) {
++                return debugId;
++            }
++            // TODO: Perform this cheaper.
++            const bundle = (0, baseJSBundle_1.baseJSBundle)(entryPoint, preModules, graph, {
++                ...options,
++                debugId: undefined,
++            });
++            const outputCode = (0, bundleToString_1.default)(bundle).code;
++            debugId = (0, debugId_1.stringToUUID)(outputCode);
++            return debugId;
++        };
++        let premodulesToBundle = [...preModules];
++        let bundleCode = null;
++        let bundleMap = null;
++        if (config.serializer?.customSerializer) {
++            const bundle = await config.serializer?.customSerializer(entryPoint, premodulesToBundle, graph, options);
++            if (typeof bundle === 'string') {
++                bundleCode = bundle;
++            }
++            else {
++                bundleCode = bundle.code;
++                bundleMap = bundle.map;
++            }
++        }
++        else {
++            const debugId = loadDebugId();
++            if (configOptions.unstable_beforeAssetSerializationPlugins) {
++                for (const plugin of configOptions.unstable_beforeAssetSerializationPlugins) {
++                    premodulesToBundle = plugin({ graph, premodules: [...premodulesToBundle], debugId });
++                }
++            }
++            bundleCode = (0, bundleToString_1.default)((0, baseJSBundle_1.baseJSBundle)(entryPoint, premodulesToBundle, graph, {
++                ...options,
++                debugId,
++            })).code;
++        }
++        const getEnsuredMaps = () => {
++            bundleMap ??= sourceMapString([...premodulesToBundle, ...(0, serializeChunks_1.getSortedModules)([...graph.dependencies.values()], options)], {
++                // TODO: Surface this somehow.
++                excludeSource: false,
++                // excludeSource: options.serializerOptions?.excludeSource,
++                processModuleFilter: options.processModuleFilter,
++                shouldAddToIgnoreList: options.shouldAddToIgnoreList,
++            });
++            return bundleMap;
++        };
++        if (!bundleMap && options.sourceUrl) {
++            const url = (0, jsc_safe_url_1.isJscSafeUrl)(options.sourceUrl)
++                ? (0, jsc_safe_url_1.toNormalUrl)(options.sourceUrl)
++                : options.sourceUrl;
++            const parsed = new URL(url, 'http://expo.dev');
++            // Is dev server request for source maps...
++            if (parsed.pathname.endsWith('.map')) {
++                return {
++                    code: bundleCode,
++                    map: getEnsuredMaps(),
++                };
++            }
++        }
++        if (isPossiblyDev) {
++            if (bundleMap == null) {
++                return bundleCode;
++            }
++            return {
++                code: bundleCode,
++                map: bundleMap,
++            };
++        }
++        // Exports....
++        bundleMap ??= getEnsuredMaps();
++        if (enableDebugId) {
++            const mutateSourceMapWithDebugId = (sourceMap) => {
++                // NOTE: debugId isn't required for inline source maps because the source map is included in the same file, therefore
++                // we don't need to disambiguate between multiple source maps.
++                const sourceMapObject = JSON.parse(sourceMap);
++                sourceMapObject.debugId = loadDebugId();
++                // NOTE: Sentry does this, but bun does not.
++                // sourceMapObject.debug_id = debugId;
++                return JSON.stringify(sourceMapObject);
++            };
++            return {
++                code: bundleCode,
++                map: mutateSourceMapWithDebugId(bundleMap),
++            };
++        }
++        return {
++            code: bundleCode,
++            map: bundleMap,
++        };
++    };
++}
++exports.createDefaultExportCustomSerializer = createDefaultExportCustomSerializer;
++function getDefaultSerializer(config, fallbackSerializer, configOptions = {}) {
++    const defaultSerializer = fallbackSerializer ?? createDefaultExportCustomSerializer(config, configOptions);
++    return async (entryPoint, preModules, graph, inputOptions) => {
++        const context = {
++            platform: graph.transformOptions?.platform,
++            environment: graph.transformOptions?.customTransformOptions?.environment ?? 'client',
++        };
++        const options = {
++            ...inputOptions,
++            createModuleId: (moduleId, ...props) => {
++                if (props.length > 0) {
++                    return inputOptions.createModuleId(moduleId, ...props);
++                }
++                return inputOptions.createModuleId(moduleId, 
++                // @ts-expect-error: context is added by Expo and not part of the upstream Metro implementation.
++                context);
++            },
++        };
++        const customSerializerOptions = inputOptions.serializerOptions;
++        // Custom options can only be passed outside of the dev server, meaning
++        // we don't need to stringify the results at the end, i.e. this is `npx expo export` or `npx expo export:embed`.
++        const supportsNonSerialReturn = !!customSerializerOptions?.output;
++        const serializerOptions = (() => {
++            if (customSerializerOptions) {
++                return {
++                    outputMode: customSerializerOptions.output,
++                    splitChunks: customSerializerOptions.splitChunks,
++                    usedExports: customSerializerOptions.usedExports,
++                    includeSourceMaps: customSerializerOptions.includeSourceMaps,
++                };
++            }
++            if (options.sourceUrl) {
++                const sourceUrl = (0, jsc_safe_url_1.isJscSafeUrl)(options.sourceUrl)
++                    ? (0, jsc_safe_url_1.toNormalUrl)(options.sourceUrl)
++                    : options.sourceUrl;
++                const url = new URL(sourceUrl, 'https://expo.dev');
++                return {
++                    outputMode: url.searchParams.get('serializer.output'),
++                    usedExports: url.searchParams.get('serializer.usedExports') === 'true',
++                    splitChunks: url.searchParams.get('serializer.splitChunks') === 'true',
++                    includeSourceMaps: url.searchParams.get('serializer.map') === 'true',
++                };
++            }
++            return null;
++        })();
++        if (serializerOptions?.outputMode !== 'static') {
++            return defaultSerializer(entryPoint, preModules, graph, options);
++        }
++        // Mutate the serializer options with the parsed options.
++        options.serializerOptions = {
++            ...options.serializerOptions,
++            ...serializerOptions,
++        };
++        const assets = await (0, serializeChunks_1.graphToSerialAssetsAsync)(config, {
++            includeSourceMaps: !!serializerOptions.includeSourceMaps,
++            splitChunks: !!serializerOptions.splitChunks,
++            ...configOptions,
++        }, entryPoint, preModules, graph, options);
++        if (supportsNonSerialReturn) {
++            // @ts-expect-error: this is future proofing for adding assets to the output as well.
++            return assets;
++        }
++        return JSON.stringify(assets);
++    };
++}
++function createSerializerFromSerialProcessors(config, processors, originalSerializer, options = {}) {
++    const finalSerializer = getDefaultSerializer(config, originalSerializer, options);
++    return async (...props) => {
++        for (const processor of processors) {
++            if (processor) {
++                props = await processor(...props);
++            }
++        }
++        return finalSerializer(...props);
++    };
++}
++exports.createSerializerFromSerialProcessors = createSerializerFromSerialProcessors;
++//# sourceMappingURL=withExpoSerializers.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/asset-transformer.js b/node_modules/@expo/metro-config/build/transform-worker/asset-transformer.js
+index a73b5ef..35738c4 100644
+--- a/node_modules/@expo/metro-config/build/transform-worker/asset-transformer.js
++++ b/node_modules/@expo/metro-config/build/transform-worker/asset-transformer.js
+@@ -39,7 +39,7 @@ exports.transform = void 0;
+  */
+ const template_1 = __importDefault(require("@babel/template"));
+ const t = __importStar(require("@babel/types"));
+-const util_1 = require("metro/src/Bundler/util");
++const util_1 = require("metro/private/Bundler/util");
+ const node_path_1 = __importDefault(require("node:path"));
+ const node_url_1 = __importDefault(require("node:url"));
+ const getAssets_1 = require("./getAssets");
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/asset-transformer.js.backup b/node_modules/@expo/metro-config/build/transform-worker/asset-transformer.js.backup
+new file mode 100644
+index 0000000..a73b5ef
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/transform-worker/asset-transformer.js.backup
+@@ -0,0 +1,135 @@
++"use strict";
++var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    var desc = Object.getOwnPropertyDescriptor(m, k);
++    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
++      desc = { enumerable: true, get: function() { return m[k]; } };
++    }
++    Object.defineProperty(o, k2, desc);
++}) : (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    o[k2] = m[k];
++}));
++var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
++    Object.defineProperty(o, "default", { enumerable: true, value: v });
++}) : function(o, v) {
++    o["default"] = v;
++});
++var __importStar = (this && this.__importStar) || function (mod) {
++    if (mod && mod.__esModule) return mod;
++    var result = {};
++    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
++    __setModuleDefault(result, mod);
++    return result;
++};
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.transform = void 0;
++/**
++ * Copyright 2023-present 650 Industries (Expo). All rights reserved.
++ * Copyright (c) Meta Platforms, Inc. and affiliates.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ *
++ * Fork of the upstream transformer, but with modifications made for web production hashing.
++ * https://github.com/facebook/metro/blob/412771475c540b6f85d75d9dcd5a39a6e0753582/packages/metro-transform-worker/src/utils/assetTransformer.js#L1
++ */
++const template_1 = __importDefault(require("@babel/template"));
++const t = __importStar(require("@babel/types"));
++const util_1 = require("metro/src/Bundler/util");
++const node_path_1 = __importDefault(require("node:path"));
++const node_url_1 = __importDefault(require("node:url"));
++const getAssets_1 = require("./getAssets");
++// Register client components for assets in server component environments.
++const buildClientReferenceRequire = template_1.default.statement(`module.exports = require('react-server-dom-webpack/server').createClientModuleProxy(FILE_PATH);`);
++const buildStringRef = template_1.default.statement(`module.exports = FILE_PATH;`);
++const buildStaticObjectRef = template_1.default.statement(
++// Matches the `ImageSource` type from React Native: https://reactnative.dev/docs/image#source
++`module.exports = { uri: FILE_PATH, width: WIDTH, height: HEIGHT };`);
++async function transform({ filename, options, }, assetRegistryPath, assetDataPlugins) {
++    options ??= options || {
++        platform: '',
++        projectRoot: '',
++    };
++    // Is bundling for webview.
++    const isDomComponent = options.platform === 'web' && options.customTransformOptions?.dom;
++    const useMd5Filename = options.customTransformOptions?.useMd5Filename;
++    const isExport = options.publicPath.includes('?export_path=');
++    const isReactServer = options.customTransformOptions?.environment === 'react-server';
++    const isServerEnv = isReactServer || options.customTransformOptions?.environment === 'node';
++    const absolutePath = node_path_1.default.resolve(options.projectRoot, filename);
++    const getClientReference = () => isReactServer ? node_url_1.default.pathToFileURL(absolutePath).href : undefined;
++    if ((options.platform !== 'web' ||
++        // React Server DOM components should use the client reference in order to local embedded assets.
++        isDomComponent) &&
++        // NOTE(EvanBacon): There may be value in simply evaluating assets on the server.
++        // Here, we're passing the info back to the client so the multi-resolution asset can be evaluated and downloaded.
++        isReactServer) {
++        const clientReference = getClientReference();
++        return {
++            ast: {
++                ...t.file(t.program([
++                    buildClientReferenceRequire({
++                        FILE_PATH: JSON.stringify(clientReference),
++                    }),
++                ])),
++                errors: [],
++            },
++            reactClientReference: clientReference,
++        };
++    }
++    const data = await (0, getAssets_1.getUniversalAssetData)(absolutePath, filename, assetDataPlugins, options.platform, isDomComponent && isExport
++        ? // If exporting a dom component, we need to use a public path that doesn't start with `/` to ensure that assets are loaded
++            // relative to the `DOM_COMPONENTS_BUNDLE_DIR`.
++            `/assets?export_path=assets`
++        : options.publicPath);
++    if (isServerEnv || options.platform === 'web') {
++        const type = !data.type ? '' : `.${data.type}`;
++        let assetPath;
++        if (useMd5Filename) {
++            assetPath = data.hash + type;
++        }
++        else if (!isExport) {
++            assetPath = data.httpServerLocation + '/' + data.name + type;
++        }
++        else {
++            assetPath = data.httpServerLocation.replace(/\.\.\//g, '_') + '/' + data.name + type;
++        }
++        // If size data is known then it should be passed back to ensure the correct dimensions are used.
++        if (data.width != null || data.height != null) {
++            return {
++                ast: {
++                    ...t.file(t.program([
++                        buildStaticObjectRef({
++                            FILE_PATH: JSON.stringify(assetPath),
++                            WIDTH: data.width != null ? t.numericLiteral(data.width) : t.buildUndefinedNode(),
++                            HEIGHT: data.height != null ? t.numericLiteral(data.height) : t.buildUndefinedNode(),
++                        }),
++                    ])),
++                    errors: [],
++                },
++                reactClientReference: getClientReference(),
++            };
++        }
++        // Use single string references outside of client-side React Native.
++        // module.exports = "/foo/bar.png";
++        return {
++            ast: {
++                ...t.file(t.program([buildStringRef({ FILE_PATH: JSON.stringify(assetPath) })])),
++                errors: [],
++            },
++            reactClientReference: getClientReference(),
++        };
++    }
++    return {
++        ast: {
++            ...(0, util_1.generateAssetCodeFileAst)(assetRegistryPath, data),
++            errors: [],
++        },
++    };
++}
++exports.transform = transform;
++//# sourceMappingURL=asset-transformer.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/getAssets.js b/node_modules/@expo/metro-config/build/transform-worker/getAssets.js
+index 9702524..af58447 100644
+--- a/node_modules/@expo/metro-config/build/transform-worker/getAssets.js
++++ b/node_modules/@expo/metro-config/build/transform-worker/getAssets.js
+@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.getUniversalAssetData = void 0;
+-const Assets_1 = require("metro/src/Assets");
+-const js_1 = require("metro/src/DeltaBundler/Serializers/helpers/js");
++const Assets_1 = require("metro/private/Assets");
++const js_1 = require("metro/private/DeltaBundler/Serializers/helpers/js");
+ const node_assert_1 = __importDefault(require("node:assert"));
+ const node_crypto_1 = __importDefault(require("node:crypto"));
+ const node_path_1 = __importDefault(require("node:path"));
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/getAssets.js.backup b/node_modules/@expo/metro-config/build/transform-worker/getAssets.js.backup
+new file mode 100644
+index 0000000..9702524
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/transform-worker/getAssets.js.backup
+@@ -0,0 +1,49 @@
++"use strict";
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.getUniversalAssetData = void 0;
++const Assets_1 = require("metro/src/Assets");
++const js_1 = require("metro/src/DeltaBundler/Serializers/helpers/js");
++const node_assert_1 = __importDefault(require("node:assert"));
++const node_crypto_1 = __importDefault(require("node:crypto"));
++const node_path_1 = __importDefault(require("node:path"));
++function md5Hash(data) {
++    if (data.length === 1)
++        return data[0];
++    const hash = node_crypto_1.default.createHash('md5');
++    hash.update(data.join(''));
++    return hash.digest('hex');
++}
++function assertHashedAssetData(data) {
++    (0, node_assert_1.default)('fileHashes' in data, 'Assets must have hashed files. Ensure the expo-asset plugin is installed.');
++}
++async function getUniversalAssetData(assetPath, localPath, assetDataPlugins, platform, publicPath) {
++    const data = await (0, Assets_1.getAssetData)(assetPath, localPath, assetDataPlugins, platform, publicPath);
++    assertHashedAssetData(data);
++    // NOTE(EvanBacon): This is where we modify the asset to include a hash in the name for web cache invalidation.
++    if (platform === 'web' && publicPath.includes('?export_path=')) {
++        // `local-image.[contenthash]`. Using `.` but this won't work if we ever apply to Android because Android res files cannot contain `.`.
++        // TODO: Prevent one multi-res image from updating the hash in all images.
++        // @ts-expect-error: name is typed as readonly.
++        data.name = `${data.name}.${md5Hash(data.fileHashes)}`;
++    }
++    return data;
++}
++exports.getUniversalAssetData = getUniversalAssetData;
++async function getAssets(dependencies, options) {
++    const promises = [];
++    const { processModuleFilter } = options;
++    for (const module of dependencies.values()) {
++        if ((0, js_1.isJsModule)(module) &&
++            processModuleFilter(module) &&
++            (0, js_1.getJsOutput)(module).type === 'js/module/asset' &&
++            node_path_1.default.relative(options.projectRoot, module.path) !== 'package.json') {
++            promises.push(getUniversalAssetData(module.path, node_path_1.default.relative(options.projectRoot, module.path), options.assetPlugins, options.platform, options.publicPath));
++        }
++    }
++    return await Promise.all(promises);
++}
++exports.default = getAssets;
++//# sourceMappingURL=getAssets.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js b/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js
+index 59cbbcf..9a66a24 100644
+--- a/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js
++++ b/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js
+@@ -42,8 +42,8 @@ const generator_1 = __importDefault(require("@babel/generator"));
+ const babylon = __importStar(require("@babel/parser"));
+ const template_1 = __importDefault(require("@babel/template"));
+ const t = __importStar(require("@babel/types"));
+-const JsFileWrapping_1 = __importDefault(require("metro/src/ModuleGraph/worker/JsFileWrapping"));
+-const generateImportNames_1 = __importDefault(require("metro/src/ModuleGraph/worker/generateImportNames"));
++const JsFileWrapping_1 = __importDefault(require("metro/private/ModuleGraph/worker/JsFileWrapping"));
++const generateImportNames_1 = __importDefault(require("metro/private/ModuleGraph/worker/generateImportNames"));
+ const metro_cache_1 = require("metro-cache");
+ const metro_cache_key_1 = __importDefault(require("metro-cache-key"));
+ const metro_source_map_1 = require("metro-source-map");
+@@ -558,8 +558,8 @@ function getCacheKey(config) {
+         require.resolve('./collect-dependencies'),
+         require.resolve('./asset-transformer'),
+         require.resolve('./resolveOptions'),
+-        require.resolve('metro/src/ModuleGraph/worker/generateImportNames'),
+-        require.resolve('metro/src/ModuleGraph/worker/JsFileWrapping'),
++        require.resolve('metro/private/ModuleGraph/worker/generateImportNames'),
++        require.resolve('metro/private/ModuleGraph/worker/JsFileWrapping'),
+         ...metro_transform_plugins_1.default.getTransformPluginCacheKeyFiles(),
+     ]);
+     const babelTransformer = require(babelTransformerPath);
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js.backup b/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js.backup
+new file mode 100644
+index 0000000..59cbbcf
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/transform-worker/metro-transform-worker.js.backup
+@@ -0,0 +1,614 @@
++"use strict";
++var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    var desc = Object.getOwnPropertyDescriptor(m, k);
++    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
++      desc = { enumerable: true, get: function() { return m[k]; } };
++    }
++    Object.defineProperty(o, k2, desc);
++}) : (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    o[k2] = m[k];
++}));
++var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
++    Object.defineProperty(o, "default", { enumerable: true, value: v });
++}) : function(o, v) {
++    o["default"] = v;
++});
++var __importStar = (this && this.__importStar) || function (mod) {
++    if (mod && mod.__esModule) return mod;
++    var result = {};
++    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
++    __setModuleDefault(result, mod);
++    return result;
++};
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.collectDependenciesForShaking = exports.getCacheKey = exports.transform = exports.applyImportSupport = exports.minifyCode = exports.InvalidRequireCallError = void 0;
++/**
++ * Copyright 2023-present 650 Industries (Expo). All rights reserved.
++ * Copyright (c) Meta Platforms, Inc. and affiliates.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ *
++ * Fork of the Metro transformer worker, but with additional transforms moved to `babel-preset-expo` and modifications made for web support.
++ * https://github.com/facebook/metro/blob/412771475c540b6f85d75d9dcd5a39a6e0753582/packages/metro-transform-worker/src/index.js#L1
++ */
++const core_1 = require("@babel/core");
++const generator_1 = __importDefault(require("@babel/generator"));
++const babylon = __importStar(require("@babel/parser"));
++const template_1 = __importDefault(require("@babel/template"));
++const t = __importStar(require("@babel/types"));
++const JsFileWrapping_1 = __importDefault(require("metro/src/ModuleGraph/worker/JsFileWrapping"));
++const generateImportNames_1 = __importDefault(require("metro/src/ModuleGraph/worker/generateImportNames"));
++const metro_cache_1 = require("metro-cache");
++const metro_cache_key_1 = __importDefault(require("metro-cache-key"));
++const metro_source_map_1 = require("metro-source-map");
++const metro_transform_plugins_1 = __importDefault(require("metro-transform-plugins"));
++const getMinifier_1 = __importDefault(require("metro-transform-worker/src/utils/getMinifier"));
++const node_assert_1 = __importDefault(require("node:assert"));
++const assetTransformer = __importStar(require("./asset-transformer"));
++const collect_dependencies_1 = __importStar(require("./collect-dependencies"));
++const count_lines_1 = require("./count-lines");
++const resolveOptions_1 = require("./resolveOptions");
++class InvalidRequireCallError extends Error {
++    innerError;
++    filename;
++    constructor(innerError, filename) {
++        super(`${filename}:${innerError.message}`);
++        this.innerError = innerError;
++        this.filename = filename;
++    }
++}
++exports.InvalidRequireCallError = InvalidRequireCallError;
++// asserts non-null
++function nullthrows(x, message) {
++    (0, node_assert_1.default)(x != null, message);
++    return x;
++}
++function getDynamicDepsBehavior(inPackages, filename) {
++    switch (inPackages) {
++        case 'reject':
++            return 'reject';
++        case 'throwAtRuntime':
++            return /(?:^|[/\\])node_modules[/\\]/.test(filename) ? inPackages : 'reject';
++        default:
++            throw new Error(`invalid value for dynamic deps behavior: \`${inPackages}\``);
++    }
++}
++const minifyCode = async (config, filename, code, source, map, reserved = []) => {
++    const sourceMap = (0, metro_source_map_1.fromRawMappings)([
++        {
++            code,
++            source,
++            map,
++            // functionMap is overridden by the serializer
++            functionMap: null,
++            path: filename,
++            // isIgnored is overriden by the serializer
++            isIgnored: false,
++        },
++    ]).toMap(undefined, {});
++    const minify = (0, getMinifier_1.default)(config.minifierPath);
++    try {
++        const minified = await minify({
++            code,
++            map: sourceMap,
++            filename,
++            reserved,
++            config: config.minifierConfig,
++        });
++        return {
++            code: minified.code,
++            map: minified.map ? (0, metro_source_map_1.toBabelSegments)(minified.map).map(metro_source_map_1.toSegmentTuple) : [],
++        };
++    }
++    catch (error) {
++        if (error.constructor.name === 'JS_Parse_Error') {
++            throw new Error(`${error.message} in file ${filename} at ${error.line}:${error.col}`);
++        }
++        throw error;
++    }
++};
++exports.minifyCode = minifyCode;
++function renameTopLevelModuleVariables() {
++    // A babel plugin which renames variables in the top-level scope that are named "module".
++    return {
++        visitor: {
++            Program(path) {
++                ['global', 'require', 'module', 'exports'].forEach((name) => {
++                    path.scope.rename(name, path.scope.generateUidIdentifier(name).name);
++                });
++            },
++        },
++    };
++}
++function applyUseStrictDirective(ast) {
++    // Add "use strict" if the file was parsed as a module, and the directive did
++    // not exist yet.
++    const { directives } = ast.program;
++    if (ast.program.sourceType === 'module' &&
++        directives != null &&
++        directives.findIndex((d) => d.value.value === 'use strict') === -1) {
++        directives.push(t.directive(t.directiveLiteral('use strict')));
++    }
++}
++function applyImportSupport(ast, { filename, options, importDefault, importAll, }) {
++    // Perform the import-export transform (in case it's still needed), then
++    // fold requires and perform constant folding (if in dev).
++    const plugins = [];
++    const babelPluginOpts = {
++        ...options,
++        inlineableCalls: [importDefault, importAll],
++        importDefault,
++        importAll,
++    };
++    // NOTE(EvanBacon): This is effectively a replacement for the `@babel/plugin-transform-modules-commonjs`
++    // plugin that's running in `@react-native/babel-preset`, but with shared names for inlining requires.
++    if (options.experimentalImportSupport === true) {
++        plugins.push(
++        // Ensure the iife "globals" don't have conflicting variables in the module.
++        renameTopLevelModuleVariables, 
++        //
++        [metro_transform_plugins_1.default.importExportPlugin, babelPluginOpts]);
++    }
++    // NOTE(EvanBacon): This can basically never be safely enabled because it doesn't respect side-effects and
++    // has no ability to respect side-effects because the transformer hasn't collected all dependencies yet.
++    if (options.inlineRequires) {
++        plugins.push([
++            metro_transform_plugins_1.default.inlineRequiresPlugin,
++            {
++                ...babelPluginOpts,
++                ignoredRequires: options.nonInlinedRequires,
++            },
++        ]);
++    }
++    // NOTE(EvanBacon): We apply this conditionally in `babel-preset-expo` with other AST transforms.
++    // plugins.push([metroTransformPlugins.inlinePlugin, babelPluginOpts]);
++    // TODO: This MUST be run even though no plugins are added, otherwise the babel runtime generators are broken.
++    if (plugins.length) {
++        ast = nullthrows(
++        // @ts-expect-error
++        (0, core_1.transformFromAstSync)(ast, '', {
++            ast: true,
++            babelrc: false,
++            code: false,
++            configFile: false,
++            comments: true,
++            filename,
++            plugins,
++            sourceMaps: false,
++            // NOTE(kitten): This was done to wipe the paths/scope caches, which the `constantFoldingPlugin` needs to work,
++            // but has been replaced with `programPath.scope.crawl()`.
++            // Old Note from Metro:
++            // > Not-Cloning the input AST here should be safe because other code paths above this call
++            // > are mutating the AST as well and no code is depending on the original AST.
++            // > However, switching the flag to false caused issues with ES Modules if `experimentalImportSupport` isn't used https://github.com/facebook/metro/issues/641
++            // > either because one of the plugins is doing something funky or Babel messes up some caches.
++            // > Make sure to test the above mentioned case before flipping the flag back to false.
++            cloneInputAst: false,
++        })?.ast);
++    }
++    return ast;
++}
++exports.applyImportSupport = applyImportSupport;
++function performConstantFolding(ast, { filename }) {
++    // NOTE(kitten): Any Babel helpers that have been added (`path.hub.addHelper(...)`) will usually not have any
++    // references, and hence the `constantFoldingPlugin` below will remove them.
++    // To fix the references we add an explicit `programPath.scope.crawl()`. Alternatively, we could also wipe the
++    // Babel traversal cache (`traverse.cache.clear()`)
++    const clearProgramScopePlugin = {
++        visitor: {
++            Program: {
++                enter(path) {
++                    path.scope.crawl();
++                },
++            },
++        },
++    };
++    // Run the constant folding plugin in its own pass, avoiding race conditions
++    // with other plugins that have exit() visitors on Program (e.g. the ESM
++    // transform).
++    ast = nullthrows(
++    // @ts-expect-error
++    (0, core_1.transformFromAstSync)(ast, '', {
++        ast: true,
++        babelrc: false,
++        code: false,
++        configFile: false,
++        comments: true,
++        filename,
++        plugins: [clearProgramScopePlugin, metro_transform_plugins_1.default.constantFoldingPlugin],
++        sourceMaps: false,
++        // NOTE(kitten): In Metro, this is also false, but only works because the prior run of `transformFromAstSync` was always
++        // running with `cloneInputAst: true`.
++        // This isn't needed anymore since `clearProgramScopePlugin` re-crawls the AST’s scope instead.
++        cloneInputAst: false,
++    }).ast);
++    return ast;
++}
++async function transformJS(file, { config, options }) {
++    const targetEnv = options.customTransformOptions?.environment;
++    const isServerEnv = targetEnv === 'node' || targetEnv === 'react-server';
++    const optimize = 
++    // Ensure we don't enable tree shaking for scripts or assets.
++    file.type === 'js/module' &&
++        String(options.customTransformOptions?.optimize) === 'true' &&
++        // Disable tree shaking on JSON files.
++        !file.filename.match(/\.(json|s?css|sass)$/);
++    const unstable_disableModuleWrapping = optimize || config.unstable_disableModuleWrapping;
++    if (optimize && !options.experimentalImportSupport) {
++        // Add a warning so devs can incrementally migrate since experimentalImportSupport may cause other issues in their app.
++        throw new Error('Experimental graph optimizations only work with experimentalImportSupport enabled.');
++    }
++    // Transformers can output null ASTs (if they ignore the file). In that case
++    // we need to parse the module source code to get their AST.
++    let ast = file.ast ?? babylon.parse(file.code, { sourceType: 'unambiguous' });
++    // NOTE(EvanBacon): This can be really expensive on larger files. We should replace it with a cheaper alternative that just iterates and matches.
++    const { importDefault, importAll } = (0, generateImportNames_1.default)(ast);
++    // Add "use strict" if the file was parsed as a module, and the directive did
++    // not exist yet.
++    applyUseStrictDirective(ast);
++    const unstable_renameRequire = config.unstable_renameRequire;
++    // Disable all Metro single-file optimizations when full-graph optimization will be used.
++    if (!optimize) {
++        ast = applyImportSupport(ast, { filename: file.filename, options, importDefault, importAll });
++    }
++    if (!options.dev) {
++        ast = performConstantFolding(ast, { filename: file.filename });
++    }
++    let dependencyMapName = '';
++    let dependencies;
++    let wrappedAst;
++    // If the module to transform is a script (meaning that is not part of the
++    // dependency graph and it code will just be prepended to the bundle modules),
++    // we need to wrap it differently than a commonJS module (also, scripts do
++    // not have dependencies).
++    let collectDependenciesOptions;
++    if (file.type === 'js/script') {
++        dependencies = [];
++        wrappedAst = JsFileWrapping_1.default.wrapPolyfill(ast);
++    }
++    else {
++        try {
++            collectDependenciesOptions = {
++                asyncRequireModulePath: config.asyncRequireModulePath,
++                dependencyTransformer: config.unstable_disableModuleWrapping === true
++                    ? disabledDependencyTransformer
++                    : undefined,
++                dynamicRequires: isServerEnv
++                    ? // NOTE(EvanBacon): Allow arbitrary imports in server environments.
++                        // This requires a patch to Metro collectDeps.
++                        'warn'
++                    : getDynamicDepsBehavior(config.dynamicDepsInPackages, file.filename),
++                inlineableCalls: [importDefault, importAll],
++                keepRequireNames: options.dev,
++                allowOptionalDependencies: config.allowOptionalDependencies,
++                dependencyMapName: config.unstable_dependencyMapReservedName,
++                unstable_allowRequireContext: config.unstable_allowRequireContext,
++                // If tree shaking is enabled, then preserve the original require calls.
++                // This ensures require.context calls are not broken.
++                collectOnly: optimize === true,
++            };
++            ({ ast, dependencies, dependencyMapName } = (0, collect_dependencies_1.default)(ast, {
++                ...collectDependenciesOptions,
++                // This setting shouldn't be shared with the tree shaking transformer.
++                dependencyTransformer: unstable_disableModuleWrapping === true ? disabledDependencyTransformer : undefined,
++            }));
++            // Ensure we use the same name for the second pass of the dependency collection in the serializer.
++            collectDependenciesOptions = {
++                ...collectDependenciesOptions,
++                dependencyMapName,
++            };
++        }
++        catch (error) {
++            if (error instanceof collect_dependencies_1.InvalidRequireCallError) {
++                throw new InvalidRequireCallError(error, file.filename);
++            }
++            throw error;
++        }
++        if (unstable_disableModuleWrapping === true) {
++            wrappedAst = ast;
++        }
++        else {
++            // TODO: Replace this with a cheaper transform that doesn't require AST.
++            ({ ast: wrappedAst } = JsFileWrapping_1.default.wrapModule(ast, importDefault, importAll, dependencyMapName, config.globalPrefix, 
++            // TODO: This config is optional to allow its introduction in a minor
++            // release. It should be made non-optional in ConfigT or removed in
++            // future.
++            unstable_renameRequire === false));
++        }
++    }
++    const minify = (0, resolveOptions_1.shouldMinify)(options);
++    const shouldNormalizePseudoGlobals = minify &&
++        file.inputFileSize <= config.optimizationSizeLimit &&
++        !config.unstable_disableNormalizePseudoGlobals;
++    const reserved = [];
++    if (config.unstable_dependencyMapReservedName != null) {
++        reserved.push(config.unstable_dependencyMapReservedName);
++    }
++    if (shouldNormalizePseudoGlobals &&
++        // TODO: If the module wrapping is disabled then the normalize function needs to change to account for not being in a body.
++        !unstable_disableModuleWrapping) {
++        // NOTE(EvanBacon): Simply pushing this function will mutate the AST, so it must run before the `generate` step!!
++        reserved.push(...metro_transform_plugins_1.default.normalizePseudoGlobals(wrappedAst, {
++            reservedNames: reserved,
++        }));
++    }
++    const result = (0, generator_1.default)(wrappedAst, {
++        comments: true,
++        compact: config.unstable_compactOutput,
++        filename: file.filename,
++        retainLines: false,
++        sourceFileName: file.filename,
++        sourceMaps: true,
++    }, file.code);
++    // @ts-expect-error: incorrectly typed upstream
++    let map = result.rawMappings ? result.rawMappings.map(metro_source_map_1.toSegmentTuple) : [];
++    let code = result.code;
++    // NOTE: We might want to enable this on native + hermes when tree shaking is enabled.
++    if (minify) {
++        ({ map, code } = await (0, exports.minifyCode)(config, file.filename, result.code, file.code, map, reserved));
++    }
++    const possibleReconcile = optimize && collectDependenciesOptions
++        ? {
++            inlineRequires: options.inlineRequires,
++            importDefault,
++            importAll,
++            normalizePseudoGlobals: shouldNormalizePseudoGlobals,
++            globalPrefix: config.globalPrefix,
++            unstable_compactOutput: config.unstable_compactOutput,
++            collectDependenciesOptions,
++            minify: minify
++                ? {
++                    minifierPath: config.minifierPath,
++                    minifierConfig: config.minifierConfig,
++                }
++                : undefined,
++            unstable_dependencyMapReservedName: config.unstable_dependencyMapReservedName,
++            optimizationSizeLimit: config.optimizationSizeLimit,
++            unstable_disableNormalizePseudoGlobals: config.unstable_disableNormalizePseudoGlobals,
++            unstable_renameRequire,
++        }
++        : undefined;
++    let lineCount;
++    ({ lineCount, map } = (0, count_lines_1.countLinesAndTerminateMap)(code, map));
++    const output = [
++        {
++            data: {
++                code,
++                lineCount,
++                map,
++                functionMap: file.functionMap,
++                hasCjsExports: file.hasCjsExports,
++                reactServerReference: file.reactServerReference,
++                reactClientReference: file.reactClientReference,
++                expoDomComponentReference: file.expoDomComponentReference,
++                ...(possibleReconcile
++                    ? {
++                        ast: wrappedAst,
++                        // Store settings for the module that will be used to finish transformation after graph-based optimizations
++                        // have finished.
++                        reconcile: possibleReconcile,
++                    }
++                    : {}),
++            },
++            type: file.type,
++        },
++    ];
++    return {
++        dependencies,
++        output,
++    };
++}
++/** Transforms an asset file. */
++async function transformAsset(file, context) {
++    const { assetRegistryPath, assetPlugins } = context.config;
++    // TODO: Add web asset hashing in production.
++    const result = await assetTransformer.transform(getBabelTransformArgs(file, context), assetRegistryPath, assetPlugins);
++    const jsFile = {
++        ...file,
++        type: 'js/module/asset',
++        ast: result.ast,
++        functionMap: null,
++        hasCjsExports: true,
++        reactClientReference: result.reactClientReference,
++    };
++    return transformJS(jsFile, context);
++}
++/**
++ * Transforms a JavaScript file with Babel before processing the file with
++ * the generic JavaScript transformation.
++ */
++async function transformJSWithBabel(file, context) {
++    const { babelTransformerPath } = context.config;
++    const transformer = require(babelTransformerPath);
++    // HACK: React Compiler injects import statements and exits the Babel process which leaves the code in
++    // a malformed state. For now, we'll enable the experimental import support which compiles import statements
++    // outside of the standard Babel process.
++    if (!context.options.experimentalImportSupport) {
++        const reactCompilerFlag = context.options.customTransformOptions?.reactCompiler;
++        if (reactCompilerFlag === true || reactCompilerFlag === 'true') {
++            // @ts-expect-error: readonly.
++            context.options.experimentalImportSupport = true;
++        }
++    }
++    // TODO: Add a babel plugin which returns if the module has commonjs, and if so, disable all tree shaking optimizations early.
++    const transformResult = await transformer.transform(
++    // functionMapBabelPlugin populates metadata.metro.functionMap
++    getBabelTransformArgs(file, context, [metro_source_map_1.functionMapBabelPlugin]));
++    const jsFile = {
++        ...file,
++        ast: transformResult.ast,
++        functionMap: transformResult.metadata?.metro?.functionMap ??
++            // Fallback to deprecated explicitly-generated `functionMap`
++            transformResult.functionMap ??
++            null,
++        hasCjsExports: transformResult.metadata?.hasCjsExports,
++        reactServerReference: transformResult.metadata?.reactServerReference,
++        reactClientReference: transformResult.metadata?.reactClientReference,
++        expoDomComponentReference: transformResult.metadata?.expoDomComponentReference,
++    };
++    return await transformJS(jsFile, context);
++}
++async function transformJSON(file, { options, config }) {
++    let code = config.unstable_disableModuleWrapping === true
++        ? JsFileWrapping_1.default.jsonToCommonJS(file.code)
++        : JsFileWrapping_1.default.wrapJson(file.code, config.globalPrefix);
++    let map = [];
++    const minify = (0, resolveOptions_1.shouldMinify)(options);
++    if (minify) {
++        ({ map, code } = await (0, exports.minifyCode)(config, file.filename, code, file.code, map));
++    }
++    let jsType;
++    if (file.type === 'asset') {
++        jsType = 'js/module/asset';
++    }
++    else if (file.type === 'script') {
++        jsType = 'js/script';
++    }
++    else {
++        jsType = 'js/module';
++    }
++    let lineCount;
++    ({ lineCount, map } = (0, count_lines_1.countLinesAndTerminateMap)(code, map));
++    const output = [
++        {
++            data: { code, lineCount, map, functionMap: null },
++            type: jsType,
++        },
++    ];
++    return {
++        dependencies: [],
++        output,
++    };
++}
++function getBabelTransformArgs(file, { options, config, projectRoot }, plugins = []) {
++    const { inlineRequires: _, ...babelTransformerOptions } = options;
++    return {
++        filename: file.filename,
++        options: {
++            ...babelTransformerOptions,
++            enableBabelRCLookup: config.enableBabelRCLookup,
++            enableBabelRuntime: config.enableBabelRuntime,
++            hermesParser: config.hermesParser,
++            projectRoot,
++            publicPath: config.publicPath,
++            globalPrefix: config.globalPrefix,
++            platform: babelTransformerOptions.platform ?? null,
++        },
++        plugins,
++        src: file.code,
++    };
++}
++async function transform(config, projectRoot, filename, data, options) {
++    const context = {
++        config,
++        projectRoot,
++        options,
++    };
++    const sourceCode = data.toString('utf8');
++    const { unstable_dependencyMapReservedName } = config;
++    if (unstable_dependencyMapReservedName != null) {
++        const position = sourceCode.indexOf(unstable_dependencyMapReservedName);
++        if (position > -1) {
++            throw new SyntaxError('Source code contains the reserved string `' +
++                unstable_dependencyMapReservedName +
++                '` at character offset ' +
++                position);
++        }
++    }
++    if (filename.endsWith('.json')) {
++        const jsonFile = {
++            filename,
++            inputFileSize: data.length,
++            code: sourceCode,
++            type: options.type,
++        };
++        return transformJSON(jsonFile, context);
++    }
++    if (options.type === 'asset') {
++        const file = {
++            filename,
++            inputFileSize: data.length,
++            code: sourceCode,
++            type: options.type,
++        };
++        return transformAsset(file, context);
++    }
++    const file = {
++        filename,
++        inputFileSize: data.length,
++        code: sourceCode,
++        type: options.type === 'script' ? 'js/script' : 'js/module',
++        functionMap: null,
++    };
++    return transformJSWithBabel(file, context);
++}
++exports.transform = transform;
++function getCacheKey(config) {
++    const { babelTransformerPath, minifierPath, ...remainingConfig } = config;
++    const filesKey = (0, metro_cache_key_1.default)([
++        require.resolve(babelTransformerPath),
++        require.resolve(minifierPath),
++        require.resolve('metro-transform-worker/src/utils/getMinifier'),
++        require.resolve('./collect-dependencies'),
++        require.resolve('./asset-transformer'),
++        require.resolve('./resolveOptions'),
++        require.resolve('metro/src/ModuleGraph/worker/generateImportNames'),
++        require.resolve('metro/src/ModuleGraph/worker/JsFileWrapping'),
++        ...metro_transform_plugins_1.default.getTransformPluginCacheKeyFiles(),
++    ]);
++    const babelTransformer = require(babelTransformerPath);
++    return [
++        filesKey,
++        (0, metro_cache_1.stableHash)(remainingConfig).toString('hex'),
++        babelTransformer.getCacheKey ? babelTransformer.getCacheKey() : '',
++    ].join('$');
++}
++exports.getCacheKey = getCacheKey;
++/**
++ * Produces a Babel template that transforms an "import(...)" call into a
++ * "require(...)" call to the asyncRequire specified.
++ */
++const makeShimAsyncRequireTemplate = template_1.default.expression(`require(ASYNC_REQUIRE_MODULE_PATH)`);
++const disabledDependencyTransformer = {
++    transformSyncRequire: (path) => { },
++    transformImportMaybeSyncCall: () => { },
++    transformImportCall: (path, dependency, state) => {
++        // HACK: Ensure the async import code is included in the bundle when an import() call is found.
++        let topParent = path;
++        while (topParent.parentPath) {
++            topParent = topParent.parentPath;
++        }
++        // @ts-expect-error
++        if (topParent._handled) {
++            return;
++        }
++        path.insertAfter(makeShimAsyncRequireTemplate({
++            ASYNC_REQUIRE_MODULE_PATH: nullthrows(state.asyncRequireModulePathStringLiteral),
++        }));
++        // @ts-expect-error: Prevent recursive loop
++        topParent._handled = true;
++    },
++    transformPrefetch: () => { },
++    transformIllegalDynamicRequire: () => { },
++};
++function collectDependenciesForShaking(ast, options) {
++    const collectDependenciesOptions = {
++        ...options,
++        // If tree shaking is enabled, then preserve the original require calls.
++        // This ensures require.context calls are not broken.
++        collectOnly: true,
++    };
++    return (0, collect_dependencies_1.default)(ast, {
++        ...collectDependenciesOptions,
++        // This setting shouldn't be shared with the tree shaking transformer.
++        dependencyTransformer: disabledDependencyTransformer,
++    });
++}
++exports.collectDependenciesForShaking = collectDependenciesForShaking;
++//# sourceMappingURL=metro-transform-worker.js.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js b/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js
+index 8f88b5f..d80323f 100644
+--- a/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js
++++ b/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js
+@@ -34,7 +34,7 @@ exports.transform = void 0;
+  * This source code is licensed under the MIT license found in the
+  * LICENSE file in the root directory of this source tree.
+  */
+-const countLines_1 = __importDefault(require("metro/src/lib/countLines"));
++const countLines_1 = __importDefault(require("metro/private/lib/countLines"));
+ const css_1 = require("./css");
+ const css_modules_1 = require("./css-modules");
+ const worker = __importStar(require("./metro-transform-worker"));
+diff --git a/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js.backup b/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js.backup
+new file mode 100644
+index 0000000..8f88b5f
+--- /dev/null
++++ b/node_modules/@expo/metro-config/build/transform-worker/transform-worker.js.backup
+@@ -0,0 +1,246 @@
++"use strict";
++var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    var desc = Object.getOwnPropertyDescriptor(m, k);
++    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
++      desc = { enumerable: true, get: function() { return m[k]; } };
++    }
++    Object.defineProperty(o, k2, desc);
++}) : (function(o, m, k, k2) {
++    if (k2 === undefined) k2 = k;
++    o[k2] = m[k];
++}));
++var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
++    Object.defineProperty(o, "default", { enumerable: true, value: v });
++}) : function(o, v) {
++    o["default"] = v;
++});
++var __importStar = (this && this.__importStar) || function (mod) {
++    if (mod && mod.__esModule) return mod;
++    var result = {};
++    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
++    __setModuleDefault(result, mod);
++    return result;
++};
++var __importDefault = (this && this.__importDefault) || function (mod) {
++    return (mod && mod.__esModule) ? mod : { "default": mod };
++};
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.transform = void 0;
++/**
++ * Copyright 2023-present 650 Industries (Expo). All rights reserved.
++ * Copyright (c) Meta Platforms, Inc. and affiliates.
++ *
++ * This source code is licensed under the MIT license found in the
++ * LICENSE file in the root directory of this source tree.
++ */
++const countLines_1 = __importDefault(require("metro/src/lib/countLines"));
++const css_1 = require("./css");
++const css_modules_1 = require("./css-modules");
++const worker = __importStar(require("./metro-transform-worker"));
++const postcss_1 = require("./postcss");
++const sass_1 = require("./sass");
++const filePath_1 = require("../utils/filePath");
++const debug = require('debug')('expo:metro-config:transform-worker');
++function getStringArray(value) {
++    if (!value)
++        return undefined;
++    if (typeof value === 'string') {
++        const parsed = JSON.parse(value);
++        if (Array.isArray(parsed)) {
++            return parsed;
++        }
++        throw new Error('Expected an array of strings for the `clientBoundaries` option.');
++    }
++    if (Array.isArray(value)) {
++        return value;
++    }
++    throw new Error('Expected an array of strings for the `clientBoundaries` option.');
++}
++async function transform(config, projectRoot, filename, data, options) {
++    const reactServer = options.customTransformOptions?.environment === 'react-server';
++    const posixFilename = (0, filePath_1.toPosixPath)(filename);
++    if (typeof options.customTransformOptions?.dom === 'string' &&
++        posixFilename.match(/expo\/dom\/entry\.js/)) {
++        // TODO: Find some method to do this without invalidating the cache between different DOM components.
++        // Inject source for DOM component entry.
++        const relativeDomComponentEntry = JSON.stringify(decodeURI(options.customTransformOptions.dom));
++        const src = `require('expo/dom/internal').registerDOMComponent(require(${relativeDomComponentEntry}).default);`;
++        return worker.transform(config, projectRoot, filename, Buffer.from(src), options);
++    }
++    if (posixFilename.match(/@expo\/metro-runtime\/rsc\/virtual\.js/)) {
++        const environment = options.customTransformOptions?.environment;
++        const isServer = environment === 'node' || environment === 'react-server';
++        if (!isServer) {
++            const clientBoundaries = getStringArray(options.customTransformOptions?.clientBoundaries);
++            // Inject client boundaries into the root client bundle for production bundling.
++            if (clientBoundaries) {
++                debug('Parsed client boundaries:', clientBoundaries);
++                // Inject source
++                const src = 'module.exports = {\n' +
++                    clientBoundaries
++                        .map((boundary) => {
++                        const serializedBoundary = JSON.stringify(boundary);
++                        return `[\`$\{require.resolveWeak(${serializedBoundary})}\`]: /* ${boundary} */ () => import(${serializedBoundary}),`;
++                    })
++                        .join('\n') +
++                    '\n};';
++                return worker.transform(config, projectRoot, filename, Buffer.from('/* RSC client boundaries */\n' + src), options);
++            }
++        }
++    }
++    const isCss = options.type !== 'asset' && /\.(s?css|sass)$/.test(filename);
++    // If the file is not CSS, then use the default behavior.
++    if (!isCss) {
++        const environment = options.customTransformOptions?.environment;
++        const isClientEnvironment = environment !== 'node' && environment !== 'react-server';
++        if (isClientEnvironment &&
++            // TODO: Ensure this works with windows.
++            (filename.match(new RegExp(`^app/\\+html(\\.${options.platform})?\\.([tj]sx?|[cm]js)?$`)) ||
++                // Strip +api files.
++                filename.match(/\+api(\.(native|ios|android|web))?\.[tj]sx?$/))) {
++            // Remove the server-only +html file and API Routes from the bundle when bundling for a client environment.
++            return worker.transform(config, projectRoot, filename, !options.minify
++                ? Buffer.from(
++                // Use a string so this notice is visible in the bundle if the user is
++                // looking for it.
++                '"> The server-only file was removed from the client JS bundle by Expo CLI."')
++                : Buffer.from(''), options);
++        }
++        if (isClientEnvironment &&
++            !filename.match(/\/node_modules\//) &&
++            filename.match(/\+api(\.(native|ios|android|web))?\.[tj]sx?$/)) {
++            // Clear the contents of +api files when bundling for the client.
++            // This ensures that the client doesn't accidentally use the server-only +api files.
++            return worker.transform(config, projectRoot, filename, Buffer.from(''), options);
++        }
++        return worker.transform(config, projectRoot, filename, data, options);
++    }
++    // If the platform is not web, then return an empty module.
++    if (options.platform !== 'web') {
++        const code = (0, css_modules_1.matchCssModule)(filename) ? 'module.exports={ unstable_styles: {} };' : '';
++        return worker.transform(config, projectRoot, filename, 
++        // TODO: Native CSS Modules
++        Buffer.from(code), options);
++    }
++    let code = data.toString('utf8');
++    // Apply postcss transforms
++    const postcssResults = await (0, postcss_1.transformPostCssModule)(projectRoot, {
++        src: code,
++        filename,
++    });
++    if (postcssResults.hasPostcss) {
++        code = postcssResults.src;
++    }
++    // TODO: When native has CSS support, this will need to move higher up.
++    const syntax = (0, sass_1.matchSass)(filename);
++    if (syntax) {
++        code = (0, sass_1.compileSass)(projectRoot, { filename, src: code }, { syntax }).src;
++    }
++    // If the file is a CSS Module, then transform it to a JS module
++    // in development and a static CSS file in production.
++    if ((0, css_modules_1.matchCssModule)(filename)) {
++        const results = await (0, css_modules_1.transformCssModuleWeb)({
++            // NOTE(cedric): use POSIX-formatted filename fo rconsistent CSS module class names.
++            // This affects the content hashes, which should be stable across platforms.
++            filename: posixFilename,
++            src: code,
++            options: {
++                reactServer,
++                projectRoot,
++                dev: options.dev,
++                minify: options.minify,
++                sourceMap: false,
++            },
++        });
++        const jsModuleResults = await worker.transform(config, projectRoot, filename, Buffer.from(results.output), options);
++        const cssCode = results.css.toString();
++        const output = [
++            {
++                type: 'js/module',
++                data: {
++                    ...jsModuleResults.output[0]?.data,
++                    // Append additional css metadata for static extraction.
++                    css: {
++                        code: cssCode,
++                        lineCount: (0, countLines_1.default)(cssCode),
++                        map: [],
++                        functionMap: null,
++                        // Disable caching for CSS files when postcss is enabled and has been run on the file.
++                        // This ensures that things like tailwind can update on every change.
++                        skipCache: postcssResults.hasPostcss,
++                        externalImports: results.externalImports,
++                    },
++                },
++            },
++        ];
++        return {
++            dependencies: jsModuleResults.dependencies.concat(results.dependencies),
++            output,
++        };
++    }
++    // Global CSS:
++    const { transform } = require('lightningcss');
++    // Here we delegate bundling to lightningcss to resolve all CSS imports together.
++    // TODO: Add full CSS bundling support to Metro.
++    const cssResults = transform({
++        filename,
++        code: Buffer.from(code),
++        errorRecovery: true,
++        sourceMap: false,
++        cssModules: false,
++        projectRoot,
++        minify: options.minify,
++        analyzeDependencies: true,
++        // @ts-expect-error: Added for testing against virtual file system.
++        resolver: options._test_resolveCss,
++    });
++    (0, css_modules_1.printCssWarnings)(filename, code, cssResults.warnings);
++    const cssImports = (0, css_modules_1.collectCssImports)(filename, code, cssResults.code.toString(), cssResults);
++    const cssCode = cssImports.code;
++    // Append additional css metadata for static extraction.
++    const cssOutput = {
++        code: cssCode,
++        lineCount: (0, countLines_1.default)(cssCode),
++        map: [],
++        functionMap: null,
++        // Disable caching for CSS files when postcss is enabled and has been run on the file.
++        // This ensures that things like tailwind can update on every change.
++        skipCache: postcssResults.hasPostcss,
++        externalImports: cssImports.externalImports,
++    };
++    // Create a mock JS module that exports an empty object,
++    // this ensures Metro dependency graph is correct.
++    const jsModuleResults = await worker.transform(config, projectRoot, filename, options.dev
++        ? Buffer.from((0, css_1.wrapDevelopmentCSS)({ src: cssCode, filename, reactServer }))
++        : Buffer.from(''), options);
++    // In production, we export the CSS as a string and use a special type to prevent
++    // it from being included in the JS bundle. We'll extract the CSS like an asset later
++    // and append it to the HTML bundle.
++    const output = [
++        {
++            type: 'js/module',
++            data: {
++                ...jsModuleResults.output[0].data,
++                css: cssOutput,
++            },
++        },
++    ];
++    return {
++        dependencies: jsModuleResults.dependencies.concat(cssImports.dependencies),
++        output,
++    };
++}
++exports.transform = transform;
++/**
++ * A custom Metro transformer that adds support for processing Expo-specific bundler features.
++ * - Global CSS files on web.
++ * - CSS Modules on web.
++ * - TODO: Tailwind CSS on web.
++ */
++module.exports = {
++    // Use defaults for everything that's not custom.
++    ...worker,
++    transform,
++};
++//# sourceMappingURL=transform-worker.js.map
+\ No newline at end of file
