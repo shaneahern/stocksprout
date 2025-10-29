@@ -5,7 +5,7 @@
 import React from 'react';
 
 export const Root = React.forwardRef<any, { children?: React.ReactNode; [key: string]: any }>(
-  ({ children, ...props }, ref) => <>{children}</>
+  ({ children, ...props }, ref) => React.createElement(React.Fragment, null, children)
 );
 
 export default {

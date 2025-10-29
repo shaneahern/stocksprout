@@ -95,8 +95,9 @@ config.resolver.resolveRequest = (context, realModuleName, platform, moduleName)
     }
   }
   
-  // Check lucide-react alias
-  if (moduleToResolve === 'lucide-react') {
+  // Check lucide-react alias - catch both bare imports and deep imports
+  // Deep imports like 'lucide-react/icons/...' would bypass the alias
+  if (moduleToResolve === 'lucide-react' || (moduleToResolve && moduleToResolve.startsWith('lucide-react/'))) {
     const lucidePath = path.resolve(__dirname, 'src/lucide-react-compat.ts');
     const fs = require('fs');
     if (fs.existsSync(lucidePath)) {

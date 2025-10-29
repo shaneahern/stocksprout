@@ -4,12 +4,12 @@
  */
 import React from 'react';
 
-export const Root = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-export const Trigger = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-export const Portal = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-export const Provider = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-export const Content = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-export const Arrow = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
+export const Root = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+export const Trigger = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+export const Portal = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+export const Provider = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+export const Content = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
+export const Arrow = ({ children }: { children?: React.ReactNode }) => React.createElement(React.Fragment, null, children);
 
 export default {
   Root,

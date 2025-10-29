@@ -6,6 +6,8 @@
  * Using explicit re-export to ensure proper module structure
  */
 
+console.log('[lucide-compat] Loading lucide-react-native compatibility layer');
+
 // Import all icons
 import * as LucideIcons from 'lucide-react-native';
 
