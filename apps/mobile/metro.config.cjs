@@ -35,6 +35,7 @@ const radixUiStubs = {
   '@radix-ui/react-toggle': path.resolve(__dirname, 'src/components-ui-compat/react-toggle-stub'),
   '@radix-ui/react-toggle-group': path.resolve(__dirname, 'src/components-ui-compat/react-toggle-group-stub'),
   '@radix-ui/react-toast': path.resolve(__dirname, 'src/components-ui-compat/react-toast-stub'),
+  '@radix-ui/react-avatar': path.resolve(__dirname, 'src/components-ui-compat/react-avatar-stub'),
 };
 
 // Apply aliases - Metro will use these to redirect imports
