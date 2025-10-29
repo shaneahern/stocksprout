@@ -42,6 +42,8 @@ const cardStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     backgroundColor: '#ffffff',
+    // @ts-ignore - boxShadow is for web, shadow* for native
+    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,

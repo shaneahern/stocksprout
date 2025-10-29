@@ -35,6 +35,8 @@ const modalStyles = StyleSheet.create({
     minWidth: 400,
     maxWidth: '90%',
     maxHeight: '90%',
+    // @ts-ignore - boxShadow is for web, shadow* for native
+    boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
