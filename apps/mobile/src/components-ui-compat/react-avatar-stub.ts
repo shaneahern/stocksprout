@@ -3,28 +3,25 @@
  * Provides minimal API surface to prevent import errors
  */
 import React from 'react';
-import { View, Text, Image } from 'react-native';
-
-// Radix Avatar exports Root, Image, and Fallback
-// We provide simple React Native equivalents that accept but ignore web props
+import { View, Text, Image as RNImage } from 'react-native';
 
 export const Root = ({ children, className, ...props }: any) => {
-  return <View {...props}>{children}</View>;
+  return React.createElement(View, props, children);
 };
 
-export const Avatar = Root; // Alias for compatibility
+export const Avatar = Root;
 
 export const AvatarImage = ({ src, alt, className, ...props }: any) => {
   if (src) {
-    return <Image source={{ uri: src }} {...props} />;
+    return React.createElement(RNImage, { source: { uri: src }, ...props });
   }
   return null;
 };
 
-export const Image = AvatarImage; // Alias for compatibility
+export const Image = AvatarImage;
 
 export const Fallback = ({ children, className, ...props }: any) => {
-  return <View {...props}>{children}</View>;
+  return React.createElement(View, props, children);
 };
 
-export const AvatarFallback = Fallback; // Alias for compatibility
+export const AvatarFallback = Fallback;

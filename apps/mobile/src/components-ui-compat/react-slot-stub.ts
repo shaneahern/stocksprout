@@ -6,13 +6,16 @@
  */
 import React from 'react';
 
-export const Slot = React.forwardRef<any, { children?: React.ReactNode; [key: string]: any }>(
+interface SlotProps {
+  children?: React.ReactNode;
+  [key: string]: any;
+}
+
+export const Slot = React.forwardRef<any, SlotProps>(
   ({ children, ...props }, ref) => {
-    // In React Native, Slot just passes children through
-    // The asChild pattern from Radix UI doesn't apply the same way
     return React.isValidElement(children) 
       ? React.cloneElement(children, { ref, ...props })
-      : <>{children}</>;
+      : React.createElement(React.Fragment, null, children);
   }
 );
 

@@ -36,11 +36,20 @@ const radixUiStubs = {
   '@radix-ui/react-toggle-group': path.resolve(__dirname, 'src/components-ui-compat/react-toggle-group-stub'),
   '@radix-ui/react-toast': path.resolve(__dirname, 'src/components-ui-compat/react-toast-stub'),
   '@radix-ui/react-avatar': path.resolve(__dirname, 'src/components-ui-compat/react-avatar-stub'),
+  '@radix-ui/react-label': path.resolve(__dirname, 'src/components-ui-compat/react-label-stub'),
+  '@radix-ui/react-slider': path.resolve(__dirname, 'src/components-ui-compat/react-slider-stub'),
+  '@radix-ui/react-select': path.resolve(__dirname, 'src/components-ui-compat/react-select-stub'),
+  '@radix-ui/react-switch': path.resolve(__dirname, 'src/components-ui-compat/react-switch-stub'),
+  '@radix-ui/react-radio-group': path.resolve(__dirname, 'src/components-ui-compat/react-radio-group-stub'),
 };
 
 // Apply aliases - Metro will use these to redirect imports
 // Metro will automatically try .ts, .tsx, .js, .jsx extensions when resolving
 Object.assign(config.resolver.alias, radixUiStubs);
+
+// Force @tanstack/react-query to use our shim which re-exports from legacy build
+// The modern ESM build has issues with .js extensions in imports (files missing)
+config.resolver.alias['@tanstack/react-query'] = path.resolve(__dirname, 'src/shims/tanstack-react-query');
 
 // Add alias for UI components to redirect to React Native compatible versions
 // This prevents the web-only versions from being loaded
@@ -61,6 +70,18 @@ const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, realModuleName, platform, moduleName) => {
   // Use realModuleName (the actual import path) not moduleName (which may be transformed)
   const moduleToResolve = realModuleName || moduleName;
+  
+  // Handle @tanstack/react-query - force it to use the react-native source
+  if (moduleToResolve === '@tanstack/react-query') {
+    const reactQueryPath = path.resolve(__dirname, '../../node_modules/@tanstack/react-query/src/index.ts');
+    const fs = require('fs');
+    if (fs.existsSync(reactQueryPath)) {
+      return {
+        filePath: reactQueryPath,
+        type: 'sourceFile',
+      };
+    }
+  }
   
   // Check if this is a Radix UI import and we have an alias for it
   if (moduleToResolve && moduleToResolve.startsWith('@radix-ui/')) {
