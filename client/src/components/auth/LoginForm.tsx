@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
   const { login } = useAuth();
+  const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -73,6 +74,8 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
 
     try {
       await login(formData.username, formData.password);
+      // Navigate to home page after successful login
+      setLocation('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
