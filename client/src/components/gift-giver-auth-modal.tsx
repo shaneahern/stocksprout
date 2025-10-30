@@ -47,6 +47,7 @@ export function GiftGiverAuthModal({
     firstName: '',
     lastName: '',
     username: '',
+    email: '',
     password: '',
     confirmPassword: ''
   });
@@ -72,7 +73,7 @@ export function GiftGiverAuthModal({
       await login(signInData.username, signInData.password);
       
       // Call the callback
-      onAuthenticated({ name: signInData.username, email: `${signInData.username}@example.com` }, false);
+      onAuthenticated({ name: signInData.username }, false);
       toast({
         title: "Welcome Back!",
         description: `Signed in successfully. You can now send a gift to ${childName}.`,
@@ -90,7 +91,7 @@ export function GiftGiverAuthModal({
   };
 
   const handleSignUp = async () => {
-    if (!signUpData.firstName || !signUpData.lastName || !signUpData.username || !signUpData.password || !signUpData.confirmPassword) {
+    if (!signUpData.firstName || !signUpData.lastName || !signUpData.username || !signUpData.email || !signUpData.password || !signUpData.confirmPassword) {
       toast({
         title: "Missing Information",
         description: "Please fill in all fields.",
@@ -122,14 +123,14 @@ export function GiftGiverAuthModal({
     try {
       await signup({
         username: signUpData.username,
-        email: `${signUpData.username}@example.com`,
+        email: signUpData.email,
         password: signUpData.password,
         name: `${signUpData.firstName} ${signUpData.lastName}`.trim(),
         bankAccountNumber: undefined,
       });
       
       // User is automatically signed in after account creation
-      onAuthenticated({ name: `${signUpData.firstName} ${signUpData.lastName}`, email: `${signUpData.username}@example.com` }, true);
+      onAuthenticated({ name: `${signUpData.firstName} ${signUpData.lastName}`, email: signUpData.email }, true);
       toast({
         title: "Account Created!",
         description: `Welcome! You are now signed in and can send a gift to ${childName}.`,
@@ -337,6 +338,18 @@ export function GiftGiverAuthModal({
                     value={signUpData.username}
                     onChange={(e) => setSignUpData(prev => ({ ...prev, username: e.target.value }))}
                     placeholder="Enter your username"
+                    className="pr-12"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email" className="text-sm font-medium text-black">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    value={signUpData.email}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter your email"
                     className="pr-12"
                     required
                   />

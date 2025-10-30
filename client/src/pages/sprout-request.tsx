@@ -22,6 +22,7 @@ export default function SproutRequestPage() {
     firstName: '',
     lastName: '',
     username: '',
+    email: '',
     password: '',
     confirmPassword: '',
   });
@@ -97,7 +98,7 @@ export default function SproutRequestPage() {
 
     signupMutation.mutate({
       name: `${signupData.firstName} ${signupData.lastName}`.trim() || requestData?.contributorName,
-      email: `${signupData.username}@example.com`,
+      email: signupData.email,
       password: signupData.password,
       phone: requestData?.contributorPhone,
       sproutRequestCode: requestCode,
@@ -248,6 +249,19 @@ export default function SproutRequestPage() {
                     value={signupData.username}
                     onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
                     placeholder="Enter your username"
+                    className="pr-12"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email" className="text-sm font-medium text-black">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    value={signupData.email}
+                    onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                    placeholder="Enter your email"
                     className="pr-12"
                     required
                   />

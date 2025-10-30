@@ -17,6 +17,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     firstName: '',
     lastName: '',
     username: '',
+    email: '',
     password: '',
     confirmPassword: '',
   });
@@ -46,7 +47,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     try {
       await signup({
         username: formData.username,
-        email: `${formData.username}@example.com`, // Generate email from username for now
+        email: formData.email,
         password: formData.password,
         name: `${formData.firstName} ${formData.lastName}`.trim(),
         bankAccountNumber: undefined,
@@ -117,6 +118,20 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
             onChange={handleChange}
             required
             placeholder="Enter your username"
+            className="pr-12"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium text-black">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            placeholder="Enter your email"
             className="pr-12"
           />
         </div>
