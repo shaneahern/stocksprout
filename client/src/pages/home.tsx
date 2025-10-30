@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import MobileLayout from "@/components/mobile-layout";
 import GiftNotification from "@/components/gift-notification";
 import ChildCard from "@/components/child-card";
+import { ChildCardSkeleton } from "@/components/child-card-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Gift } from "lucide-react";
@@ -86,15 +87,7 @@ export default function Home() {
     setLocation("/add-child");
   };
 
-  if (isLoading) {
-    return (
-      <MobileLayout currentTab="home">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-        </div>
-      </MobileLayout>
-    );
-  }
+  // Render skeletons while loading instead of spinner
 
   // Calculate total portfolio value
   const totalValue = children.reduce((sum: number, child: any) => sum + (child.totalValue || 0), 0);
@@ -126,7 +119,12 @@ export default function Home() {
           </div>
 
           <div className="space-y-4">
-            {children.length > 0 ? (
+            {loadingChildren ? (
+              <>
+                <ChildCardSkeleton />
+                <ChildCardSkeleton />
+              </>
+            ) : children.length > 0 ? (
               children.map((child: any) => (
                 <ChildCard key={child.id} child={child} />
               ))
@@ -157,7 +155,9 @@ export default function Home() {
               </p>
             </div>
             <div className="space-y-4">
-              {contributedChildren.length > 0 ? (
+              {loadingGifts ? (
+                <ChildCardSkeleton />
+              ) : contributedChildren.length > 0 ? (
                 contributedChildren.map((child: any) => (
                   <ChildCard key={child.id} child={child} isContributedChild={true} />
                 ))

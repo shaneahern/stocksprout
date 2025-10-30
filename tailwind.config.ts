@@ -68,6 +68,17 @@ export default {
         success: {
           DEFAULT: "var(--success)",
           foreground: "var(--success-foreground)",
+          light: "var(--success-light)",
+        },
+        error: {
+          DEFAULT: "var(--error)",
+          foreground: "var(--error-foreground)",
+          light: "var(--error-light)",
+        },
+        warning: {
+          DEFAULT: "var(--warning)",
+          foreground: "var(--warning-foreground)",
+          light: "var(--warning-light)",
         },
         figma: {
           green: {

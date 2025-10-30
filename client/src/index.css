@@ -22,8 +22,15 @@
   --muted-foreground: #828282;
   --accent: #328956;
   --accent-foreground: #ffffff;
-  --success: #328956;
+  --success: #019538;
   --success-foreground: #ffffff;
+  --success-light: #EEFFF5;
+  --error: #D62025;
+  --error-foreground: #ffffff;
+  --error-light: #FEE2E2;
+  --warning: #E2B25E;
+  --warning-foreground: #161823;
+  --warning-light: #FEF3C7;
   --destructive: #D62025;
   --destructive-foreground: #ffffff;
   --border: #C0C0C0;

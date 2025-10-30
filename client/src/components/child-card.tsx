@@ -209,7 +209,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
   return (
     <>
       <Card 
-        className="border border-border shadow-sm hover:shadow-md transition-shadow" 
+        className="border border-border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer" 
         data-testid={`card-child-${child.id}`}
       >
         <CardContent className="p-5">
