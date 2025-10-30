@@ -232,7 +232,7 @@ export default function ChildCard({ child, isContributedChild = false }: ChildCa
                       e.stopPropagation();
                       fileInputRef.current?.click();
                     }}
-                    className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full shadow-md hover:bg-primary/90 transition-colors"
+                    className="absolute -bottom-1 -right-1 bg-[#265FDC] text-white rounded-full shadow-md hover:bg-[#1e4db8] transition-colors"
                     style={{ 
                       width: '24px', 
                       height: '24px',

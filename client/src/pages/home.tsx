@@ -116,7 +116,7 @@ export default function Home() {
               <Button 
                 onClick={handleAddChild}
                 variant="ghost" 
-                className="text-primary font-semibold py-1"
+                className="text-[#265FDC] font-semibold py-1 hover:text-[#1e4db8]"
                 data-testid="button-add-child"
               >
                 <Plus className="w-4 h-4 mr-0.5" />

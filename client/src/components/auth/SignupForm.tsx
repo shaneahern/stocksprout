@@ -80,7 +80,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-[12px] font-medium text-black">First Name</Label>
+          <Label htmlFor="firstName" className="text-sm font-medium text-black">First Name</Label>
           <Input
             id="firstName"
             name="firstName"
@@ -94,7 +94,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-[12px] font-medium text-black">Last Name</Label>
+          <Label htmlFor="lastName" className="text-sm font-medium text-black">Last Name</Label>
           <Input
             id="lastName"
             name="lastName"
@@ -108,7 +108,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="username" className="text-[12px] font-medium text-black">Username</Label>
+          <Label htmlFor="username" className="text-sm font-medium text-black">Username</Label>
           <Input
             id="username"
             name="username"
@@ -122,7 +122,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-[12px] font-medium text-black">Password</Label>
+          <Label htmlFor="password" className="text-sm font-medium text-black">Password</Label>
           <div className="relative">
             <Input
               id="password"
@@ -151,7 +151,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className="text-[12px] font-medium text-black">Confirm Password</Label>
+          <Label htmlFor="confirmPassword" className="text-sm font-medium text-black">Confirm Password</Label>
           <div className="relative">
             <Input
               id="confirmPassword"
@@ -179,7 +179,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
           </div>
         </div>
 
-        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-[10px] font-semibold" style={{ height: '30.19px' }} disabled={isLoading}>
+        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-sm font-semibold" style={{ height: '40px' }} disabled={isLoading}>
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </Button>
           </form>

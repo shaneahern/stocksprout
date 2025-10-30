@@ -17,12 +17,13 @@ export default function SproutRequestPage() {
   const { toast } = useToast();
   const [showSignup, setShowSignup] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupData, setSignupData] = useState({
-    name: '',
-    email: '',
+    firstName: '',
+    lastName: '',
+    username: '',
     password: '',
     confirmPassword: '',
-    phone: '',
   });
 
   const { data: requestData, isLoading } = useQuery({
@@ -95,10 +96,10 @@ export default function SproutRequestPage() {
     }
 
     signupMutation.mutate({
-      name: signupData.name || requestData?.contributorName,
-      email: signupData.email,
+      name: `${signupData.firstName} ${signupData.lastName}`.trim() || requestData?.contributorName,
+      email: `${signupData.username}@example.com`,
       password: signupData.password,
-      phone: signupData.phone || requestData?.contributorPhone,
+      phone: requestData?.contributorPhone,
       sproutRequestCode: requestCode,
     });
   };
@@ -215,56 +216,60 @@ export default function SproutRequestPage() {
               <CardTitle>Create Your Account</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSignupSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="signup-name">Full Name</Label>
+              <form onSubmit={handleSignupSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-first-name" className="text-sm font-medium text-black">First Name</Label>
                   <Input
-                    id="signup-name"
-                    value={signupData.name}
-                    onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                    placeholder={requestData.contributorName || "Enter your name"}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="signup-email">Email *</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    value={signupData.email}
-                    onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                    placeholder="Enter your email"
+                    id="signup-first-name"
+                    value={signupData.firstName}
+                    onChange={(e) => setSignupData({ ...signupData, firstName: e.target.value })}
+                    placeholder="Enter your first name"
+                    className="pr-12"
                     required
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="signup-phone">Phone Number</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-last-name" className="text-sm font-medium text-black">Last Name</Label>
                   <Input
-                    id="signup-phone"
-                    type="tel"
-                    value={signupData.phone}
-                    onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
-                    placeholder={requestData.contributorPhone || "Enter phone number"}
+                    id="signup-last-name"
+                    value={signupData.lastName}
+                    onChange={(e) => setSignupData({ ...signupData, lastName: e.target.value })}
+                    placeholder="Enter your last name"
+                    className="pr-12"
+                    required
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="signup-password">Password *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username" className="text-sm font-medium text-black">Username</Label>
+                  <Input
+                    id="signup-username"
+                    value={signupData.username}
+                    onChange={(e) => setSignupData({ ...signupData, username: e.target.value })}
+                    placeholder="Enter your username"
+                    className="pr-12"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password" className="text-sm font-medium text-black">Password</Label>
                   <div className="relative">
                     <Input
                       id="signup-password"
                       type={showPassword ? "text" : "password"}
                       value={signupData.password}
                       onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                      placeholder="Create a password"
+                      placeholder="Create your password"
+                      className="pr-12"
                       required
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -272,26 +277,40 @@ export default function SproutRequestPage() {
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="signup-confirm">Confirm Password *</Label>
-                  <Input
-                    id="signup-confirm"
-                    type="password"
-                    value={signupData.confirmPassword}
-                    onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                    placeholder="Confirm password"
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="signup-confirm" className="text-sm font-medium text-black">Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="signup-confirm"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={signupData.confirmPassword}
+                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
+                      placeholder="Confirm your password"
+                      className="pr-12"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-gray-700"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1" disabled={signupMutation.isPending}>
-                    {signupMutation.isPending ? 'Creating Account...' : 'Sign Up'}
-                  </Button>
+                <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-sm font-semibold" style={{ height: '40px' }} disabled={signupMutation.isPending}>
+                  {signupMutation.isPending ? 'Creating Account...' : 'Create Account'}
+                </Button>
+                
+                <div className="pt-2">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowSignup(false)}
+                    className="w-full"
                   >
                     Back
                   </Button>

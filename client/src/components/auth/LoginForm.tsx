@@ -102,7 +102,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="username" className="text-[12px] font-medium text-black">Username</Label>
+          <Label htmlFor="username" className="text-sm font-medium text-black">Username</Label>
           <Input
             id="username"
             name="username"
@@ -116,7 +116,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-[12px] font-medium text-black">Password</Label>
+          <Label htmlFor="password" className="text-sm font-medium text-black">Password</Label>
           <div className="relative">
             <Input
               id="password"
@@ -144,7 +144,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
           </div>
         </div>
 
-        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-[10px] font-semibold" style={{ height: '30.19px' }} disabled={isLoading}>
+        <Button type="submit" className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-sm font-semibold" style={{ height: '40px' }} disabled={isLoading}>
           {isLoading ? 'Signing In...' : 'Sign In'}
         </Button>
 
@@ -157,7 +157,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               onCheckedChange={(checked) => setRememberMe(checked === true)}
               className="w-4 h-4"
             />
-            <Label htmlFor="remember-me" className="text-[10px] font-light text-black cursor-pointer">
+            <Label htmlFor="remember-me" className="text-sm font-light text-black cursor-pointer">
               Remember me
             </Label>
           </div>
@@ -194,7 +194,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               size="sm"
               onClick={handleBiometricAuth}
               disabled={!isBiometricSupported || isBiometricLoading}
-              className="p-0 h-auto text-[#265FDC] font-light hover:text-[#1e4db8] disabled:text-gray-400 text-[10px]"
+              className="p-0 h-auto text-[#265FDC] font-light hover:text-[#1e4db8] disabled:text-gray-400 text-sm"
             >
               {isBiometricLoading ? 'Authenticating...' : isBiometricSupported ? 'Face ID' : 'Face ID'}
             </Button>

@@ -191,8 +191,8 @@ export default function AddChild() {
                 title="Edit Profile Photo"
               />
 
-              <div>
-                <Label htmlFor="firstName">First Name *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="text-sm font-medium text-black">First Name *</Label>
                 <Input
                   id="firstName"
                   value={firstName}
@@ -202,8 +202,8 @@ export default function AddChild() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="lastName">Last Name *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="lastName" className="text-sm font-medium text-black">Last Name *</Label>
                 <Input
                   id="lastName"
                   value={lastName}
@@ -213,8 +213,8 @@ export default function AddChild() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="birthdate">Date of Birth *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="birthdate" className="text-sm font-medium text-black">Date of Birth *</Label>
                 <Input
                   id="birthdate"
                   type="date"
@@ -228,7 +228,8 @@ export default function AddChild() {
               <div className="pt-4">
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-[#265FDC] hover:bg-[#1e4db8] text-white font-semibold"
+                  style={{ height: '40px' }}
                   disabled={addChildMutation.isPending}
                   data-testid="button-add-child"
                 >

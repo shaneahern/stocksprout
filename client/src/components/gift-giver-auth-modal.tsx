@@ -38,15 +38,15 @@ export function GiftGiverAuthModal({
 
   // Sign in form
   const [signInData, setSignInData] = useState({
-    email: '',
+    username: '',
     password: ''
   });
 
   // Sign up form
   const [signUpData, setSignUpData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    firstName: '',
+    lastName: '',
+    username: '',
     password: '',
     confirmPassword: ''
   });
@@ -58,7 +58,7 @@ export function GiftGiverAuthModal({
   });
 
   const handleSignIn = async () => {
-    if (!signInData.email || !signInData.password) {
+    if (!signInData.username || !signInData.password) {
       toast({
         title: "Missing Information",
         description: "Please fill in all fields.",
@@ -69,10 +69,10 @@ export function GiftGiverAuthModal({
 
     setIsLoading(true);
     try {
-      await login(signInData.email, signInData.password);
+      await login(signInData.username, signInData.password);
       
       // Call the callback
-      onAuthenticated({ name: signInData.email, email: signInData.email }, false);
+      onAuthenticated({ name: signInData.username, email: `${signInData.username}@example.com` }, false);
       toast({
         title: "Welcome Back!",
         description: `Signed in successfully. You can now send a gift to ${childName}.`,
@@ -81,7 +81,7 @@ export function GiftGiverAuthModal({
       console.error("Sign in error:", error);
       toast({
         title: "Sign In Failed",
-        description: error instanceof Error ? error.message : "Invalid email or password. Please try again.",
+        description: error instanceof Error ? error.message : "Invalid username or password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -90,7 +90,7 @@ export function GiftGiverAuthModal({
   };
 
   const handleSignUp = async () => {
-    if (!signUpData.name || !signUpData.email || !signUpData.password || !signUpData.confirmPassword) {
+    if (!signUpData.firstName || !signUpData.lastName || !signUpData.username || !signUpData.password || !signUpData.confirmPassword) {
       toast({
         title: "Missing Information",
         description: "Please fill in all fields.",
@@ -108,17 +108,28 @@ export function GiftGiverAuthModal({
       return;
     }
 
+    // Validate password length
+    if (signUpData.password.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       await signup({
-        name: signUpData.name,
-        email: signUpData.email,
-        phone: signUpData.phone,
-        password: signUpData.password
+        username: signUpData.username,
+        email: `${signUpData.username}@example.com`,
+        password: signUpData.password,
+        name: `${signUpData.firstName} ${signUpData.lastName}`.trim(),
+        bankAccountNumber: undefined,
       });
       
       // User is automatically signed in after account creation
-      onAuthenticated({ name: signUpData.name, email: signUpData.email }, true);
+      onAuthenticated({ name: `${signUpData.firstName} ${signUpData.lastName}`, email: `${signUpData.username}@example.com` }, true);
       toast({
         title: "Account Created!",
         description: `Welcome! You are now signed in and can send a gift to ${childName}.`,
@@ -156,11 +167,11 @@ export function GiftGiverAuthModal({
   };
 
   const resetForm = () => {
-    setSignInData({ email: '', password: '' });
+    setSignInData({ username: '', password: '' });
     setSignUpData({ 
-      name: '', 
-      email: '', 
-      phone: '', 
+      firstName: '', 
+      lastName: '', 
+      username: '', 
       password: '', 
       confirmPassword: ''
     });
@@ -230,7 +241,7 @@ export function GiftGiverAuthModal({
 
           {/* Sign In Form */}
           {mode === 'signin' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Sign In</h3>
                 <Button variant="ghost" size="sm" onClick={() => setMode('choose')}>
@@ -238,19 +249,21 @@ export function GiftGiverAuthModal({
                 </Button>
               </div>
               
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="signin-email">Email</Label>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="signin-username" className="text-sm font-medium text-black">Username</Label>
                   <Input
-                    id="signin-email"
-                    type="email"
-                    value={signInData.email}
-                    onChange={(e) => setSignInData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter your email"
+                    id="signin-username"
+                    type="text"
+                    value={signInData.username}
+                    onChange={(e) => setSignInData(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="Enter your username"
+                    className="pr-12"
+                    required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="signin-password">Password</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-password" className="text-sm font-medium text-black">Password</Label>
                   <div className="relative">
                     <Input
                       id="signin-password"
@@ -258,7 +271,8 @@ export function GiftGiverAuthModal({
                       value={signInData.password}
                       onChange={(e) => setSignInData(prev => ({ ...prev, password: e.target.value }))}
                       placeholder="Enter your password"
-                      className="pr-10"
+                      className="pr-12"
+                      required
                     />
                     <Button
                       type="button"
@@ -277,7 +291,7 @@ export function GiftGiverAuthModal({
                 </div>
               </div>
               
-              <Button onClick={handleSignIn} disabled={isLoading} className="w-full">
+              <Button onClick={handleSignIn} disabled={isLoading} className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-sm font-semibold" style={{ height: '40px' }}>
                 {isLoading ? "Signing In..." : "Sign In"}
               </Button>
             </div>
@@ -285,7 +299,7 @@ export function GiftGiverAuthModal({
 
           {/* Sign Up Form */}
           {mode === 'signup' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Create Account</h3>
                 <Button variant="ghost" size="sm" onClick={() => setMode('choose')}>
@@ -293,46 +307,51 @@ export function GiftGiverAuthModal({
                 </Button>
               </div>
               
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="signup-name">Full Name</Label>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-first-name" className="text-sm font-medium text-black">First Name</Label>
                   <Input
-                    id="signup-name"
-                    value={signUpData.name}
-                    onChange={(e) => setSignUpData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter your full name"
+                    id="signup-first-name"
+                    value={signUpData.firstName}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, firstName: e.target.value }))}
+                    placeholder="Enter your first name"
+                    className="pr-12"
+                    required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="signup-email">Email</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-last-name" className="text-sm font-medium text-black">Last Name</Label>
                   <Input
-                    id="signup-email"
-                    type="email"
-                    value={signUpData.email}
-                    onChange={(e) => setSignUpData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter your email"
+                    id="signup-last-name"
+                    value={signUpData.lastName}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, lastName: e.target.value }))}
+                    placeholder="Enter your last name"
+                    className="pr-12"
+                    required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="signup-phone">Phone (Optional)</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username" className="text-sm font-medium text-black">Username</Label>
                   <Input
-                    id="signup-phone"
-                    type="tel"
-                    value={signUpData.phone}
-                    onChange={(e) => setSignUpData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Enter your phone number"
+                    id="signup-username"
+                    value={signUpData.username}
+                    onChange={(e) => setSignUpData(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="Enter your username"
+                    className="pr-12"
+                    required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="signup-password">Password</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password" className="text-sm font-medium text-black">Password</Label>
                   <div className="relative">
                     <Input
                       id="signup-password"
                       type={showPassword ? "text" : "password"}
                       value={signUpData.password}
                       onChange={(e) => setSignUpData(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Create a password"
-                      className="pr-10"
+                      placeholder="Create your password"
+                      className="pr-12"
+                      required
                     />
                     <Button
                       type="button"
@@ -349,8 +368,8 @@ export function GiftGiverAuthModal({
                     </Button>
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="signup-confirm">Confirm Password</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-confirm" className="text-sm font-medium text-black">Confirm Password</Label>
                   <div className="relative">
                     <Input
                       id="signup-confirm"
@@ -358,7 +377,8 @@ export function GiftGiverAuthModal({
                       value={signUpData.confirmPassword}
                       onChange={(e) => setSignUpData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                       placeholder="Confirm your password"
-                      className="pr-10"
+                      className="pr-12"
+                      required
                     />
                     <Button
                       type="button"
@@ -377,7 +397,7 @@ export function GiftGiverAuthModal({
                 </div>
               </div>
               
-              <Button onClick={handleSignUp} disabled={isLoading} className="w-full">
+              <Button onClick={handleSignUp} disabled={isLoading} className="w-full bg-[#265FDC] hover:bg-[#1e4db8] rounded-[5px] text-white text-sm font-semibold" style={{ height: '40px' }}>
                 {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
             </div>
