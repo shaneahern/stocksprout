@@ -363,61 +363,69 @@ export default function MobileLayout({ children, currentTab }: MobileLayoutProps
         <div className="flex flex-1">
           <Link href="/" className="flex-1">
             <button 
-              className={`w-full h-full flex flex-col items-center justify-center ${
-                currentTab === "home" ? "text-black" : "text-black"
+              className={`w-full h-full flex flex-col items-center justify-center transition-all duration-200 ${
+                currentTab === "home" 
+                  ? "text-[#265FDC] bg-[#F1FFF7]" 
+                  : "text-gray-500 hover:text-gray-700"
               }`}
               data-testid="tab-home"
             >
-              <Home className="w-8 h-8 mb-1" />
-              <span className="text-xs font-normal">Home</span>
+              <Home className={`w-8 h-8 mb-1 transition-transform duration-200 ${currentTab === "home" ? "scale-110" : ""}`} />
+              <span className={`text-xs font-normal ${currentTab === "home" ? "font-semibold" : ""}`}>Home</span>
             </button>
           </Link>
           
           <button 
             onClick={handlePortfolioClick}
-            className={`flex-1 h-full flex flex-col items-center justify-center ${
-              currentTab === "portfolio" ? "text-black" : "text-black"
+            className={`flex-1 h-full flex flex-col items-center justify-center transition-all duration-200 ${
+              currentTab === "portfolio"
+                ? "text-[#265FDC] bg-[#F1FFF7]"
+                : "text-gray-500 hover:text-gray-700"
             }`}
             data-testid="tab-portfolio"
           >
-            <TrendingUp className="w-8 h-8 mb-1" />
-            <span className="text-xs font-normal">Portfolio</span>
+            <TrendingUp className={`w-8 h-8 mb-1 transition-transform duration-200 ${currentTab === "portfolio" ? "scale-110" : ""}`} />
+            <span className={`text-xs font-normal ${currentTab === "portfolio" ? "font-semibold" : ""}`}>Portfolio</span>
           </button>
           
           <button 
             onClick={handleTimelineClick}
-            className={`flex-1 h-full flex flex-col items-center justify-center ${
-              currentTab === "timeline" ? "text-black" : "text-black"
+            className={`flex-1 h-full flex flex-col items-center justify-center transition-all duration-200 ${
+              currentTab === "timeline"
+                ? "text-[#265FDC] bg-[#F1FFF7]"
+                : "text-gray-500 hover:text-gray-700"
             }`}
             data-testid="tab-timeline"
           >
-            <History className="w-8 h-8 mb-1" />
-            <span className="text-xs font-normal">Timeline</span>
+            <History className={`w-8 h-8 mb-1 transition-transform duration-200 ${currentTab === "timeline" ? "scale-110" : ""}`} />
+            <span className={`text-xs font-normal ${currentTab === "timeline" ? "font-semibold" : ""}`}>Timeline</span>
           </button>
           
           <Link href="/activities" className="flex-1">
             <button 
-              className={`w-full h-full flex flex-col items-center justify-center transition-colors ${
+              className={`w-full h-full flex flex-col items-center justify-center transition-all duration-200 ${
                 currentTab === "activities" 
-                  ? "text-black bg-[#F1FFF7]" 
-                  : "text-black"
+                  ? "text-[#265FDC] bg-[#F1FFF7]" 
+                  : "text-gray-500 hover:text-gray-700"
               }`}
               data-testid="tab-activities"
             >
-              <Gamepad2 className="w-8 h-8 mb-1" />
-              <span className="text-xs font-normal">Activities</span>
+              <Gamepad2 className={`w-8 h-8 mb-1 transition-transform duration-200 ${currentTab === "activities" ? "scale-110" : ""}`} />
+              <span className={`text-xs font-normal ${currentTab === "activities" ? "font-semibold" : ""}`}>Activities</span>
             </button>
           </Link>
           
           <Link href="/profile" className="flex-1">
             <button 
-              className={`w-full h-full flex flex-col items-center justify-center ${
-                currentTab === "profile" ? "text-black" : "text-black"
+              className={`w-full h-full flex flex-col items-center justify-center transition-all duration-200 ${
+                currentTab === "profile"
+                  ? "text-[#265FDC] bg-[#F1FFF7]"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
               data-testid="tab-profile"
             >
-              <User className="w-8 h-8 mb-1" />
-              <span className="text-xs font-normal">Profile</span>
+              <User className={`w-8 h-8 mb-1 transition-transform duration-200 ${currentTab === "profile" ? "scale-110" : ""}`} />
+              <span className={`text-xs font-normal ${currentTab === "profile" ? "font-semibold" : ""}`}>Profile</span>
             </button>
           </Link>
         </div>
